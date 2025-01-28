@@ -71,6 +71,7 @@ lint:
     - yamllint@1.35.1
 actions:
   disabled:
+    - git-lfs
     - poetry-check
     - poetry-install
     - poetry-lock
@@ -81,7 +82,6 @@ actions:
     - trunk-announce
     - commitizen
     - git-blame-ignore-revs
-    - git-lfs
     - npm-check
     - trunk-upgrade-available
   definitions:
