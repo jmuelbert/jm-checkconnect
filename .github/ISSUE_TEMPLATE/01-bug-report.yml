@@ -1,8 +1,8 @@
 ---
-name: "\U0001F41E Bug report"
+name: \U0001F41E Bug report
 description: Report a bug in checkconnect. To report a security issue, please instead use the security option below. For questions, please use the GitHub Discussions.
-title: "🐛 [BUG] - <title>"
-labels: ["bug"]
+title: 🐛 [BUG] - <title>
+labels: [bug]
 assignees: jmuelbert
 body:
   - type: markdown
@@ -51,13 +51,13 @@ body:
     id: logs
     attributes:
       label: Logs
-      description: "Please include the full stacktrace of the errors you get from Python or Javascript. If you are running in a colab notebooks, you can get the logs with by setting `debug=True`"
+      description: Please include the full stacktrace of the errors you get from Python or Javascript. If you are running in a colab notebooks, you can get the logs with by setting `debug=True`
       render: shell
   - type: textarea
     id: system-info
     attributes:
       label: System Info
-      description: Please ensure you are running the latest version of checkconnct. You can get the checkconnect version and all its dependencies.
+      description: Please ensure you are running the latest version of checkconnect. You can get the checkconnect version and all its dependencies.
       render: shell
     validations:
       required: true

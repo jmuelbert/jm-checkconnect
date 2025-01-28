@@ -23,8 +23,8 @@ body:
           [checkconnect documentation with the integrated search](https://jmuelbert.github.io/developer/checkconnect/),
           [API Reference](https://jmuelbert.github.io/developer/checkconnect/developer/api/),
           [GitHub search](https://github.com/jmuelbert/checkconnect),
-          [checkconnct Github Discussions](https://github.com/jmuelbert/checkconnct/discussions),
-          [checkconnct Github Issues](https://github.com/jmuelbert/checkconnct/issues?q=is%3Aissue),
+          [checkconnect Github Discussions](https://github.com/jmuelbert/checkconnect/discussions),
+          [checkconnect Github Issues](https://github.com/jmuelbert/checkconnect/issues?q=is%3Aissue),
   - type: checkboxes
     id: checks
     attributes:

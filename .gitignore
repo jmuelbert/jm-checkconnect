@@ -76,7 +76,7 @@ doc/_build/
 .pybuilder/
 target/
 
-# Jupyter Notebook
+# Jupiter Notebook
 .ipynb_checkpoints
 
 # IPython
@@ -187,6 +187,7 @@ Icon
 Network Trash Folder
 Temporary Items
 .apdisk
+
 pyproject.toml.hatch
 
 node_modules/

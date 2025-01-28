@@ -21,4 +21,4 @@ change.
 vulnerability.
 
 **Please submit your vulnerability report to**
-[Github](https://github.com/jmuelbert/checkconnect/security/advisories/new).
+[GitHub](https://github.com/jmuelbert/checkconnect/security/advisories/new).

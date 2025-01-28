@@ -6,10 +6,10 @@
 
 version: 2
 updates:
-  - package-ecosystem: "github-actions"
-    directory: "/"
+  - package-ecosystem: github-actions
+    directory: /
     schedule:
-      interval: "monthly"
+      interval: monthly
     groups:
       github-actions:
         patterns:
@@ -17,38 +17,38 @@ updates:
     open-pull-requests-limit: 10
     commit-message:
       include: scope
-      prefix: "fix(gha)"
+      prefix: fix(gha)
 
-  - package-ecosystem: "docker"
-    directory: "/"
+  - package-ecosystem: docker
+    directory: /
     schedule:
-      interval: "monthly"
+      interval: monthly
     commit-message:
-      prefix: "fix(docker)"
+      prefix: fix(docker)
 
-  - package-ecosystem: "bundler"
-    directory: "/"
+  - package-ecosystem: bundler
+    directory: /
     schedule:
-      interval: "monthly"
+      interval: monthly
     commit-message:
-      prefix: "fix(bundler)"
+      prefix: fix(bundler)
 
-  - package-ecosystem: "npm"
-    directory: "/docs"
+  - package-ecosystem: npm
+    directory: /docs
     schedule:
-      interval: "monthly"
+      interval: monthly
     commit-message:
-      prefix: "fix(npm+docs)"
+      prefix: fix(npm+docs)
 
-  - package-ecosystem: "pip"
-    directory: "/"
+  - package-ecosystem: pip
+    directory: /
     schedule:
-      interval: "monthly"
+      interval: monthly
     groups:
       python-requirements:
         patterns:
           - "*"
     commit-message:
-      prefix: "fix(pip prod)"
-      prefix-development: "fix(pip dev)"
-      include: "scope"
+      prefix: fix(pip prod)
+      prefix-development: fix(pip dev)
+      include: scope

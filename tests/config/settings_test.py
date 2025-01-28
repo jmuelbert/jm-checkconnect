@@ -40,7 +40,9 @@ class SettingsTest(TestCase):
         """
         assert self.settings.get("app_name") == "app-name"
 
-    def test_get_default_value_when_setting_not_found_with_success(self) -> None:
+    def test_get_default_value_when_setting_not_found_with_success(
+        self,
+    ) -> None:
         """Tests that get() method returns default value
         when setting key is not found in settings file.
         Verifies get() returns expected default value when

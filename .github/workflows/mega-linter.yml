@@ -7,7 +7,7 @@
 # More info at https://megalinter.io
 
 # Trigger mega-linter at every push. Action will also be visible from
-name: "MegaLinter"
+name: MegaLinter
 
 on: # yamllint disable-line rule:truthy
   # Comment this line to trigger action only on pull-requests
@@ -38,7 +38,9 @@ concurrency:
 
 jobs:
   megalinter:
-    name: "MegaLinter"
+    # Skip any PR created by dependabot to avoid permission issues:
+    if: (github.actor != 'dependabot[bot]')
+    name: MegaLinter
     runs-on: ubuntu-latest
 
     permissions:
@@ -53,9 +55,6 @@ jobs:
       APPLY_FIXES_IF_COMMIT: false
       APPLY_FIXES_IF: false
 
-    # Skip any PR created by dependabot to avoid permission issues:
-    if: (github.actor != 'dependabot[bot]')
-
     steps:
       # Git Checkout
       - name: "🧰 Checkout Source Code"
@@ -65,7 +64,7 @@ jobs:
           fetch-depth: 0 # If you use VALIDATE_ALL_CODEBASE = true, you can remove this line to improve performances
 
       # MegaLinter
-      - name: "MegaLinter"
+      - name: MegaLinter
         id: ml
         # You can override MegaLinter flavor used to have faster performances
         # More info at https://megalinter.io/flavors/
@@ -74,15 +73,27 @@ jobs:
         # All available variables are described in documentation
         # https://megalinter.io/configuration/
         env:
-          # All available variables are described in documentation
-          # https://megalinter.io/configuration/
-          VALIDATE_ALL_CODEBASE: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }} # Validates all source when push on main, else just the git diff with main. Override with true if you always want to lint all sources
+          # Validates all source when push on main, else just the git diff with
+          # main. Override with true if you always want to lint all sources
+          #
+          # To validate the entire codebase, set to:
+          # VALIDATE_ALL_CODEBASE: true
+          #
+          # To validate only diff with main, set to:
+          # VALIDATE_ALL_CODEBASE: >-
+          #   ${{
+          #     github.event_name == 'push' &&
+          #     github.ref == 'refs/heads/main'
+          #   }}
+          VALIDATE_ALL_CODEBASE: true
+
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # ADD YOUR CUSTOM ENV VARIABLES HERE OR DEFINE THEM IN A FILE .mega-linter.yml AT THE ROOT OF YOUR REPOSITORY
-          # DISABLE: COPYPASTE,SPELL # Uncomment to disable copy-paste and spell checks
+
+          # ADD YOUR CUSTOM ENV VARIABLES HERE TO OVERRIDE VALUES OF
+          # .mega-linter.yml AT THE ROOT OF YOUR REPOSITORY
 
       # Upload MegaLinter artifacts
-      - name: "Archive production artifacts"
+      - name: Archive production artifacts
         if: success() || failure()
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
@@ -130,7 +141,7 @@ jobs:
           title: "[MegaLinter] Apply linters automatic fixes"
           labels: bot
 
-      - name: "Create PR output"
+      - name: Create PR output
         if: env.APPLY_FIXES_IF_PR == 'true'
         run: |
           echo "PR Number - ${{ steps.cpr.outputs.pull-request-number }}"
@@ -138,11 +149,11 @@ jobs:
 
       # Push new commit if applicable
       # (for now works only on PR from same repository, not from forks)
-      - name: "Prepare commit"
+      - name: Prepare commit
         if: env.APPLY_FIXES_IF_COMMIT == 'true'
         run: sudo chown -Rc $UID .git/
 
-      - name: "Commit and push applied linter fixes"
+      - name: Commit and push applied linter fixes
         if: env.APPLY_FIXES_IF_COMMIT == 'true'
         uses: stefanzweifel/git-auto-commit-action@8621497c8c39c72f3e2a999a26b4ca1b5058a842 # v5.0.1
         with:

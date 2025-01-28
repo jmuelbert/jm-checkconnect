@@ -11,6 +11,7 @@
 <!--- If your PR fixes/resolves one or more issues, or is related to
     another PR, link to them here. -->
 
+<!-- markdownlint-disable-next-line MD044 -->
 <!--- See: https://docs.github.com/en/free-pro-team@latest/github/managing-your-work-on-github/linking-a-pull-request-to-an-issue#linking-a-pull-request-to-an-issue-using-a-keyword --->
 
 ## Motivation and Context

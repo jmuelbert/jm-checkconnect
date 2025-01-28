@@ -17,13 +17,16 @@
 	"customizations": {
 		"vscode": {
 			"extensions": [
-				"ms-python.python",
-				"ms-python.vscode-pylance",
-				"ms-python.black-formatter",
-				"ms-toolsai.jupiter",
+				"phoenisx.cssvar",
 				"esbenp.prettier-vscode",
-				"svelte.svelte-vscode",
-				"phoenisx.cssvar"
+				"ms-pyright.pyright",
+				"ms-python.mypy-type-checker",
+				"ms-python.python",
+				"ms-python.pylint",
+				"ms-python.vscode-pylance",
+				"ms-python.debugpy",
+				"python.mypy-type-checker",
+				"charliermarsh.ruff"
 			],
 			"remote.autoForwardPorts": false
 		}
@@ -36,6 +39,5 @@
 		"9876": {
 			"label": "checkconnect dev port"
 		}
-	},
-	"postCreateCommand": "export NODE_OPTIONS=\"--max-old-space-size=8192\" && chmod +x scripts/install_gradio.sh scripts/install_test_requirements.sh scripts/build_frontend.sh && ./scripts/install_gradio.sh && ./scripts/install_test_requirements.sh && ./scripts/build_frontend.sh"
+	}
 }

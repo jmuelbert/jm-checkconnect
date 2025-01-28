@@ -3,7 +3,7 @@
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-name: "REUSE Compliance Check"
+name: REUSE Compliance Check
 
 on: # yamllint disable-line rule:truthy
   push:

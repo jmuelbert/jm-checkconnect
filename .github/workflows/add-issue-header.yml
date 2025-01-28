@@ -9,7 +9,7 @@
 # - Crash report
 # - Feature or enhancement
 
-name: "Add issue header"
+name: Add issue header
 
 on: # yamllint disable-line rule:truthy
   issues:

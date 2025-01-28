@@ -7,27 +7,21 @@ site_name: checkconnect
 site_url: https://io.github.org/jmuelbert/checkconnect/
 site_description: >-
   A tester for differt hosts for available.
-
 # Repository
 repo_name: jmuelbert/checkconnect
 repo_url: https://github.com/jmuelbert/checkconnect/
-edit_uri: 'blob/main/docs/'
-
+edit_uri: blob/main/docs/
 # Copyright
 copyright: Copyright &copy; 2023 - 2024 Jürgen Mülbert
-
 # Configuration
 docs_dir: docs
 site_dir: site
-
 theme:
   name: material
   custom_dir: docs/.overrides
-
   # Static files
   static_templates:
     - 404.html
-
   # Default values, taken from mkdocs_theme.yml
   language: en
   direction: ltr
@@ -65,7 +59,6 @@ theme:
       toggle:
         icon: material/brightness-7
         name: Switch to dark mode
-
     # Palette toggle for dark mode
     - media: '(prefers-color-scheme: dark)'
       scheme: slate
@@ -80,37 +73,35 @@ theme:
   icon:
     repo: fontawesome/brands/github-alt
     logo: material/check-network-outline
-
 # Page tree
 nav:
-  - Introduction: 'index.md'
-  - QuickStart: 'quickstart.md'
-  - Philosophy: 'philosophy.md'
-  - Upgrade: 'upgrade.md'
+  - Introduction: index.md
+  - QuickStart: quickstart.md
+  - Philosophy: philosophy.md
+  - Upgrade: upgrade.md
   # - Advanced:
   - Guides:
-      - Command Line: 'guides/commandline.md'
-      - Configuration: 'guides/configuration.md'
-      - Installation: 'guides/install.md'
-      - Logging: 'guides/logging.md'
-      - Troubleshooting: 'guides/troubleshooting.md'
+      - Command Line: guides/commandline.md
+      - Configuration: guides/configuration.md
+      - Installation: guides/install.md
+      - Logging: guides/logging.md
+      - Troubleshooting: guides/troubleshooting.md
   - Develop:
-      - Environment Variables: 'developer/environment_variables.md'
-      - Changelog: 'developer/changelog.md'
-      - Release Notes: 'developer/release-notes.md'
-      - API: 'developer/overview.md'
-      - CLI: 'developer/cli.md'
-      - Core: 'developer/core.md'
-      - Configuration: 'developer/configuration.md'
+      - Environment Variables: developer/environment_variables.md
+      - Changelog: developer/changelog.md
+      - Release Notes: developer/release-notes.md
+      - API: developer/overview.md
+      - CLI: developer/cli.md
+      - Core: developer/core.md
+      - Configuration: developer/configuration.md
   - Community:
-      - faq: 'community/faq.md'
-      - Contributing: 'community/contributing.md'
-      - Code of Conduct: 'community/code_of_conduct.md'
-      - Third Party Packages: 'community/third_party_packages.md'
+      - faq: community/faq.md
+      - Contributing: community/contributing.md
+      - Code of Conduct: community/code_of_conduct.md
+      - Third Party Packages: community/third_party_packages.md
   - About:
-      - Authors: 'about/authors.md'
-      - License: 'about/EUPL-1.2.md'
-
+      - Authors: about/authors.md
+      - License: about/EUPL-1.2.md
 # Plugins
 plugins:
   i18n:
@@ -129,7 +120,6 @@ plugins:
       - locale: es
         name: Español
         build: false
-
   # Enable for bug reports
   # info: {}
   # Built-in
@@ -141,11 +131,6 @@ plugins:
   glightbox: {}
   minify:
     minify_html: true
-  git-authors: {}
-  git-revision-date-localized:
-    type: date
-    strict: false
-    fallback_to_build_date: true
   table-reader: {}
   mike:
     alias_type: copy
@@ -172,7 +157,6 @@ plugins:
     redirect_maps:
       conventions.md: philosophy.md
       upgrading.md: upgrade.md
-
 # Markdown Extensions
 markdown_extensions:
   - abbr
@@ -191,7 +175,6 @@ markdown_extensions:
   # Standard mkdocs Extensions
   - mkdocs-click
   - mkautodoc
-
   # Python Markdown Extensions
   - pymdownx.arithmatex:
       generic: true
@@ -243,7 +226,6 @@ markdown_extensions:
           case: lower
   - pymdownx.tasklist:
       custom_checkbox: true
-
 # Customization
 extra:
   version:
@@ -272,7 +254,6 @@ extra:
       link: https://pypi.org/project/checkconnect/
     - icon: fontawesome/brands/twitter
       link: https://twitter.com/jmuelbert
-
 watch:
   - mkdocs.yml
   - src/

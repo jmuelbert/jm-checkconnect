@@ -3,6 +3,11 @@ Upstream-Name: checkconnect
 Upstream-Contact: <juergen.muelbert@outlook.de>
 source: https://www.github.com/jmuelbert/checkconnect
 
+#source version file
+Files: src/checkconnect/_version.py
+Copyright: Jürgen Mülbert <juergen.muelbert@outlook.de>
+License: EUPL-1.2
+
 #misc source config
 Files: *.json logging.conf src/checkconnect/*.csv
 Copyright: Jürgen Mülbert <juergen.muelbert@outlook.de>
@@ -24,7 +29,7 @@ Copyright: Jürgen Mülbert <juergen.muelbert@outlook.de>
 License: BSD-3-Clause
 
 #misc config files
-Files:  .cspellcache .editorconfig *.toml *.yml *.yaml .flake8 .htmlhintrc .isort.cfg .mypy.ini .git-blame-ignore-revs .gitattributes .github/* .gitignore  .gitlint .prettierignore .prettierrc .pylintrc .standard-python-version
+Files: .editorconfig .trunk/.gitignore .trunk/configs/.bandit .trunk/configs/svgo.config.js commitlint.config.cjs .cspellcache .eslintignore .eslintrc.js .npmrc  *.toml *.yml *.yaml .git-blame-ignore-revs .gitattributes .github/* .gitignore  .gitlint .prettierignore .prettierrc .standard-python-version commitlint.config.js
 Copyright: Jürgen Mülbert <juergen.muelbert@outlook.de>
 License: EUPL-1.2
 

@@ -5,7 +5,7 @@
 #
 
 # Name of this GitHub Actions workflow.
-name: Semgrep
+name: Semgrep Analysis
 
 on: # yamllint disable-line rule:truthy
   push:
@@ -18,7 +18,7 @@ on: # yamllint disable-line rule:truthy
   workflow_dispatch:
 
   schedule:
-    - cron: "20 17 * * 4"
+    - cron: 20 17 * * 4
 
 permissions:
   contents: read
@@ -58,4 +58,3 @@ jobs:
         uses: github/codeql-action/upload-sarif@f09c1c0a94de965c15400f5634aa42fac8fb8f88 # v3.27.5
         with:
           sarif_file: semgrep.sarif
-        if: always()

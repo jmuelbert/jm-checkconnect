@@ -8,14 +8,13 @@
 # by a third-party and are governed by separate terms of service, privacy
 # policy, and support documentation.
 
-name: "Scorecard supply-chain security"
+name: Scorecard supply-chain security
 
 on: # yamllint disable-line rule:truthy
-  branch_protection_rule:
-  # Schedule the workflow to run every Tuesday at 4:24 AM
+  branch_protection_rule: # Schedule the workflow to run every Tuesday at 4:24 AM
 
   schedule:
-    - cron: "24 4 * * 2"
+    - cron: 34 4 * * 2
 
   push:
     branches: [main, develop, release]
@@ -31,16 +30,11 @@ jobs:
   analysis:
     # Skip any PR created by dependabot to avoid permission issues:
     if: (github.actor != 'dependabot[bot]')
-    name: "Scorecard analysis"
+    name: Scorecard analysis
     runs-on: ubuntu-latest
     permissions:
-      # Needed to upload the results to code-scanning dashboard.
       security-events: write
-      # Needed to publish results and get a badge (see publish_results below).
       id-token: write
-      # Uncomment the permissions below if installing in a private repository.
-      # contents: read
-      # actions: read
 
     steps:
       - name: "🧰 Checkout Source Code"
@@ -49,7 +43,7 @@ jobs:
       - name: "Run analysis"
         uses: ossf/scorecard-action@62b2cac7ed8198b15735ed49ab1e5cf35480ba46 # v2.4.0
         with:
-          results_file: results.sarif
+          results_file: scorecard_results.sarif
           results_format: sarif
           publish_results: true
 
@@ -57,11 +51,11 @@ jobs:
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
           name: SARIF file
-          path: results.sarif
+          path: scorecard_results.sarif
           retention-days: 5
 
       # Upload the results to GitHub's code scanning dashboard.
       - name: "Upload to code-scanning"
         uses: github/codeql-action/upload-sarif@f09c1c0a94de965c15400f5634aa42fac8fb8f88 # v3.27.5
         with:
-          sarif_file: results.sarif
+          sarif_file: scorecard_results.sarif

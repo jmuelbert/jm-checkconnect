@@ -28,11 +28,14 @@ def test_urls(url_file: FileName, pdf_output: fpdf) -> None:
 
     Args:
     ----
-      url_file: Path to CSV file containing URLs to test. URLs are assumed to be in the first column.
+      url_file: Path to CSV file containing URLs to test. URLs
+                are assumed to be in the first column.
       pdf_output: PDF file opened for writing to log results.
 
-     For each URL in the CSV file, sends a GET request and writes the response status code and content
-     length to the PDF file. If an exception occurs, it is caught and an error message is written instead.
+     For each URL in the CSV file, sends a GET request and
+     writes the response status code and content length to
+     the PDF file. If an exception occurs, it is caught and
+     an error message is written instead.
 
     """
     # Create a list to store the URLs

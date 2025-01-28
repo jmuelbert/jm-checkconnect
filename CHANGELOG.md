@@ -8,7 +8,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 <!-- changelog follows -->
 
-## [Unreleased](https://github.com/jmuelbert/checkconnect/compare/v0.0.1‚...HEAD)
+## [Unreleased](https://github.com/jmuelbert/checkconnect/compare/v0.0.1......HEAD)
 
 ### Added
 

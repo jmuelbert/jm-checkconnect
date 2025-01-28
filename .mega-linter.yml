@@ -6,7 +6,6 @@
 
 # all, none, or list of linter keys
 APPLY_FIXES: all
-
 # If you use ENABLE variable, all other languages/formats/tooling-formats will
 # be disabled by default
 # ENABLE:
@@ -19,21 +18,17 @@ DISABLE_LINTERS:
   - PYTHON_BLACK
   - PYTHON_FLAKE8
   - PYTHON_ISORT
-  - PYTHON_PYLINT
   - PYTHON_PYRIGHT
-
 # DISABLE:
 # - COPYPASTE # Uncomment to disable checks of excessive copy-pastes
 # - SPELL # Uncomment to disable checks of spelling mistakes
-
+API_SPECTRAL_FILTER_REGEX_EXCLUDE: (mkdocs.yml)
 EDITORCONFIG_FILTER_REGEX_EXCLUDE: (LICENSE|LICENSES/|AUTHORS|\.github/PULL_REQUEST_TEMPLATE.md)
 HTML_HTMLHINT_FILTER_REGEX_EXCLUDE: (docs/\.overrides/partials/copyright.html)
 JSON_JSONLINT_FILTER_REGEX_EXCLUDE: (\.devcontainer/devcontainer.json|\.vscode)
 JSON_V8R_FILTER_REGEX_EXCLUDE: (\.devcontainer/devcontainer.json|\.vscode)
 OPENAPI_SPECTRAL_FILTER_REGEX_EXCLUDE: (mkdocs.yml)
-
 SHOW_ELAPSED_TIME: true
-
 FILEIO_REPORTER: false
 # Uncomment if you want MegaLinter to detect errors but not block CI to pass
 # DISABLE_ERRORS: true

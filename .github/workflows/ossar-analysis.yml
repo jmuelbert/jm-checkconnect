@@ -12,31 +12,35 @@
 # with GitHub code scanning. For documentation, or to provide feedback, visit
 # https://github.com/github/ossar-action
 
-name: "OSSAR"
+name: OSSAR Analysis
 
 on: # yamllint disable-line rule:truthy
   push:
     branches: [main, develop, release]
     paths:
-      - "src/**"
-      - "tests/**"
+      - src/**
+      - tests/**
       - pyproject.toml
-      - ".github/workflows/ossar-analysis.yml"
+      - .github/workflows/ossar-analysis.yml
 
   pull_request:
     # The branches below must be a subset of the branches above
     types: [opened, synchronize, reopened]
     paths:
-      - "src/**"
-      - "tests/**"
+      - src/**
+      - tests/**
       - pyproject.toml
-      - ".github/workflows/ossar-analysis.yml"
+      - .github/workflows/ossar-analysis.yml
 
   schedule:
-    - cron: "22 15 * * 3"
+    - cron: 22 15 * * 3
 
 permissions:
   contents: read
+
+concurrency:
+  group: ${{ github.ref }}-${{ github.workflow }}
+  cancel-in-progress: true
 
 jobs:
   OSSAR-Scan:
@@ -64,7 +68,7 @@ jobs:
       #   with:
       #     dotnet-version: '3.1.x'
       # Run open source static analysis tools
-      - name: "Run OSSAR"
+      - name: Run OSSAR
         uses: github/ossar-action@4e96c4f6e591eb4b991abfd459e40b136a317aea # main
         id: ossar
 
