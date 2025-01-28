@@ -71,6 +71,7 @@ lint:
     - yamllint@1.35.1
 actions:
   disabled:
+    - commitizen
     - git-lfs
     - poetry-check
     - poetry-install
@@ -80,7 +81,6 @@ actions:
     - trunk-fmt-pre-commit
   enabled:
     - trunk-announce
-    - commitizen
     - git-blame-ignore-revs
     - npm-check
     - trunk-upgrade-available

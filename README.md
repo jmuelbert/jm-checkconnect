@@ -65,6 +65,7 @@ page for a list of all known issues.
 [![Codacy Security Scan][codacy_action_badge]][codacy_action]
 [![CodeQL][codeql_action_badge]][codeql_action]
 [![DevSkim][devskim_action_badge]][devskim_action]
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fjmuelbert%2Fcheckconnect.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fjmuelbert%2Fcheckconnect?ref=badge_shield)
 
 ## Linter and spell checking
 
@@ -121,3 +122,6 @@ checkconnect is distributed under the terms of the
 [ruff-url]: https://github.com/astral-sh/ruff
 [writegood_action]: https://github.com/jmuelbert/checkconnect/actions/workflows/write-good.yml
 [writegood_action_badge]: https://github.com/jmuelbert/checkconnect/actions/workflows/write-good.yml/badge.svg
+
+
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fjmuelbert%2Fcheckconnect.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Fjmuelbert%2Fcheckconnect?ref=badge_large)
