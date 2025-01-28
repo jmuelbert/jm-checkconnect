@@ -65,11 +65,7 @@ class Settings:
             The value for the setting, or the default value if not found.
 
         """
-        return (
-            self._get_from_section(self.env, name)
-            or self._get_from_section("default", name)
-            or default_value
-        )
+        return self._get_from_section(self.env, name) or self._get_from_section("default", name) or default_value
 
     def _get_from_section(self, section: str, var: str) -> Any:
         """Gets the value for the given setting name from the given config

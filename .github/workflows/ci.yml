@@ -68,6 +68,7 @@ jobs:
 
       # - name: Run pre-commit with hatch
       #  run: hatch run check:pre-commit run --all-files
+      # TODO: remove pre-commit
 
   lint-ruff-format:
     name: Check ruff-format

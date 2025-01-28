@@ -16,7 +16,7 @@
   "eslint.validate": ["javascript", "typescript", "html", "markdown", "svelte"],
   "eslint.experimental.useFlatConfig": true,
   "eslint.options": {
-    "overrideConfigFile": "./.config/eslint.config.js"
+    "overrideConfigFile": "./.config/eslint.config.js",
   },
   "typescript.tsdk": "node_modules/typescript/lib",
   "files.exclude": {
@@ -29,6 +29,6 @@
     "**/.classpath": true,
     "**/.factorypath": true,
     "**/.project": true,
-    "**/.settings": true
-  }
+    "**/.settings": true,
+  },
 }

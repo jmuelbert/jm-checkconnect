@@ -11,6 +11,7 @@
 <!--- If your PR fixes/resolves one or more issues, or is related to
     another PR, link to them here. -->
 
+<!-- markdownlint-disable-next-line MD044 -->
 <!--- See: https://docs.github.com/en/free-pro-team@latest/github/managing-your-work-on-github/linking-a-pull-request-to-an-issue#linking-a-pull-request-to-an-issue-using-a-keyword --->
 
 ## Motivation and Context
@@ -31,8 +32,8 @@
 <!--- You can open a pull request before all these are done, but
      they should be done before getting merged. -->
 
-- [ ] If the key of a setting is changed, the `old` attribute is updated or it
-      is resolved in SettingsUpdater.
+- [ ] If the key of a setting is changed, the `old` attribute is updated or
+      it is resolved in SettingsUpdater.
 - [ ] If needed, I have opened a pull request or an issue to update the
       [documentation](http://jmuelbert.github.io/checkconnct/).
 - [ ] If these changes are notable, they are documented in

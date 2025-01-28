@@ -5,7 +5,7 @@
 #
 
 # Name of this GitHub Actions workflow.
-name: Semgrep
+name: Semgrep Analysis
 
 on: # yamllint disable-line rule:truthy
   push:
@@ -18,7 +18,7 @@ on: # yamllint disable-line rule:truthy
   workflow_dispatch:
 
   schedule:
-    - cron: "20 17 * * 4"
+    - cron: 20 17 * * 4
 
 permissions:
   contents: read
@@ -42,7 +42,7 @@ jobs:
       image: returntocorp/semgrep
 
     steps:
-      - name: "🧰 Checkout Source Code"
+      - name: 🧰 Checkout Source Code
         uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
 
         # Skip any PR created by dependabot to avoid permission issues;
@@ -54,7 +54,7 @@ jobs:
           SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
 
       # Upload the results to GitHub's code scanning dashboard.
-      - name: "Upload to code-scanning"
+      - name: Upload to code-scanning
         uses: github/codeql-action/upload-sarif@f079b8493333aace61c81488f8bd40919487bd9f # v3.25.7
         with:
           sarif_file: semgrep.sarif

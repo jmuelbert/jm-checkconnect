@@ -1,5 +1,6 @@
 aiohttp
 apdisk
+biomejs
 Bxml
 davidanson
 dbaeumer

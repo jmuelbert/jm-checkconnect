@@ -2,16 +2,12 @@
 # To learn more about the format of this file, see https://docs.trunk.io/reference/trunk-yaml
 version: 0.1
 cli:
-  version: 1.22.1
-  options:
-    - commands: [ALL] # apply to all `trunk` commands
-      args: --monitor=true
-    - commands: [check, fmt] # apply only to `trunk check` and `trunk fmt` commands
+  version: 1.22.2
 # Trunk provides extensibility via plugins. (https://docs.trunk.io/plugins)
 plugins:
   sources:
     - id: trunk
-      ref: v1.5.0
+      ref: v1.6.0
       uri: https://github.com/trunk-io/plugins
 # Many linters and tools depend on runtimes - configure them here. (https://docs.trunk.io/runtimes)
 runtimes:
@@ -22,37 +18,37 @@ runtimes:
 # This is the section where you manage your linters. (https://docs.trunk.io/check/configuration)
 lint:
   disabled:
-    - deno
-    - bandit
-    - osv-scanner
+    - black
+    - pyright
   enabled:
-    - markdown-link-check@3.12.2
-    - pre-commit-hooks@4.6.0
+    - stylelint@16.6.1:
+        args:
+          - --report-needless-disables
+          - --report-invalid-scope-disables
+        extends: stylelint-config-standard-scss@13.1.0
     - eslint@8.57.0
-    - flake8@7.0.0
-    - cspell@8.8.3
-    - djlint@1.34.1
-    - gitleaks@8.18.2
+    - biome@1.8.2
+    - markdown-link-check@3.12.2
+    - cspell@8.9.1
+    - gitleaks@8.18.4
     - pre-commit-hooks@4.6.0
-    - pylint@3.2.2
-    - pyright@1.1.365
-    - semgrep@1.74.0
-    - stylelint@16.6.1
-    - trufflehog-git@3.77.0
+    - semgrep@1.76.0
+    - trufflehog-git@3.78.2
     - trunk-toolbox@0.3.1
     - actionlint@1.7.1
-    - black@24.4.2
-    - checkov@3.2.120
-    - codespell@2.2.6:
-        packages:
-          - tomli>=2.0.1
+    - bandit@1.7.9
+    - checkov@3.2.141
+    - codespell@2.3.0:
+        exclude: ^(docs/conf.py|.*\.svg|pyproject.toml|LICENSE|LICENSES/|\.github/actions)$
+        extends:
+          - toml>=2.0.1
     - git-diff-check
     - isort@5.13.2
     - markdownlint@0.41.0
     - mypy@1.10.0:
-        packages:
+        extends:
           - types-PyYAML
-          - tomli >= 0.2.6, < 2.0.0
+          - tomli >= 0.2.6
           - click >= 8.1.0, != 8.1.4, != 8.1.5
           - packaging >= 22.0
           - platformdirs >= 2.1.0
@@ -63,25 +59,31 @@ lint:
           - types-requests>=2.31
           - urllib3>=2.2.1
           - hypothesmith
-    - prettier@3.2.5:
-        plugins:
-          - airbnb
-          - prettier
-    - ruff@0.4.6
+    - prettier@3.3.2
+    - pylint@3.2.3
+    - ruff@0.4.10
     - svgo@3.3.2
     - taplo@0.8.1
-    - trivy@0.51.4
-    - trufflehog@3.77.0
+    - trivy@0.52.2
+    - trufflehog@3.78.2
     - yamllint@1.35.1
 actions:
   disabled:
-    - trunk-fmt-pre-commit
-    - trunk-check-pre-push
-  enabled:
-    - commitizen
     - commitlint
+    - trunk-check-pre-push
+    - trunk-fmt-pre-commit
+  enabled:
+    - trunk-announce
+    - commitizen
     - git-blame-ignore-revs
     - git-lfs
     - npm-check
-    - trunk-announce
+    - poetry-check
+    - poetry-install
+    - poetry-lock
     - trunk-upgrade-available
+  definitions:
+    - id: npm-install
+      triggers:
+        - files: [package.json]
+      run: npm install

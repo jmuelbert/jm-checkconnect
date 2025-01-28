@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: MIT
 #
 
-name: "Lint Commit Messages"
+name: Lint Commit Messages
 
 on: [pull_request] # yamllint disable-line rule:truthy
 
@@ -23,8 +23,8 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: "🧰 Checkout"
+      - name: 🧰 Checkout
         uses: actions/checkout@44c2b7a8a4ea60a981eaca3cf939b5f4305c123b # v4.1.5
 
-      - name: "Check the commits"
+      - name: Check the commits
         uses: wagoid/commitlint-github-action@7f0a61df502599e1f1f50880aaa7ec1e2c0592f2 # v6.0.1

@@ -52,9 +52,6 @@ def create_pdf() -> fpdf:
     return pdf
 
 
-# @click.group(
-#  context_settings={'help_option_names': ['-h', '--help'], 'max_content_width': 120}, invoke_without_command=True
-# )
 @click.option(
     "-u",
     "--url-data",
@@ -68,7 +65,10 @@ def create_pdf() -> fpdf:
     help="the file contents the NTP servers to be tested",
 )
 @click.option(
-    "-o", "--pdf_output", default="output.pdf", help="the name of the output file"
+    "-o",
+    "--pdf_output",
+    default="output.pdf",
+    help="the name of the output file",
 )
 @click.option(
     "--config",

@@ -533,9 +533,9 @@ select = [
   "YTT303",
 ]
 
-[lint.per-file-ignores]
-"**/scripts/*" = ["INP001", "T201"]
-"**/tests/**/*" = ["PLC1901", "PLR2004", "PLR6301", "S", "TID252"]
+[lint.flake8-pytest-style]
+fixture-parentheses = false
+mark-parentheses = false
 
 [lint.flake8-tidy-imports]
 ban-relative-imports = "all"
@@ -543,6 +543,6 @@ ban-relative-imports = "all"
 [lint.isort]
 known-first-party = ["checkconnect"]
 
-[lint.flake8-pytest-style]
-fixture-parentheses = false
-mark-parentheses = false
+[lint.per-file-ignores]
+"**/scripts/*" = ["INP001", "T201"]
+"**/tests/**/*" = ["PLC1901", "PLR2004", "PLR6301", "S", "TID252"]

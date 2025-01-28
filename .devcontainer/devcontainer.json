@@ -1,43 +1,43 @@
 // For format details, see https://aka.ms/devcontainer.json. For config options, see the
 // README at: https://github.com/devcontainers/templates/tree/main/src/docker-existing-dockerfile
 {
-  "name": "Python 3",
-  "image": "mcr.microsoft.com/devcontainers/python:0-3.9",
-  // See https://containers.dev/features
-  "features": {
-    "ghcr.io/devcontainers/features/git:1": {},
-    "ghcr.io/devcontainers/features/node:1": {},
-    "ghcr.io/devcontainers-contrib/features/ffmpeg-apt-get:1": {}
-  },
-  "hostRequirements": {
-    "cpus": 4,
-    "memory": "8gb",
-    "storage": "32gb"
-  },
-  "customizations": {
-    "vscode": {
-      "extensions": [
-        "phoenisx.cssvar",
-        "esbenp.prettier-vscode",
-        "ms-pyright.pyright",
-        "ms-python.mypy-type-checker",
-        "ms-python.python",
-        "ms-python.pylint",
-        "ms-python.vscode-pylance",
-        "ms-python.debugpy",
-        "python.mypy-type-checker",
-        "charliermarsh.ruff"
-      ],
-      "remote.autoForwardPorts": false
-    }
-  },
-  "forwardPorts": [7860, 9876],
-  "portsAttributes": {
-    "7860": {
-      "label": "checkconnect port"
-    },
-    "9876": {
-      "label": "checkconnect dev port"
-    }
-  }
+	"name": "Python 3",
+	"image": "mcr.microsoft.com/devcontainers/python:0-3.9",
+	// See https://containers.dev/features
+	"features": {
+		"ghcr.io/devcontainers/features/git:1": {},
+		"ghcr.io/devcontainers/features/node:1": {},
+		"ghcr.io/devcontainers-contrib/features/ffmpeg-apt-get:1": {}
+	},
+	"hostRequirements": {
+		"cpus": 4,
+		"memory": "8gb",
+		"storage": "32gb"
+	},
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"phoenisx.cssvar",
+				"esbenp.prettier-vscode",
+				"ms-pyright.pyright",
+				"ms-python.mypy-type-checker",
+				"ms-python.python",
+				"ms-python.pylint",
+				"ms-python.vscode-pylance",
+				"ms-python.debugpy",
+				"python.mypy-type-checker",
+				"charliermarsh.ruff"
+			],
+			"remote.autoForwardPorts": false
+		}
+	},
+	"forwardPorts": [7860, 9876],
+	"portsAttributes": {
+		"7860": {
+			"label": "checkconnect port"
+		},
+		"9876": {
+			"label": "checkconnect dev port"
+		}
+	}
 }

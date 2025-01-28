@@ -1,5 +1,4 @@
 extend = "ruff_defaults.toml"
-
 # https://github.com/astral-sh/ruff/issues/8627
 exclude = [".git", ".mypy_cache", ".ruff_cache", ".venv", "dist"]
 extend-include = ["*.ipynb"]
@@ -14,11 +13,11 @@ ignore = [
   "PLC0415",
 ]
 
-[lint.pydocstyle]
-convention = "google"
-
 [lint.extend-per-file-ignores]
 "docs/.hooks/*" = ["INP001", "T201"]
 
 [lint.isort]
 known-first-party = ["checkconnect"]
+
+[lint.pydocstyle]
+convention = "google"

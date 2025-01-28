@@ -10,7 +10,7 @@
 # file with configuration.  For more information, see:
 # https://github.com/actions/labeler
 
-name: "Pull Request auto-label"
+name: Pull Request auto-label
 
 on: # yamllint disable-line rule:truthy
   push:
@@ -35,14 +35,14 @@ jobs:
       contents: read
       pull-requests: write
     steps:
-      - name: "Update PRs with conflict labels"
+      - name: Update PRs with conflict labels
         uses: eps1lon/actions-label-merge-conflict@6d74047dcef155976a15e4a124dde2c7fe0c5522 # v3.0.1
         with:
-          dirtyLabel: "conflicts"
+          dirtyLabel: conflicts
           # removeOnDirtyLabel: "PR: ready to ship"
           repoToken: "${{ secrets.GITHUB_TOKEN }}"
-          commentOnDirty: "This pull request has conflicts with the base branch, please resolve those so we can evaluate the pull request."
-          commentOnClean: "Conflicts have been resolved! 🎉 A maintainer will review the pull request shortly."
+          commentOnDirty: This pull request has conflicts with the base branch, please resolve those so we can evaluate the pull request.
+          commentOnClean: Conflicts have been resolved! 🎉 A maintainer will review the pull request shortly.
 
   size:
     if: ${{ github.event_name == 'pull_request_target' }}
@@ -54,21 +54,21 @@ jobs:
       - uses: codelytv/pr-size-labeler@56f6f0fc35c7cc0f72963b8467729e1120cb4bed # v1.10.0
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          xs_label: "size/xs"
+          xs_label: size/xs
           xs_max_size: "10"
-          s_label: "size/s"
+          s_label: size/s
           s_max_size: "100"
-          m_label: "size/m"
+          m_label: size/m
           m_max_size: "500"
-          l_label: "size/l"
+          l_label: size/l
           l_max_size: "1000"
-          xl_label: "size/xl"
-          fail_if_xl: "false"
+          xl_label: size/xl
+          fail_if_xl: false
           message_if_xl: >
             This PR exceeds the recommended size of 1000 lines.
             Please make sure you are NOT addressing multiple issues with one PR.
             Note this PR might be rejected due to its size.
-          github_api_url: "https://api.github.com"
+          github_api_url: https://api.github.com
           files_to_ignore: ""
 
   scope:

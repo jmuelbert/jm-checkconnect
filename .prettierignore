@@ -1,33 +1,34 @@
-/node_modules/
-/public/
-/vendor/
-/tmp/
-/sitespeed-result/
-/.mypy_cache/
-/build/
-.mypy_cache
-.pytest_cache
-.ruff_cache
-.clang-tidy
+# Benchmark artifacts
+benchmark/projects/
+benchmark/results/
+
+# Deep Directories
+**/dist
+**/build
+**/smoke
+**/node_modules
+**/fixtures
+**/vendor
+**/.vercel
+
+# Short-term need to format
+!packages/db/test/fixtures
+
+# Directories
+.github
+.changeset
+
+# Files
 pnpm-lock.yaml
-docs/.overrides/partials
-docs/.gitpod.yml
-docs/node_modules
-docs/.changeset
-docs/pnpm-lock.yaml
-docs/overrides/*.html
-*.ts
-*.wxs
-CONTRIBUTORS
-LICENSE
-LICENSES/
-project-words.txt
-out
-build
-image
-dist
-bin
-.vscode-test
-result*
-*.delta
-*.lock
+
+# Formatted by Biome
+**/*.json
+**/*.js
+**/*.ts
+**/*.tsx
+**/*.jsx
+**/*.mjs
+**/*.cjs
+
+# Formatted by taplo
+**/*.toml

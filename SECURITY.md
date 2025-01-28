@@ -3,12 +3,12 @@
 ## Supported Versions
 
 At the moment checkconnect only considers the very latest commit to be
-supported. We combine that with our fast response to incidents and the automated
-updates to minimize the time between vulnerability publication and patch
-release.
+supported. We combine that with our fast response to incidents and the
+automated updates to minimize the time between vulnerability publication
+and patch release.
 
 | Version       | Supported          |
-| :------------ | :----------------- |
+|:--------------|:-------------------|
 | master        | :white_check_mark: |
 | other commits | :x:                |
 
@@ -17,7 +17,8 @@ change.
 
 ## Reporting a Vulnerability
 
-**Do not submit an issue or pull request**: this might reveal the vulnerability.
+**Do not submit an issue or pull request**: this might reveal the
+vulnerability.
 
 **Please submit your vulnerability report to**
-[Github](https://github.com/jmuelbert/checkconnect/security/advisories/new).
+[GitHub](https://github.com/jmuelbert/checkconnect/security/advisories/new).

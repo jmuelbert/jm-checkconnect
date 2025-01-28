@@ -7,27 +7,21 @@ site_name: checkconnect
 site_url: https://io.github.org/jmuelbert/checkconnect/
 site_description: >-
   A tester for differt hosts for available.
-
 # Repository
 repo_name: jmuelbert/checkconnect
 repo_url: https://github.com/jmuelbert/checkconnect/
 edit_uri: blob/main/docs/
-
 # Copyright
 copyright: Copyright &copy; 2023 - 2024 Jürgen Mülbert
-
 # Configuration
 docs_dir: docs
 site_dir: site
-
 theme:
   name: material
   custom_dir: docs/.overrides
-
   # Static files
   static_templates:
     - 404.html
-
   # Default values, taken from mkdocs_theme.yml
   language: en
   direction: ltr
@@ -60,14 +54,13 @@ theme:
     - toc.integrate
   palette:
     # Palette toggle for light mode
-    - media: "(prefers-color-scheme: light)"
+    - media: '(prefers-color-scheme: light)'
       scheme: default
       toggle:
         icon: material/brightness-7
         name: Switch to dark mode
-
     # Palette toggle for dark mode
-    - media: "(prefers-color-scheme: dark)"
+    - media: '(prefers-color-scheme: dark)'
       scheme: slate
       toggle:
         icon: material/brightness-4
@@ -80,7 +73,6 @@ theme:
   icon:
     repo: fontawesome/brands/github-alt
     logo: material/check-network-outline
-
 # Page tree
 nav:
   - Introduction: index.md
@@ -110,7 +102,6 @@ nav:
   - About:
       - Authors: about/authors.md
       - License: about/EUPL-1.2.md
-
 # Plugins
 plugins:
   i18n:
@@ -129,7 +120,6 @@ plugins:
       - locale: es
         name: Español
         build: false
-
   # Enable for bug reports
   # info: {}
   # Built-in
@@ -161,13 +151,12 @@ plugins:
           show_if_no_docstring: false
           show_signature: false
           heading_level: 1
-          filters: ["!^_"]
+          filters: ['!^_']
   render_swagger: {}
   redirects:
     redirect_maps:
       conventions.md: philosophy.md
       upgrading.md: upgrade.md
-
 # Markdown Extensions
 markdown_extensions:
   - abbr
@@ -186,7 +175,6 @@ markdown_extensions:
   # Standard mkdocs Extensions
   - mkdocs-click
   - mkautodoc
-
   # Python Markdown Extensions
   - pymdownx.arithmatex:
       generic: true
@@ -238,7 +226,6 @@ markdown_extensions:
           case: lower
   - pymdownx.tasklist:
       custom_checkbox: true
-
 # Customization
 extra:
   version:
@@ -267,7 +254,6 @@ extra:
       link: https://pypi.org/project/checkconnect/
     - icon: fontawesome/brands/twitter
       link: https://twitter.com/jmuelbert
-
 watch:
   - mkdocs.yml
   - src/

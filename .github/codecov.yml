@@ -1,6 +1,6 @@
 ---
 fixes:
-  - "::Library/Homebrew/"
+  - ::Library/Homebrew/
 coverage:
   round: nearest
   status:

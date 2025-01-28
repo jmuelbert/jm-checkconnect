@@ -7,38 +7,39 @@ thank you for wanting to contribute to checkconnect!
 
 ## Checklist before creating a Pull Request
 
-Submit only relevant commits. We don't mind many commits in a pull request, but
-they must be relevant as explained below.
+Submit only relevant commits. We don't mind many commits in a pull request,
+but they must be relevant as explained below.
 
-- **Use a feature branch** The pull request should be created from a feature
-  branch, and not from _develop_. See below for why.
-- **No merge-commits** If you have commits that looks like this _"Merge branch
-  'my-branch' into develop"_ or _"Merge branch 'develop' of
-  <https://github.com/jmuelbert/checkconnect> into develop"_ you're probably
-  using merge instead of
-  [rebase](https://help.github.com/articles/about-git-rebase) locally. See below
-  on _Handling updates from upstream_.
+- **Use a feature branch** The pull request should be created from a
+  feature branch, and not from _develop_. See below for why.
+- **No merge-commits** If you have commits that looks like this _"Merge
+  branch 'my-branch' into develop"_ or _"Merge branch 'develop' of
+  <https://github.com/jmuelbert/checkconnect> into develop"_ you're
+  probably using merge instead of
+  [rebase](https://help.github.com/articles/about-git-rebase) locally. See
+  below on _Handling updates from upstream_.
 - **Squash commits** Often we create temporary commits like _"Started
   implementing feature x"_ and then _"Did a bit more on feature x"_. Squash
   these commits together using
-  [interactive rebase](https://help.github.com/articles/about-git-rebase). Also
-  see
+  [interactive rebase](https://help.github.com/articles/about-git-rebase).
+  Also see
   [Squashing commits with rebase](https://gitready.com/advanced/2009/02/10/squashing-commits-with-rebase.html).
 - **Descriptive commit messages** If a commit's message isn't descriptive,
   change it using
-  [interactive rebase](https://help.github.com/articles/about-git-rebase). Refer
-  to issues using `#issue`. Example of a bad message ~~"Small cleanup"~~.
-  Example of good message: _"Removed Security.Claims header from FSM, which
-  broke Mono build per #62"_. Don't be afraid to write long messages, if needed.
-  Try to explain _why_ you've done the changes. The Erlang repo has some info on
+  [interactive rebase](https://help.github.com/articles/about-git-rebase).
+  Refer to issues using `#issue`. Example of a bad message ~~"Small
+  cleanup"~~. Example of good message: _"Removed Security.Claims header
+  from FSM, which broke Mono build per #62"_. Don't be afraid to write long
+  messages, if needed. Try to explain _why_ you've done the changes. The
+  Erlang repo has some info on
   [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/).
-- **No one-commit-to-rule-them-all** Large commits that changes too many things
-  at the same time are very hard to review. Split large commits into smaller.
-  See this
+- **No one-commit-to-rule-them-all** Large commits that changes too many
+  things at the same time are very hard to review. Split large commits into
+  smaller. See this
   [StackOverflow question](https://stackoverflow.com/questions/6217156/break-a-previous-commit-into-multiple-commits)
   for information on how to do this.
-- **Tests** Add relevant tests and make sure all existing ones still passes.
-  Tests can be run using the command
+- **Tests** Add relevant tests and make sure all existing ones still
+  passes. Tests can be run using the command
 - **No Warnings** Make sure your code do not produce any build warnings.
 
 After reviewing a Pull request, we might ask you to fix some commits. After
@@ -47,13 +48,13 @@ fork.
 
 ### Title and Description for the Pull Request
 
-Give the PR a descriptive title and in the description field describe what you
-have done in general terms and why. This will help the reviewers greatly, and
-provide a history for the future.
+Give the PR a descriptive title and in the description field describe what
+you have done in general terms and why. This will help the reviewers
+greatly, and provide a history for the future.
 
-Especially if you modify something existing, be very clear! Have you changed any
-algorithms, or did you just intend to reorder the code? Justify why the changes
-are needed.
+Especially if you modify something existing, be very clear! Have you
+changed any algorithms, or did you just intend to reorder the code? Justify
+why the changes are needed.
 
 ---
 
@@ -62,10 +63,11 @@ are needed.
 Make sure you have a [GitHub](https://github.com/) account.
 
 - Fork, clone, add upstream to the checkconnect repository. See
-  [Fork a repo](https://help.github.com/articles/fork-a-repo) for more detailed
-  instructions or follow the instructions below.
+  [Fork a repo](https://help.github.com/articles/fork-a-repo) for more
+  detailed instructions or follow the instructions below.
 
 - Fork by clicking _Fork_ on <https://github.com/jmuelbert/checkconnect>
+
 - Clone your fork locally.
 
 ```bash
@@ -79,8 +81,8 @@ git remote add upstream https://github.com/YOUR-USERNAME/checkconnect
 ```
 
 You now have two remotes: _upstream_ points to
-<https://github.com/jmuelbert/checkconnect>, and _origin_ points to your fork on
-GitHub.
+<https://github.com/jmuelbert/checkconnect>, and _origin_ points to your
+fork on GitHub.
 
 - Make changes. See below.
 
@@ -99,8 +101,8 @@ New to Git? See
 **Never** work directly on _dev_ or _main_ and you should never send a pull
 request from main - always from a feature branch created by you.
 
-- Pick an [issue](https://github.com/jmuelbert/checkconnect/issues). If no issue
-  exists (search first) create one.
+- Pick an [issue](https://github.com/jmuelbert/checkconnect/issues). If no
+  issue exists (search first) create one.
 - Get any changes from _upstream_.
 
 ```bash
@@ -113,10 +115,11 @@ git push origin dev
 
 See <https://help.github.com/articles/fetching-a-remote> for more info
 
-- Create a new feature branch. It's important that you do your work on your own
-  branch and that it's created off of _dev_. Tip: Give it a descriptive name and
-  include the issue number, e.g. `implement-lengthframeencoder-323` or
-  `295-implement-recvbuffer`, so that others can see what is being worked on.
+- Create a new feature branch. It's important that you do your work on your
+  own branch and that it's created off of _dev_. Tip: Give it a descriptive
+  name and include the issue number, e.g.
+  `implement-lengthframeencoder-323` or `295-implement-recvbuffer`, so that
+  others can see what is being worked on.
 
 ```bash
 git checkout -b my-new-branch-123
@@ -124,8 +127,8 @@ git checkout -b my-new-branch-123
 
 - Work on your feature. Commit.
 - Rebase often, see below.
-- Make sure you adhere to _Checklist before creating a Pull Request_ described
-  above.
+- Make sure you adhere to _Checklist before creating a Pull Request_
+  described above.
 - Push the branch to your fork on GitHub
 
 ```bash
@@ -142,8 +145,8 @@ See also:
 
 ### Handling updates from upstream
 
-While you're working away in your branch it's quite possible that your upstream
-_dev_ may be updated. If this happens you should:
+While you're working away in your branch it's quite possible that your
+upstream _dev_ may be updated. If this happens you should:
 
 - [Stash](https://git-scm.com/book/en/Git-Tools-Stashing) any un-committed
   changes you need to
@@ -172,22 +175,23 @@ git push origin dev
 ```
 
 This ensures that your history is "clean" i.e. you have one branch off from
-_dev_ followed by your changes in a straight line. Failing to do this ends up
-with several "messy" merges in your history, which we don't want. This is the
-reason why you should always work in a branch and you should never be working
-in, or sending pull requests from _dev_.
+_dev_ followed by your changes in a straight line. Failing to do this ends
+up with several "messy" merges in your history, which we don't want. This
+is the reason why you should always work in a branch and you should never
+be working in, or sending pull requests from _dev_.
 
-If you're working on a long running feature then you may want to do this quite
-often, rather than run the risk of potential merge issues further down the line.
+If you're working on a long running feature then you may want to do this
+quite often, rather than run the risk of potential merge issues further
+down the line.
 
 ### Making changes to a Pull request
 
-If you realize you've missed something after submitting a Pull request, just
-commit to your local branch and push the branch just like you did the first
-time. This commit will automatically be included in the Pull request. If we ask
-you to change already published commits using interactive rebase (like squashing
-or splitting commits or rewriting commit messages) you need to force push using
-`-f`:
+If you realize you've missed something after submitting a Pull request,
+just commit to your local branch and push the branch just like you did the
+first time. This commit will automatically be included in the Pull request.
+If we ask you to change already published commits using interactive rebase
+(like squashing or splitting commits or rewriting commit messages) you need
+to force push using `-f`:
 
 ```bash
 git push -f origin my-new-branch-123
@@ -195,10 +199,11 @@ git push -f origin my-new-branch-123
 
 ### All my commits are on develop. How do I get them to a new branch?
 
-If all commits are on _develop_ you need to move them to a new feature branch.
+If all commits are on _develop_ you need to move them to a new feature
+branch.
 
-You can rebase your local _develop_ on _upstream/develop_ (to remove any merge
-commits), rename it, and recreate _develop_
+You can rebase your local _develop_ on _upstream/develop_ (to remove any
+merge commits), rename it, and recreate _develop_
 
 ```bash
 git checkout develop
@@ -207,7 +212,8 @@ git branch -m my-new-branch-123
 git branch develop upstream/develop
 ```
 
-Or you can create a new branch off of _develop_ and then cherry pick the commits
+Or you can create a new branch off of _develop_ and then cherry pick the
+commits
 
 ```bash
 git checkout -b my-new-branch-123 upstream/develop
@@ -219,8 +225,8 @@ git branch develop upstream/develop   #create a new dev
 
 ## Code guidelines
 
-See our [Python Style Guide](https://www.python.org/doc/essays/styleguide/) and
-the
+See our [Python Style Guide](https://www.python.org/doc/essays/styleguide/)
+and the
 [Python Naming Convention](https://github.com/naming-convention/naming-convention-guides/blob/master/python/README.md)
 on GitHub for more information on following the project's conventions.
 

@@ -2,7 +2,7 @@
 # SPDX-FileCopyrightText: GitHub, Inc. and contributors
 # SPDX-License-Identifier: MIT
 
-name: "Release documentation"
+name: Release documentation
 
 on: # yamllint disable-line rule:truthy
   push:
@@ -19,6 +19,12 @@ on: # yamllint disable-line rule:truthy
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
+env:
+  FORCE_COLOR: "1"
+  DEFAULT_PYTHON: "3.12"
+  ALL_PYTHON_VERSIONS: "['3.12']"
+  PRE_COMMIT_CACHE: ~/.cache/pre-commit
+
 # Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
 permissions:
   contents: read
@@ -26,7 +32,7 @@ permissions:
 # Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
 # However, do NOT cancel in-progress runs as we want to allow these production deployments to complete.
 concurrency:
-  group: "pages"
+  group: pages
   cancel-in-progress: false
 
 # Default to bash
@@ -44,30 +50,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       # Checkout the repository to the GitHub Actions runner
-      - name: "🧰 Checkout Source Code"
+      - name: 🧰 Checkout Source Code
         uses: actions/checkout@44c2b7a8a4ea60a981eaca3cf939b5f4305c123b # v4.1.5
 
-      - name: "⚙️️ Set up Python"
+      - name: 🐍 Set up Python
         uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d # v5.1.0
         with:
-          # Read python version from a file .python-version
-          python-version-file: ".standard-python-version"
+          python-version: ${{ env.DEFAULT_PYTHON }}
           check-latest: true
           cache: pip
 
-      - name: "⚙️️ Get full Python version"
-        id: full-python-version
-        run: echo version="$(python -c "import sys; print('-'.join(str(v) for v in sys.version_info))")" >> "$GITHUB_OUTPUT"
+      - name: 🧰 Install Requirements
+        run: pip install --constraint=.github/workflows/constraints.txt pip
 
-      - name: "⚙️️ Set up cache"
-        uses: actions/cache@0c45773b623bea8c8e75f6c82b208c3cf94ea4f9 # v4.0.2
-        id: cache
-        with:
-          path: .venv
-          key: venv-${{ runner.os }}-${{ steps.full-python-version.outputs.version }}-${{ hashFiles('**/poetry.lock') }}
-
-      - name: "🧰 Install Hatch"
-        run: pip install --upgrade hatch
+      - name: Init hatch check cache
+        id: python-hatch-check
+        run: echo "dir=$(hatch env show check)" >> "$GITHUB_OUTPUT"
 
       - name: Build and deploy with MkDocs
         run: hatch run docs:build

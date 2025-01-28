@@ -6,8 +6,8 @@ rules:
     severity: warning
     message: Do you want to write GitHub?
     glob:
-      - "**/*.rb"
-      - "**/*.{yaml,yml}"
+      - '**/*.rb'
+      - '**/*.{yaml,yml}'
       - public/**/*.html
     fail:
       - Signup via GitHub

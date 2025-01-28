@@ -29,7 +29,7 @@ Copyright: Jürgen Mülbert <juergen.muelbert@outlook.de>
 License: BSD-3-Clause
 
 #misc config files
-Files:  .cspellcache .editorconfig *.toml *.yml *.yaml .git-blame-ignore-revs .gitattributes .github/* .gitignore  .gitlint .prettierignore .prettierrc .standard-python-version
+Files: .editorconfig .trunk/.gitignore .trunk/configs/.bandit .trunk/configs/svgo.config.js commitlint.config.cjs .cspellcache .eslintignore .eslintrc.js .npmrc  *.toml *.yml *.yaml .git-blame-ignore-revs .gitattributes .github/* .gitignore  .gitlint .prettierignore .prettierrc .standard-python-version commitlint.config.js
 Copyright: Jürgen Mülbert <juergen.muelbert@outlook.de>
 License: EUPL-1.2
 

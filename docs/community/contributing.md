@@ -1,7 +1,7 @@
 # Contributing
 
-Thank you for being interested in contributing to checkconnect. There are many
-ways you can contribute to the project:
+Thank you for being interested in contributing to checkconnect. There are
+many ways you can contribute to the project:
 
 - Try checkconnect and
   [report bugs/issues you find](https://github.com/jmuelbert/checkconnect/issues/new)
@@ -12,17 +12,18 @@ ways you can contribute to the project:
 
 ## Reporting Bugs or Other Issues
 
-Found something that checkconnect should support? Stumbled upon some unexpected
-behavior?
+Found something that checkconnect should support? Stumbled upon some
+unexpected behavior?
 
 Contributions should generally start out with
-[a discussion](https://github.com/jmuelbert/checkconnect/discussions). Possible
-bugs may be raised as a "Potential Issue" discussion, feature requests may be
-raised as an "Ideas" discussion. We can then determine if the discussion needs
-to be escalated into an "Issue" or not, or if we'd consider a pull request.
+[a discussion](https://github.com/jmuelbert/checkconnect/discussions).
+Possible bugs may be raised as a "Potential Issue" discussion, feature
+requests may be raised as an "Ideas" discussion. We can then determine if
+the discussion needs to be escalated into an "Issue" or not, or if we'd
+consider a pull request.
 
-Try to be more descriptive as you can and in case of a bug report, provide as
-much information as possible like:
+Try to be more descriptive as you can and in case of a bug report, provide
+as much information as possible like:
 
 - OS platform
 - Python version
@@ -30,22 +31,22 @@ much information as possible like:
 - Code snippet
 - Error traceback
 
-You should always try to reduce any examples to the _simplest possible case_
-that demonstrates the issue.
+You should always try to reduce any examples to the _simplest possible
+case_ that demonstrates the issue.
 
 The usual process to make a contribution is to:
 
-1. Check for existing related issues
-1. Fork the repository and create a new branch
-1. Make your changes
+1. Check for existing related issues.
+1. Fork the repository and create a new branch.
+1. Make your changes.
 1. Make sure formatting, linting and tests passes.
 1. Add tests if possible to cover the lines you added.
 1. Commit, and send a Pull Request.
 
 ## Clone the repository
 
-Clone the `checkconnect` repository, `cd` into it, and create a new branch for
-your contribution:
+Clone the `checkconnect` repository, `cd` into it, and create a new branch
+for your contribution:
 
 ```bash
 cd checkconnect

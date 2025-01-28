@@ -2,7 +2,7 @@
 # SPDX-FileCopyrightText: GitHub, Inc. and contributors
 # SPDX-License-Identifier: MIT
 #
-name: "Add Comment to Issue"
+name: Add Comment to Issue
 
 # trunk-ignore(yamllint/truthy)
 on: # yamllint disable-line rule:truth
@@ -20,7 +20,7 @@ jobs:
     permissions:
       issues: write
     steps:
-      - name: "Add comment"
+      - name: Add comment
         uses: peter-evans/create-or-update-comment@71345be0265236311c031f5c7866368bd1eff043 # v4.0.0
         with:
           issue-number: ${{ github.event.issue.number }}
@@ -37,7 +37,7 @@ jobs:
     permissions:
       issues: write
     steps:
-      - name: "Add comment"
+      - name: Add commentpip
         uses: peter-evans/create-or-update-comment@71345be0265236311c031f5c7866368bd1eff043 # v4.0.0
         with:
           issue-number: ${{ github.event.issue.number }}
