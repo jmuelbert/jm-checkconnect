@@ -71,6 +71,9 @@ lint:
     - yamllint@1.35.1
 actions:
   disabled:
+    - poetry-check
+    - poetry-install
+    - poetry-lock
     - commitlint
     - trunk-check-pre-push
     - trunk-fmt-pre-commit
@@ -80,9 +83,6 @@ actions:
     - git-blame-ignore-revs
     - git-lfs
     - npm-check
-    - poetry-check
-    - poetry-install
-    - poetry-lock
     - trunk-upgrade-available
   definitions:
     - id: npm-install
