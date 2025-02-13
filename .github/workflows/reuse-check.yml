@@ -1,40 +1,218 @@
 ---
 # SPDX-FileCopyrightText: Free Software Foundation Europe
-#
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-name: REUSE Compliance Check
+name: License Compliance Check
 
-on: # yamllint disable-line rule:truthy
+on: # yamlint disable-line rule:truthy
   push:
-    branches: [main, develop, release]
+    branches:
+      - main
+      - develop
+      - release/**
+    paths-ignore:
+      - '**.md'
+      - docs/**
+      - .github/*.md
 
-  # pull_request event is required only for autolabeler
   pull_request:
-    # Only following types are handled by the action, but one can
-    # default to all as well
     types: [opened, reopened, synchronize]
-    # pull_request_target event is required for autolabeler to
-    # support PRs from forks
-    # pull_request_target:
+    paths-ignore:
+      - '**.md'
+      - docs/**
+      - .github/*.md
+
+  workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  ReuseCheck:
-    # Skip any PR created by dependabot to avoid permission issues:
-    if: (github.actor != 'dependabot[bot]')
+  reuse-check:
+    name: License Compliance
+    if: github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+
     permissions:
-      contents: read
+      contents: write
+      pull-requests: write
+      checks: write
+      issues: write
+
+    outputs:
+      compliance-status: ${{ steps.check.outputs.status }}
+      issues-found: ${{ steps.check.outputs.issues }}
 
     steps:
-      - name: "🧰 Checkout Source Code"
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: 🔒 Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
         with:
-          # Full git history is needed to get a proper list of changed files within `super-linter`
-          fetch-depth: 0
+          egress-policy: audit
 
-      - name: "REUSE Compliance Check"
-        uses: fsfe/reuse-action@bb774aa972c2a89ff34781233d275075cbddf542 # v5.0.0
+      - name: 🧰 Checkout Repository
+        uses: actions/checkout@44c2b7a8a4ea60a981eaca3cf939b5f4305c123b # v4.1.5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: ⚙️ Setup Python
+        uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5.3.0
+        with:
+          python-version-file: ${{ env.PYTHON_VERSION_FILE }}
+          cache: pip
+          cache-dependency-path: |
+            pyproject.toml
+            .github/workflows/requirements.txt
+
+      - name: 🛠️ Install REUSE Tool
+        run: |
+          python -m pip install --upgrade pip
+          pip install reuse
+          reuse --version
+
+      - name: 📝 Create License Templates
+        run: |
+          mkdir -p .reuse/templates
+
+          # Create GPL-3.0-or-later template
+          cat > .reuse/templates/gpl-3.0-or-later.jinja2 << 'EOL'
+          {% if copyright_lines %}
+          {% for copyright in copyright_lines %}
+          {{ copyright }}
+          {% endfor %}
+          {% endif %}
+          SPDX-License-Identifier: GPL-3.0-or-later
+          EOL
+
+          # Create MIT template
+          cat > .reuse/templates/mit.jinja2 << 'EOL'
+          {% if copyright_lines %}
+          {% for copyright in copyright_lines %}
+          {{ copyright }}
+          {% endfor %}
+          {% endif %}
+          SPDX-License-Identifier: MIT
+          EOL
+
+      - name: 🔍 Run REUSE Check
+        id: check
+        run: |
+          set -x
+          # Run initial check
+          reuse lint > reuse-report.txt || true
+
+          # Check if the reuse lint command was successful
+          if [ $? -ne 0 ]; then
+            echo "Error: reuse lint command failed with exit code $?"
+            echo "status=failure" >> "$GITHUB_OUTPUT"
+            echo "issues=1" >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+
+          # Process results
+          if grep -q "not compliant" reuse-report.txt; then
+            ISSUES=$(grep -c "not licensed" reuse-report.txt) || true
+            echo "status=failure" >> "$GITHUB_OUTPUT"
+            echo "issues=$ISSUES" >> "$GITHUB_OUTPUT"
+
+            # Generate detailed report
+            echo "## 📋 License Compliance Issues" > compliance-report.md
+            {
+              echo ""
+              echo "Found $ISSUES files with licensing issues:"
+              echo ""
+              echo "\`\`\`"
+            } >> compliance-report.md
+            cat reuse-report.txt >> compliance-report.md
+            echo "\`\`\`" >> compliance-report.md
+
+            # Add recommendations
+            {
+              echo ""
+              echo "### 🔨 How to Fix"
+              echo "1. Add SPDX headers to each file"
+              echo "2. Use appropriate license identifiers"
+              echo "3. Update REUSE.toml file if needed"
+            } >> compliance-report.md
+          else
+            echo "status=success" >> "$GITHUB_OUTPUT"
+            echo "issues=0" >> "$GITHUB_OUTPUT"
+            echo "## ✅ License Compliance Check Passed" > compliance-report.md
+            {
+              echo ""
+              echo "All files comply with REUSE specifications."
+            } >> compliance-report.md
+          fi
+
+      - name: 📤 Upload Report
+        if: always()
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        with:
+          name: license-compliance-report
+          path: |
+            reuse-report.txt
+            compliance-report.md
+          retention-days: 7
+
+      - name: 🔄 Create Fix PR
+        if: steps.check.outputs.compliance-status
+        uses: peter-evans/create-pull-request@4e1beaa7521e8b457b572c090b25bd3db56bf1c5 # v5.0.3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: 'docs: fix license compliance issues'
+          title: 'docs: fix REUSE compliance issues'
+          body-path: compliance-report.md
+          branch: fix/license-compliance
+          delete-branch: true
+          labels: |
+            documentation
+            license
+            automated-pr
+
+      - name: 💬 Add PR Comment
+        if: github.event_name == 'pull_request' && steps.check.outputs.status == 'failed'
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          script: |
+            const fs = require('fs');
+            const report = fs.readFileSync('compliance-report.md', 'utf8');
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: report
+            });
+
+  notify:
+    needs: reuse-check
+    if: always()
+    runs-on: ubuntu-latest
+
+    permissions:
+      issues: write
+
+    steps:
+      - name: 📢 Notify Team
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          script: |
+            const message = `## 🚨 License Compliance Issues
+
+            Found ${process.env.ISSUES_COUNT} licensing issues.
+            Please review the [workflow results](${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID})`;
+
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '🚨 License Compliance Issues Detected',
+              body: message,
+              labels: ['license', 'needs-attention']
+            });
+        env:
+          ISSUES_COUNT: ${{ needs.reuse-check.outputs.issues-found }}

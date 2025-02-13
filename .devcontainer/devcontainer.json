@@ -2,9 +2,11 @@
 // README at: https://github.com/devcontainers/templates/tree/main/src/docker-existing-dockerfile
 {
 	"name": "Python 3",
-	"image": "mcr.microsoft.com/devcontainers/python:0-3.9",
+  "service": "app",
+  "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
 	// See https://containers.dev/features
 	"features": {
+	   "ghcr.io/devcontainers-extra/features/bash-command:1": {},
 		"ghcr.io/devcontainers/features/git:1": {},
 		"ghcr.io/devcontainers/features/node:1": {},
 		"ghcr.io/devcontainers-contrib/features/ffmpeg-apt-get:1": {}
