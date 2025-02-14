@@ -1,0 +1,202 @@
+---
+# See https://pre-commit.com for more information
+# See https://pre-commit.com/hooks.html for more hooks
+exclude: ^(3rd-party|COPYING|LICENSE|\.gitmodules|.*\.(ui|qrc|ts)$|LICENSES/|dist/|pnpm-lock.yaml)
+ci:
+  autofix_commit_msg: 🎨 [pre-commit.ci] Auto format from pre-commit.com hooks
+  autoupdate_commit_msg: ⬆ [pre-commit.ci] pre-commit autoupdate
+fail_fast: true
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+        args: [--markdown-linebreak-ext=md]
+      - id: end-of-file-fixer
+      - id: check-yaml
+        args: [--allow-multiple-documents]
+        exclude: mkdocs.yml
+      - id: check-added-large-files
+        args: [--maxkb=500]
+      - id: check-json
+        exclude: (\.devcontainer/devcontainer.json|\.vscode/)
+      - id: check-merge-conflict
+      - id: check-case-conflict
+      - id: detect-private-key
+      - id: check-ast
+      - id: debug-statements
+      - id: check-builtin-literals
+
+  # Check and update pre-commit
+  - repo: meta
+    hooks:
+      - id: check-hooks-apply
+      - id: check-useless-excludes
+
+  - repo: https://github.com/mxr/sync-pre-commit-deps
+    rev: v0.0.3
+    hooks:
+      - id: sync-pre-commit-deps
+
+  # Code Style & Formatting
+  - repo: https://github.com/psf/black
+    rev: 24.10.0
+    hooks:
+      - id: black
+        args: [--safe]
+
+  # Comprehensive Linting
+  - repo: https://github.com/charliermarsh/ruff-pre-commit
+    rev: v0.9.2
+    hooks:
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+
+
+  # Secrets Detection
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.23.1
+    hooks:
+      - id: gitleaks
+        args:
+          - protect
+          - --source
+          - .
+          - --verbose
+          - --redact
+          - --staged
+        verbose: true
+        stages: [pre-commit, pre-push, manual]
+        additional_dependencies: []
+        # Add custom configuration inline
+        entry: >
+          gitleaks protect
+            --config
+              {
+                "allowlist": {
+                  "paths": [
+                    "assets/translations/**",
+                    "LICENSES/**",
+                    "**/test/**",
+                    "**/*_test.go"
+                  ],
+                "regexes": [
+                    "AAAAB3NzaC1yc2E", # Example SSH public key prefix
+                    "gitleaks:allow"
+                  ],
+                "description": "Allowlisted items"
+              },
+              "extend": ["/.github/gitleaks.toml"],
+                "rules": {
+                  "generic-api-key": {
+                    "description": "Generic API Key",
+                    "regex": "(?i)(api[_-]?key|apikey|secret)[a-z0-9_ -]*[=:][a-z0-9/\\-+=_]{32,}",
+                    "tags": ["key", "API", "generic"]
+                  },
+                "python-password": {
+                  "description": "Python password in code",
+                  "regex": "(?i)(password|passwd|pwd)[a-z0-9_ -]*[=:][^,}{)(\n]{8,}",
+                  "tags": ["key", "Python", "password"]
+                },
+                "pyside-secret": {
+                  "description": "PySide/Qt secrets in code",
+                  "regex": "(?i)(qt_|pyside_)(secret|key|password)[a-z0-9_ -]*[=:][^,}{)(\n]{8,}",
+                  "tags": ["key", "PySide", "Qt"]
+                }
+              }
+            }
+
+  - repo: https://github.com/adrienverge/yamllint.git
+    rev: v1.35.1
+    hooks:
+      - id: yamllint
+
+  # GitHub json checks
+  - repo: https://github.com/python-jsonschema/check-jsonschema
+    rev: 0.31.0
+    hooks:
+      - id: check-dependabot
+      # - id: check-github-actions
+      - id: check-github-workflows
+      # - id: check-gitlab-ci
+      - id: check-readthedocs
+        # - id: check-taskfile
+        args: [--verbose]
+
+  # GitHub Workflows check
+  - repo: https://github.com/rhysd/actionlint
+    rev: v1.7.7
+    hooks:
+      - id: actionlint
+
+  # Prettier
+  - repo: https://github.com/pre-commit/mirrors-prettier
+    rev: v4.0.0-alpha.8
+    hooks:
+      - id: prettier
+
+  # Markdown specific
+  - repo: https://github.com/igorshubovych/markdownlint-cli
+    rev: v0.43.0
+    hooks:
+      - id: markdownlint
+        args: ["--config", ".markdownlint.json"]
+
+  # Links checker
+  - repo: https://github.com/tcort/markdown-link-check
+    rev: v3.13.6
+    hooks:
+      - id: markdown-link-check
+        args: ["--config", ".markdown-link-check.json"]
+
+  # Spell checker
+  - repo: https://github.com/amperser/proselint
+    rev: 0.14.0 # Use the latest stable version
+    hooks:
+      - id: proselint
+        args: ["--config", "pyproject.toml"]
+
+  # Typos and common mistakes
+  - repo: https://github.com/crate-ci/typos
+    rev: dictgen-v0.3.1
+    hooks:
+      - id: typos
+        args: ["--config", "pyproject.toml"]
+
+# Local Hatch Tasks
+  - repo: local
+    hooks:
+      - id: hatch-style
+        name: Hatch - Style Checks
+        entry: hatch run lint:style
+        language: system
+        files: \.py$
+
+      - id: hatch-typing
+        name: Hatch - Type Checking
+        entry: hatch run lint:typing
+        language: system
+        files: \.py$
+
+      - id: hatch-lint
+        name: Hatch - Linting
+        entry: hatch run lint:lint
+        language: system
+        files: \.py$
+
+      - id: hatch-spelling
+        name: Hatch - Spelling Check
+        entry: hatch run lint:spelling
+        language: system
+        files: \.(md|txt|rst)$
+
+      - id: hatch-license
+        name: Hatch - License Compliance
+        entry: hatch run lint:license
+        language: system
+
+      - id: hatch-security
+        name: Hatch - Security Checks
+        entry: hatch run security:all
+        language: system

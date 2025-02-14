@@ -1,3 +1,10 @@
+---
+# Documentation Request
+# This template is for feature requests. Please fill out as much information as possible.
+# SPDX-License-Identifier: CC-BY-SA-4.0
+# SPDX-FileCopyrightText: 2023 - 2024 Jürgen Mülbert <juergen.muelbert@outlook.de>
+#
+# The name of the issue template
 name: Documentation
 description: Report an issue related to the checkconnect documentation.
 title: "DOC: <Please write a comprehensive title after the 'DOC: ' prefix>"

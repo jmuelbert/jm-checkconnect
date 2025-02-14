@@ -1,51 +1,83 @@
 ---
-name-template: v$RESOLVED_VERSION 🌈
+# SPDX-FileCopyrightText: GitHub, Inc. and contributors
+# SPDX-License-Identifier: MIT
+# yaml-language-server: $schema=https://json.schemastore.org/release-drafter.json
+
+name-template: v$RESOLVED_VERSION
 tag-template: v$RESOLVED_VERSION
+
 categories:
-  - title: ":boom: Breaking Changes"
-    label: breaking
-  - title: ":package: Build System"
-    label: build
-  - title: ":construction_worker: Continuous Integration"
-    label: ci
-  - title: ":books: Documentation"
-    label: documentation
-  - title: ":rocket: Features"
-    label: enhancement
-  - title: ":beetle: Fixes"
-    label: bug
-  - title: ":racehorse: Performance"
-    label: performance
-  - title: ":hammer: Refactoring"
-    label: refactoring
-  - title: ":fire: Removals and Deprecations"
-    label: removal
-  - title: ":lipstick: Style"
-    label: style
-  - title: ":rotating_light: Testing"
-    label: testing
-change-template: "- $TITLE @$AUTHOR (#$NUMBER)"
-change-title-escapes: \<*_& # You can add # and @ to disable mentions, and add ` to disable code blocks.
+  - title: 🚀 Features
+    labels:
+      - type: feature
+      - feature
+      - enhancement
+  - title: 🐛 Bug Fixes
+    labels:
+      - type: fix
+      - fix
+      - bug
+  - title: 🔒 Security Updates
+    labels:
+      - type: security
+      - security
+  - title: ⚡ Performance Improvements
+    labels:
+      - type: performance
+      - performance
+  - title: 📚 Documentation Updates
+    labels:
+      - type: docs
+      - documentation
+  - title: 🧪 Testing
+    labels:
+      - type: test
+      - testing
+  - title: 🔧 Maintenance
+    labels:
+      - type: maintenance
+      - maintenance
+      - chore
+  - title: 📦 Dependency Updates
+    labels:
+      - type: dependencies
+      - dependencies
+      - dep-upgrade
+
+change-template: '- $TITLE by @$AUTHOR (#$NUMBER)'
 
 version-resolver:
   major:
     labels:
-      - "type: breaking"
+      - breaking
   minor:
     labels:
-      - "type: feature"
+      - type: feature
   patch:
     labels:
-      - "type: bug"
-      - "type: maintenance"
-      - "type: docs"
-      - "type: dependencies"
-      - "type: security"
+      - type: fix
+      - type: maintenance
+      - type: docs
+      - type: dependencies
+      - type: security
 
 exclude-labels:
   - skip-changelog
+  - status: work-in-progress
 
 template: |
-  ## Changes
+  ## 🚀 What's Changed
 
   $CHANGES
+
+  ## 📦 Dependency Updates
+  $CHANGES_BY_LABELS.dependencies
+
+  ## 🤝 Contributors
+  Thanks to our contributors:
+  $CONTRIBUTORS
+
+  ## Installation Instructions
+  To install this version:
+  ```bash
+  pip install jmbde-python==$RESOLVED_VERSION

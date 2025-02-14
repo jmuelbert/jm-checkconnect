@@ -1,0 +1,27 @@
+---
+# SPDX-License-Identifier: EUPL-1.2
+# SPDX-FileCopyrightText: 2023 - 2024 Jürgen Mülbert <juergen.muelbert@outlook.de>
+#
+
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: .devcontainer/Dockerfile
+
+    volumes:
+      - ../..:/workspaces:cached
+
+    # Overrides default command so the container remains running.
+    command: sleep infinity
+
+    # Use the same network as the database container.
+    network_mode: service:db
+
+    # Set CPU limits
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5' # Limit to 50% of one CPU core
+        reservations:
+          cpus: '0.25' # Reserve 25% of one CPU core

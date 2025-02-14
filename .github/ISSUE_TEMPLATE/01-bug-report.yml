@@ -1,81 +1,65 @@
 ---
+# Bug Report Template
+# This template is for reporting bugs in the checkconnect project.
+# It is based on the GitHub Issue Template schema.
+# SPDX-License-Identifier: CC-BY-SA-4.0
+# SPDX-FileCopyrightText: 2023 - 2024 Jürgen Mülbert <juergen.muelbert@outlook.de>
+# yaml-language-server: $schema= https://json.schemastore.org/github-issue-template-1.0.0.json
+# The name of the issue template
 name: \U0001F41E Bug report
 description: Report a bug in checkconnect. To report a security issue, please instead use the security option below. For questions, please use the GitHub Discussions.
 title: 🐛 [BUG] - <title>
-labels: [bug]
-assignees: jmuelbert
+labels: [bug, triage]
+assignees:
+  - jmuelbert
 body:
   - type: markdown
     attributes:
-      value: >
-        Thank you for taking the time to fill out this bug report! We appreciate it!
+      value: |
+        Thank you for taking the time to file a bug report! Please fill out this form as completely as possible.
 
-        Before you get started [search to see](https://github.com/jmuelbert/checkconnect/issues)
-
-        if your bug has already been reported. If it has, please comment on the existing.
+        ✅ I am using the **latest versions of checkconnect**.
+  - type: input
+    id: jmbde-version
+    attributes:
+      label: What version of `checkconnect` are you using?
+      placeholder: 0.0.0
+    validations:
+      required: true
+  - type: input
+    id: qt-Version
+    attributes:
+      label: What version of `Qt` are you using?
+      placeholder: 6.5.2
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: What operating system are you using?
+      placeholder: Mac, Windows, Linux
+    validations:
+      required: true
   - type: textarea
     id: bug-description
     attributes:
       label: Describe the Bug
       description: A clear and concise description of what the bug is.
-      placeholder: Bug description
     validations:
       required: true
-  - type: checkboxes
-    attributes:
-      label: Have you searched existing issues ? 🔎
-      description: Please search to see if your bug has already been reported.
-      options:
-        - label: I have searched the existing issues.
-          required: true
-
-  - type: textarea
-    id: reproduction
-    attributes:
-      label: Reproduction
-      description: Please provide a minimal example, with code, that can be run to reproduce the issue. Do NOT provide screenshots of code, or link to external repos or applications. Use ``` to format code blocks.
-      placeholder: Reproduction
-      value: |
-        ```python
-        import checkconnect as cc
-
-        ```
-    validations:
-      required: true
-  - type: textarea
-    id: screenshot
-    attributes:
-      label: Screenshot
-      description: If relevant, please include screenshot(s) of your checkconnect app so that we can understand what the issue is.
   - type: textarea
     id: logs
     attributes:
-      label: Logs
-      description: Please include the full stacktrace of the errors you get from Python or Javascript. If you are running in a colab notebooks, you can get the logs with by setting `debug=True`
+      label: Relevant log output
+      description: Please copy and paste any relevant log output. This will be automatically formatted into code, so no need for backticks.
       render: shell
-  - type: textarea
-    id: system-info
+  - type: checkboxes
+    id: will-pr
     attributes:
-      label: System Info
-      description: Please ensure you are running the latest version of checkconnect. You can get the checkconnect version and all its dependencies.
-      render: shell
-    validations:
-      required: true
-  - type: dropdown
-    id: severity
-    attributes:
-      label: Severity
-      description: Select the severity of this issue
+      label: Participation
       options:
-        - I can work around it
-        - Blocking usage of checkconnect
-    validations:
-      required: true
-  - type: markdown
-    attributes:
-      value: |
-        📌  Please ensure that you have filled all of the required sections above, and that the reproduction you have provided is [minimal, complete, and reproducible](https://stackoverflow.com/help/minimal-reproducible-example). Incomplete issues will be closed.
-
+        - label: I am willing to submit a pull request for this issue.
+          required: false
   - type: checkboxes
     id: terms
     attributes:
@@ -83,3 +67,4 @@ body:
       description: By submitting this issue, you agree to follow our [Code of Conduct](https://github.com/jmuelbert/checkconnect/blob/main/CODE_OF_CONDUCT.md)
       options:
         - label: I agree to follow this project's Code of Conduct
+          required: true
