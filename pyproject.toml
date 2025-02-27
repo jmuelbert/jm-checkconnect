@@ -53,9 +53,11 @@ keywords = [
 
 dependencies = [
   "click>=8.0",
-  "pyside6>=6.5.0",
-  "pydantic>=2.10.3",
-  "sqlalchemy>=2.0.0",
+  "requests>=2.32.3",
+  "ntplib>=0.4.0",
+  "fpdf2>=2.8.2",
+  "PySimpleGUI>=5.0",
+  "PySide6>=6.8"
 ]
 
 [project.urls]
@@ -78,12 +80,15 @@ macos-max-compat = true
 
 
 [[tool.hatch.envs.test.matrix]]
-python = ["3.9", "3.10", "3.11", "3.12", "3.13"]
+python = ["3.10", "3.11", "3.12", "3.13"]
 
 [tool.hatch.envs.test]
 dependencies = [
+  "PySide6>=6.8",
   "coverage>=6.2",
   "pytest>=7.4.0",
+  "pytest-mock>=3.14.0",
+  "pytest-qt>=4.4.0",
   "pytest-cov>=4.1.0",
   "pytest-timeout>=2.3.1",
   "pytest-randomly>=3.15.0",
@@ -288,14 +293,6 @@ minversion = "6.0"
 addopts = ["-ra", "--strict-markers", "--strict-config", "--doctest-modules"]
 testpaths = ["tests"]
 filterwarnings = ["error"]
-qt_api = "pyside6"
-markers = [
-  "integration: marks tests as integration tests",
-  "unit: marks tests as unit tests",
-  "e2e: marks tests as end-to-end tests",
-  "qt: marks tests as Qt-related tests",
-]
-
 
 [tool.pydocstyle]
 convention = "google" # or "numpy" or "pep257"

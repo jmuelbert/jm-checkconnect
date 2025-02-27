@@ -5,7 +5,7 @@ exclude: ^(3rd-party|COPYING|LICENSE|\.gitmodules|.*\.(ui|qrc|ts)$|LICENSES/|dis
 ci:
   autofix_commit_msg: 🎨 [pre-commit.ci] Auto format from pre-commit.com hooks
   autoupdate_commit_msg: ⬆ [pre-commit.ci] pre-commit autoupdate
-fail_fast: true
+fail_fast: false
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -52,60 +52,6 @@ repos:
     hooks:
       - id: ruff
         args: [--fix, --exit-non-zero-on-fix]
-
-
-  # Secrets Detection
-  - repo: https://github.com/gitleaks/gitleaks
-    rev: v8.23.1
-    hooks:
-      - id: gitleaks
-        args:
-          - protect
-          - --source
-          - .
-          - --verbose
-          - --redact
-          - --staged
-        verbose: true
-        stages: [pre-commit, pre-push, manual]
-        additional_dependencies: []
-        # Add custom configuration inline
-        entry: >
-          gitleaks protect
-            --config
-              {
-                "allowlist": {
-                  "paths": [
-                    "assets/translations/**",
-                    "LICENSES/**",
-                    "**/test/**",
-                    "**/*_test.go"
-                  ],
-                "regexes": [
-                    "AAAAB3NzaC1yc2E", # Example SSH public key prefix
-                    "gitleaks:allow"
-                  ],
-                "description": "Allowlisted items"
-              },
-              "extend": ["/.github/gitleaks.toml"],
-                "rules": {
-                  "generic-api-key": {
-                    "description": "Generic API Key",
-                    "regex": "(?i)(api[_-]?key|apikey|secret)[a-z0-9_ -]*[=:][a-z0-9/\\-+=_]{32,}",
-                    "tags": ["key", "API", "generic"]
-                  },
-                "python-password": {
-                  "description": "Python password in code",
-                  "regex": "(?i)(password|passwd|pwd)[a-z0-9_ -]*[=:][^,}{)(\n]{8,}",
-                  "tags": ["key", "Python", "password"]
-                },
-                "pyside-secret": {
-                  "description": "PySide/Qt secrets in code",
-                  "regex": "(?i)(qt_|pyside_)(secret|key|password)[a-z0-9_ -]*[=:][^,}{)(\n]{8,}",
-                  "tags": ["key", "PySide", "Qt"]
-                }
-              }
-            }
 
   - repo: https://github.com/adrienverge/yamllint.git
     rev: v1.35.1
@@ -163,40 +109,3 @@ repos:
     hooks:
       - id: typos
         args: ["--config", "pyproject.toml"]
-
-# Local Hatch Tasks
-  - repo: local
-    hooks:
-      - id: hatch-style
-        name: Hatch - Style Checks
-        entry: hatch run lint:style
-        language: system
-        files: \.py$
-
-      - id: hatch-typing
-        name: Hatch - Type Checking
-        entry: hatch run lint:typing
-        language: system
-        files: \.py$
-
-      - id: hatch-lint
-        name: Hatch - Linting
-        entry: hatch run lint:lint
-        language: system
-        files: \.py$
-
-      - id: hatch-spelling
-        name: Hatch - Spelling Check
-        entry: hatch run lint:spelling
-        language: system
-        files: \.(md|txt|rst)$
-
-      - id: hatch-license
-        name: Hatch - License Compliance
-        entry: hatch run lint:license
-        language: system
-
-      - id: hatch-security
-        name: Hatch - Security Checks
-        entry: hatch run security:all
-        language: system

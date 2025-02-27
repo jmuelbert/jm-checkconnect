@@ -1,88 +1,99 @@
-# SPDX-FileCopyrightText: © 2023-2024 Jürgen Mülbert
-#
 # SPDX-License-Identifier: EUPL-1.2
-
+#
+# SPDX-FileCopyrightText: © 2023-present Jürgen Mülbert
 
 """
 Store and retrieve configuration settings.
 
-This class provides methods to read configuration settings from a config
-file and environment variables. It checks the config for the current
-environment first, then falls back to the 'default' config section if not
-found.
+This module provides a `Settings` class that reads configuration values from a
+configuration file and environment variables. It prioritizes values from the
+specified environment section and falls back to the 'default' section if
+the key is not found.
 """
 
-from __future__ import annotations
-
+import logging
+import sys
 from configparser import ConfigParser
 from os import getenv
 from typing import Any
 
+# Configure logging for the application
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    handlers=[logging.StreamHandler(sys.stdout)],  # Log to stdout
+)
+logger = logging.getLogger("checkconnect")
+
 
 class Settings:
     """
-    Provides a Settings class to manage configuration settings for the application.
+    Manage configuration settings for the application.
 
-    The Settings class reads in configuration settings from a file and provides
-    methods to retrieve those settings. It supports reading settings from
-    different environments (e.g. 'dev', 'prod') and falling back to default
-    values if a setting is not found.
+    This class reads configurations from a file and provides a method to retrieve
+    values based on the current environment (e.g., 'dev', 'prod'). If a setting is
+    not found in the active environment, the default section is used as a fallback.
 
-    The Settings class is responsible for initializing the configuration
-    parser, reading the configuration file, and providing a consistent interface
-    for retrieving settings.
+    Attributes
+    ----------
+        config_parser (ConfigParser): Parses the configuration file.
+        env (str): The active environment (default: 'dev').
+
     """
 
-    __slots__ = ["config_parser", "env"]
+    __slots__ = ["config_parser", "env"]  # Optimize memory usage
     config_parser: ConfigParser
     env: str
 
     def __init__(self, file: str = "settings.conf") -> None:
-        """Initializes the Settings class.
+        """
+        Initialize the settings manager.
 
-        Reads in the configuration from the provided file path.
-        Sets the ENV environment variable to 'dev' if not already set.
+        Args:
+        ----
+            file (str): Path to the configuration file. Defaults to 'settings.conf'.
+
         """
         self.config_parser = ConfigParser()
-        self.config_parser.read(file)
-        self.env = getenv("ENV", "dev")
+        self.config_parser.read(file)  # Load configuration from file
+        self.env = getenv("ENV", "dev")  # Get the active environment from system variables
 
     def get(self, name: str, default_value: Any = None) -> Any:
-        """Gets the value for the given setting name from the environment
-        configuration.
+        """
+        Retrieve a configuration value.
 
-        First checks the configuration for the current ENV environment.
-        If not found, checks the 'default' environment configuration.
-        If still not found, returns the provided default value.
+        Tries to get the setting from the active environment first. If not found,
+        it falls back to the 'default' section. If still not found, returns the
+        provided default value.
 
         Args:
         ----
-            name: The name of the setting to get.
-            default_value: The value to return if no value found for the setting.
+            name (str): The name of the configuration variable.
+            default_value (Any): The default value to return if the key is not found.
 
         Returns:
         -------
-            The value for the setting, or the default value if not found.
+            Any: The configuration value or the default value if not found.
 
         """
-        return self._get_from_section(self.env, name) or self._get_from_section("default", name) or default_value
+        return (
+            self._get_from_section(self.env, name)  # Try current environment
+            or self._get_from_section("default", name)  # Fallback to default section
+            or default_value  # Use provided default value
+        )
 
     def _get_from_section(self, section: str, var: str) -> Any:
-        """Gets the value for the given setting name from the given config
-        section.
-
-        Checks if the given section exists in the config parser and if the
-        given setting name exists in that section. If found, returns the
-        setting value. Otherwise returns None.
+        """
+        Helper function to retrieve a value from a specific section.
 
         Args:
         ----
-            section: The section in the config to check.
-            var: The name of the setting to get.
+            section (str): The section in the config file.
+            var (str): The variable name to retrieve.
 
         Returns:
         -------
-            The setting value if found, else None.
+            Any: The retrieved value or None if not found.
 
         """
         if section in self.config_parser and var in self.config_parser[section]:
@@ -90,4 +101,5 @@ class Settings:
         return None
 
 
+# Global settings instance to be used throughout the application
 settings = Settings()
