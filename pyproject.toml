@@ -10,12 +10,8 @@ name = "checkconnect"
 dynamic = ["version"]
 description = "Checks the availability of web addresses and NTP servers."
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 license = "EUPL-1.2"
-maintainers = [
-  { name = "Jürgen Mülbert" },
-  { email = "juergen.muelbert@outlook.de" },
-]
 authors = [{ name = "Jürgen Mülbert", email = "juergen.muelbert@outlook.de" }]
 # Pypi classifiers: https://pypi.org/classifiers/
 classifiers = [
@@ -31,8 +27,6 @@ classifiers = [
   "Operating System :: Unix",
   "Programming Language :: Python",
   "Programming Language :: Python :: 3 :: Only",
-  "Programming Language :: Python :: 3.8",
-  "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
@@ -41,24 +35,33 @@ classifiers = [
   "Topic :: Internet",
   "Topic :: Internet :: WWW/HTTP",
   "Topic :: Software Development :: Testing",
+  "Topic :: System :: Monitoring",
+  "Topic :: Desktop Environment",
+  "Topic :: Software Development :: User Interfaces"
 ]
 # Keywords description: https://python-poetry.org/docs/pyproject/#keywords
 keywords = [
   "checkconnect",
-  "business-data-extraction",
-  "BDE",
-  "database",
-  "python-tool",
+  "network monitoring",
+  "website monitoring",
+  "network tools",
+  "python-tool"
 ]
 
 dependencies = [
-  "click>=8.0",
-  "requests>=2.32.3",
-  "ntplib>=0.4.0",
-  "fpdf2>=2.8.2",
-  "PySimpleGUI>=5.0",
-  "PySide6>=6.8"
+  "click>=8.0,<9.0.0",
+  "requests>=2.32.3,<3.0.0",
+  "ntplib>=0.4.0,<0.5.0",
+  "weasyprint>=64.1,<65.0",
+  "PySide6>=6.8,<6.9.0"
 ]
+
+[project.optional-dependencies]
+pyside6 = ["PySide6>=6.8,<6.9.0"]
+
+
+
+
 
 [project.urls]
 Homepage = "https://github.com/jmuelbert/checkconnect"
@@ -68,8 +71,9 @@ Issues = "https://github.com/jmuelbert/checkconnect/issues"
 Changelog = "https://github.com/jmuelbert/checkconnect/blob/main/CHANGELOG.md"
 Source = "https://github.com/jmuelbert/checkconnect"
 
-[project.scripts]
-checkconnect = "checkconnect.__main:main"
+[tool.hatch.entry_points."console_scripts"]
+checkconnect = "checkconnect.__main__:main"
+checkconnect_gui = "checkconnect.__main__:main --gui"
 
 [tool.hatch.version]
 path = "src/checkconnect/__about__.py"
@@ -84,7 +88,6 @@ python = ["3.10", "3.11", "3.12", "3.13"]
 
 [tool.hatch.envs.test]
 dependencies = [
-  "PySide6>=6.8",
   "coverage>=6.2",
   "pytest>=7.4.0",
   "pytest-mock>=3.14.0",
@@ -96,6 +99,7 @@ dependencies = [
   "httpx>=0.28.1",
   "typeguard>=4.1.5",
   "xdoctest>=0.15.10",
+  "pyside6"
 ]
 
 [tool.hatch.envs.test.scripts]
@@ -103,9 +107,6 @@ test = "pytest tests/ {args}"
 cov = "pytest --cov-report=xml --cov-report=html --cov-report=term-missing --cov=src tests/"
 typeguard = "pytest --typeguard-packages=src"
 doctest = "pytest --doctest-modules"
-
-[tool.hatch.envs.gui-test]
-dependencies = ["pytest", "PySide6"]
 
 [tool.hatch.envs.lint]
 dependencies = [
@@ -115,20 +116,18 @@ dependencies = [
   "mypy>=1.8.0",
   "pylint>=3.0.0",
   "pylint-pytest>=1.1.2",
-  "pyside6>=6.5.0",
   "codespell>=2.3.0",
   "reuse>=5.0.2",
   "radon[toml]>=6.0.1",
+  "pyside6"
 ]
-
 
 [tool.hatch.envs.lint.scripts]
-style = [
-  "ruff check .",
-  "ruff format .",
-  "black --check .",
-  "pyside6-qmllint src/checkconnect/qml/**",
-]
+# Combined style linting
+style = ["ruff check .", "ruff format .", "black --check ."]
+
+# PySide6 specific lint
+pyside6-lint = "pyside6-qmllint src/checkconnect/qml/**"
 
 # Type checking
 typing = "mypy src tests --strict --warn-unused-configs"
@@ -152,7 +151,7 @@ radon_quality = ["radon cc ./src -a -nb", "radon mi ./src -nb"]
 all = ["style", "typing", "lint", "spelling", "license", "radon_quality"]
 
 [tool.hatch.envs.security]
-dependencies = ["bandit[toml]>=1.7.8", "safety>=2.3.0", "pip-audit"]
+dependencies = ["bandit[toml]>=1.7.8", "pip-audit"]
 
 [tool.hatch.envs.security.scripts]
 # Audit dependencies for vulnerabilities
@@ -162,14 +161,11 @@ pip-audit -r requirements.txt
 rm requirements.txt
 """
 
-# Check dependencies with safety
-safety-scan = "safety scan --full-report"
-
 # Run Bandit for static security analysis
 bandit-scan = "bandit -r src -ll"
 
 # Aggregate security tasks
-all = ["audit", "safety-scan", "bandit-scan"]
+all = ["audit", "bandit-scan"]
 
 [tool.hatch.envs.docs]
 dependencies = [
@@ -193,6 +189,17 @@ build = "mkdocs build --clean --strict"
 validate-links = "mkdocs linkcheck"
 serve = "mkdocs serve --dev-addr localhost:8000"
 deploy = "mkdocs gh-deploy --force"
+
+[tool.hatch.envs.translate]
+dependencies = [
+  "babel",
+  "pyside6"
+]
+
+[tool.hatch.envs.translate.scripts]
+translate = "python -m checkconnect.scripts.update_translations"
+translate-qt = "python -m checkconnect.scripts.update_translations --qt-only"
+translate-babel = "python -m checkconnect.scripts.update_translations --babel-only"
 
 [tool.coverage.run]
 branch = true
@@ -241,7 +248,7 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = ["S101", "FBT", "INP001", "D", "S603", "PLR2004"]
-"*.py" = ["Q000"]                                                   # Example: Ignore specific PyQt warnings
+"*.py" = ["Q000"]  # Example: Ignore specific PyQt warnings
 
 [tool.ruff.lint.mccabe]
 max-complexity = 10
@@ -391,6 +398,3 @@ checks = [
 
 [tool.xdoctest]
 style = "google"
-
-[tool.sqlfluff]
-dialect = "ansi"
