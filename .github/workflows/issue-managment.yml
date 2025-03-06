@@ -24,7 +24,7 @@ jobs:
     permissions:
       issues: write
       pull-requests: read
-      project: write
+      # project: write
 
     outputs:
       labeled: ${{ steps.triage.outputs.labeled }}
@@ -280,7 +280,7 @@ jobs:
     if: needs.process-issue.outputs.priority == 'high'
     runs-on: ubuntu-latest
     permissions:
-      project: write
+      # project: write
 
     steps:
       - name: 🔄 Update Project Views
