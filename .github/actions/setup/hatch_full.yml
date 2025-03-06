@@ -1,7 +1,7 @@
 ---
 # SPDX-FileCopyrightText: Jürgen Mülbert
 # SPDX-License-Identifier: EUPL-1.2
-#
+# 
 
 name: Release Pipeline
 run-name: "${{ github.event_name == 'workflow_dispatch' && format('CI: {0}', github.ref_name) || '' }}"
