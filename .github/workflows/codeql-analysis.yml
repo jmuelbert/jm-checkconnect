@@ -4,7 +4,6 @@
 
 name: 'CodeQL Security Analysis'
 
-
 on: # yamllint disable-line rule:truthy
   push:
     branches: [main, develop]
@@ -14,8 +13,8 @@ on: # yamllint disable-line rule:truthy
   pull_request:
     branches: [main, develop]
     paths-ignore:
-        - 'assets/'
-        - 'docs/'
+      - 'assets/'
+      - 'docs/'
   schedule:
     - cron: 17 16 * * 3
   workflow_dispatch:
@@ -56,7 +55,7 @@ jobs:
           egress-policy: audit
 
       # Initializes the CodeQL tools for scanning.
-      - name: "Initialize CodeQL"
+      - name: 'Initialize CodeQL'
         uses: github/codeql-action/init@dd746615b3b9d728a6a37ca2045b68ca76d4841a # v3.28.8
         with:
           languages: ${{ matrix.language }}
@@ -69,7 +68,7 @@ jobs:
 
       # Autobuild attempts to build any compiled languages  (C/C++, C#, Go, or Java).
       # If this step fails, then you should remove it and run the build manually (see below)
-      - name: "Autobuild"
+      - name: 'Autobuild'
         uses: github/codeql-action/autobuild@dd746615b3b9d728a6a37ca2045b68ca76d4841a # v3.28.8
 
       # ℹ️ Command-line programs to run using the OS shell.
@@ -82,10 +81,10 @@ jobs:
       #     echo "Run, Build Application using script"
       #     ./location_of_script_within_repo/buildscript.sh
 
-      - name: "Perform CodeQL Analysis"
+      - name: 'Perform CodeQL Analysis'
         uses: github/codeql-action/analyze@dd746615b3b9d728a6a37ca2045b68ca76d4841a # v3.28.8
         with:
-          category: "${{ matrix.language }}-analyze"
+          category: '${{ matrix.language }}-analyze'
           output: results/${{ matrix.language }}.sarif
 
       - name: 📊 Process Results

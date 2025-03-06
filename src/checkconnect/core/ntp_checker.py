@@ -15,7 +15,11 @@ import ntplib
 TRANSLATION_DOMAIN = "checkconnect"
 
 # Set the locales path relative to the current file
-LOCALES_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'core', 'locales')
+LOCALES_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(__file__)),
+    "core",
+    "locales",
+)
 
 
 # Initialize gettext
@@ -23,7 +27,7 @@ try:
     translate = gettext.translation(
         TRANSLATION_DOMAIN,
         LOCALES_PATH,
-        languages=[os.environ.get('LANG', 'en')],  # Respect the system language
+        languages=[os.environ.get("LANG", "en")],  # Respect the system language
     ).gettext
 except FileNotFoundError:
     # Fallback to the default English translation if the locale is not found
@@ -36,7 +40,11 @@ class NTPChecker:
     Checks the time synchronization with NTP servers.
     """
 
-    def __init__(self, config_parser: configparser.ConfigParser, logger: logging.Logger = None):
+    def __init__(
+        self,
+        config_parser: configparser.ConfigParser,
+        logger: logging.Logger = None,
+    ):
         """
         Initializes the NTPChecker with a configuration parser.
 
@@ -47,7 +55,9 @@ class NTPChecker:
 
         """
         self.config_parser = config_parser
-        self.logger = logger or logging.getLogger(__name__)  # Create a logger instance if none is passed in
+        self.logger = logger or logging.getLogger(
+            __name__,
+        )  # Create a logger instance if none is passed in
 
     def check_ntp_servers(self, ntp_file: str, output_file: str = None) -> list[str]:
         """
@@ -70,11 +80,15 @@ class NTPChecker:
         except FileNotFoundError:
             error_message = translate(f"NTP file not found: {ntp_file}")
             self.logger.error(error_message)
-            return [f"Error: NTP file not found: {ntp_file}"]  # Keep the Error: prefix for now, in case tests rely on this
+            return [
+                f"Error: NTP file not found: {ntp_file}",
+            ]  # Keep the Error: prefix for now, in case tests rely on this
         except Exception as e:
             error_message = translate(f"Error reading NTP file: {e}")
             self.logger.exception(error_message)
-            return [f"Error: Could not read NTP file: {e}"]  # Keep the Error: prefix for now, in case tests rely on this
+            return [
+                f"Error: Could not read NTP file: {e}",
+            ]  # Keep the Error: prefix for now, in case tests rely on this
 
         results = []
         for server in ntp_servers:
@@ -83,11 +97,15 @@ class NTPChecker:
                 response = client.request(server, version=3)
                 current_time = time.time()
                 difference = response.tx_time - current_time
-                result = translate(f"NTP: {server} - Time: {time.ctime(response.tx_time)} - Difference: {difference:.2f}s")
+                result = translate(
+                    f"NTP: {server} - Time: {time.ctime(response.tx_time)} - Difference: {difference:.2f}s",
+                )
                 self.logger.info(result)
                 results.append(result)  # Add result to the list
             except Exception as e:
-                error_message = translate(f"Error retrieving time from NTP server {server}: {e}")
+                error_message = translate(
+                    f"Error retrieving time from NTP server {server}: {e}",
+                )
                 self.logger.error(error_message)
                 results.append(error_message)
 

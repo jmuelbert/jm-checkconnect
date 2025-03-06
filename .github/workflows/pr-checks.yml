@@ -419,12 +419,12 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        python-version: ["3.9", "3.10", "3.11", "3.12"]
+        python-version: ['3.9', '3.10', '3.11', '3.12']
         exclude:
           - os: macos-latest
-            python-version: "3.9"
+            python-version: '3.9'
           - os: windows-latest
-            python-version: "3.9"
+            python-version: '3.9'
 
     outputs:
       coverage: ${{ steps.coverage.outputs.percentage }}
@@ -648,8 +648,8 @@ jobs:
         uses: peter-evans/create-pull-request@v7
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: "docs: fix spelling issues"
-          title: "📝 Fix spelling issues"
+          commit-message: 'docs: fix spelling issues'
+          title: '📝 Fix spelling issues'
           body-path: spell_check_report.md
           branch: fix/spelling-${{ github.run_id }}
           delete-branch: true

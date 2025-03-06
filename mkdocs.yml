@@ -26,24 +26,24 @@ theme:
   language: en
   direction: ltr
   features:
-      - navigation.tabs
-      - navigation.tabs.sticky
-      - navigation.sections
-      - navigation.instant
-      - navigation.indexes
-      - toc.integrate
-      - content.code.copy
-      - content.code.annotate
-      - content.code.select
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.instant
+    - navigation.indexes
+    - toc.integrate
+    - content.code.copy
+    - content.code.annotate
+    - content.code.select
   palette:
     # Palette toggle for light mode
-    - media: '(prefers-color-scheme: light)'
+    - media: "(prefers-color-scheme: light)"
       scheme: default
       toggle:
         icon: material/brightness-7
         name: Switch to dark mode
     # Palette toggle for dark mode
-    - media: '(prefers-color-scheme: dark)'
+    - media: "(prefers-color-scheme: dark)"
       scheme: slate
       toggle:
         icon: material/brightness-4
@@ -62,11 +62,11 @@ plugins:
   # Built-in
   search:
     lang:
-            - en
-            - de
-            - es
-            - it
-            - zh
+      - en
+      - de
+      - es
+      - it
+      - zh
   awesome-pages: {}
   glightbox: {}
   mike:
@@ -74,21 +74,19 @@ plugins:
   material/social: {}
   material/tags: {}
   mkdocstrings:
-    enable_inventory: true
-    default_handler: python
     handlers:
       python:
-        paths: [src]
+        paths: ["src"] # Point to the root 'src' directory
         options:
           show_root_heading: true
           show_object_full_path: false
-          show_category_heading: false
+          show_category_heading: true
           show_bases: true
-          show_submodules: false
-          show_if_no_docstring: false
-          show_signature: false
-          heading_level: 1
-          filters: ['!^_']
+          show_submodules: true  # Crucial for documenting modules
+          show_if_no_docstring: true
+          show_signature: true
+          heading_level: 2
+          filters: ["!^_"] # Exclude private methods
   i18n:
     docs_structure: suffix
     fallback_to_default: true
@@ -116,10 +114,10 @@ plugins:
         name: Help translating
         fixed_link: https://translate.spaceship-prompt.sh/
   git-revision-date-localized:
-      type: date
-      strict: false
-      # Required for blog plugin's generated indices
-      fallback_to_build_date: true
+    type: date
+    strict: false
+    # Required for blog plugin's generated indices
+    fallback_to_build_date: true
 
 # Markdown Extensions
 markdown_extensions:
@@ -127,7 +125,7 @@ markdown_extensions:
   - meta
   - md_in_html
   - toc:
-        permalink: true
+      permalink: true
   - admonition
   - codehilite:
       guess_lang: false
@@ -168,6 +166,7 @@ nav:
   - License: license.md
   # - Advanced:
   - Develop:
+      - Build: developer/build.md
       - Changelog: developer/changelog.md
       - API: developer/api-docs.md
       - Reference: developer/reference.md

@@ -32,7 +32,10 @@ class TestCheckConnect(unittest.TestCase):
         """
         # Create test configuration
         self.config_parser = configparser.ConfigParser()
-        self.config_parser["Files"] = {"ntp_servers": "ntp_servers.csv", "urls": "urls.csv"}
+        self.config_parser["Files"] = {
+            "ntp_servers": "ntp_servers.csv",
+            "urls": "urls.csv",
+        }
         self.config_parser["Output"] = {"directory": "reports"}
         self.config_parser["Network"] = {"timeout": "5"}
 
@@ -47,14 +50,17 @@ class TestCheckConnect(unittest.TestCase):
         self.TRANSLATION_DOMAIN = "checkconnect"
         self.LOCALES_PATH = os.path.join(
             os.path.dirname(os.path.dirname(__file__)),
-            'src', 'checkconnect', 'cli', 'locales',
+            "src",
+            "checkconnect",
+            "cli",
+            "locales",
         )
 
         try:
             self.translate = gettext.translation(
                 self.TRANSLATION_DOMAIN,
                 self.LOCALES_PATH,
-                languages=[os.environ.get('LANG', 'en')],
+                languages=[os.environ.get("LANG", "en")],
             ).gettext
         except FileNotFoundError:
             # Fallback to a simple identity function
@@ -122,8 +128,14 @@ class TestCheckConnect(unittest.TestCase):
         mock_check_urls.assert_called_once_with("urls.csv", "output.txt")
 
         # Verify log messages
-        self.assertIn(self.translate("Starting CheckConnect..."), self.mock_logger.infos)
-        self.assertIn(self.translate("Tests completed successfully."), self.mock_logger.infos)
+        self.assertIn(
+            self.translate("Starting CheckConnect..."),
+            self.mock_logger.infos,
+        )
+        self.assertIn(
+            self.translate("Tests completed successfully."),
+            self.mock_logger.infos,
+        )
 
     @patch("checkconnect.core.ntp_checker.NTPChecker.check_ntp_servers")
     @patch("checkconnect.core.url_checker.URLChecker.check_urls")
@@ -145,8 +157,10 @@ class TestCheckConnect(unittest.TestCase):
         mock_check_ntp_servers.assert_called_once_with("custom_ntp.csv", "output.txt")
         mock_check_urls.assert_called_once_with("custom_urls.csv", "output.txt")
 
-    @patch("checkconnect.core.ntp_checker.NTPChecker.check_ntp_servers",
-           side_effect=FileNotFoundError("NTP file not found"))
+    @patch(
+        "checkconnect.core.ntp_checker.NTPChecker.check_ntp_servers",
+        side_effect=FileNotFoundError("NTP file not found"),
+    )
     @patch("checkconnect.core.url_checker.URLChecker.check_urls")
     def test_run_file_not_found_error(self, mock_check_urls, mock_check_ntp_servers):
         """
@@ -160,15 +174,23 @@ class TestCheckConnect(unittest.TestCase):
             self.check_connect.run()
 
         # Verify log messages
-        self.assertIn(self.translate("Starting CheckConnect..."), self.mock_logger.infos)
-        self.assertIn(self.translate("File not found: NTP file not found"), self.mock_logger.errors)
+        self.assertIn(
+            self.translate("Starting CheckConnect..."),
+            self.mock_logger.infos,
+        )
+        self.assertIn(
+            self.translate("File not found: NTP file not found"),
+            self.mock_logger.errors,
+        )
 
         # Verify URL checker was not called after NTP checker failed
         mock_check_urls.assert_not_called()
 
     @patch("checkconnect.core.ntp_checker.NTPChecker.check_ntp_servers")
-    @patch("checkconnect.core.url_checker.URLChecker.check_urls",
-           side_effect=Exception("URL check error"))
+    @patch(
+        "checkconnect.core.url_checker.URLChecker.check_urls",
+        side_effect=Exception("URL check error"),
+    )
     def test_run_generic_exception(self, mock_check_urls, mock_check_ntp_servers):
         """
         Test the run method correctly handles and propagates generic exceptions.
@@ -184,9 +206,14 @@ class TestCheckConnect(unittest.TestCase):
         self.assertEqual(str(context.exception), "URL check error")
 
         # Verify log messages
-        self.assertIn(self.translate("Starting CheckConnect..."), self.mock_logger.infos)
-        self.assertIn(self.translate("Error during tests: URL check error"),
-                     "".join(self.mock_logger.exceptions))
+        self.assertIn(
+            self.translate("Starting CheckConnect..."),
+            self.mock_logger.infos,
+        )
+        self.assertIn(
+            self.translate("Error during tests: URL check error"),
+            "".join(self.mock_logger.exceptions),
+        )
 
     def test_generate_reports_success(self):
         """
@@ -197,8 +224,10 @@ class TestCheckConnect(unittest.TestCase):
         2. Appropriate log messages are generated
         """
         # First, we need to effectively patch the core functions being used
-        with patch("checkconnect.cli.checkconnect.create_pdf_report") as mock_pdf, \
-             patch("checkconnect.cli.checkconnect.create_html_report") as mock_html:
+        with (
+            patch("checkconnect.cli.checkconnect.create_pdf_report") as mock_pdf,
+            patch("checkconnect.cli.checkconnect.create_html_report") as mock_html,
+        ):
 
             # Call the method under test
             self.check_connect.generate_reports()
@@ -208,8 +237,14 @@ class TestCheckConnect(unittest.TestCase):
             mock_html.assert_called_once_with("ntp_servers.csv", "urls.csv", "reports")
 
             # Verify the expected log messages were generated
-            self.assertIn(self.translate("Starting report generation..."), self.mock_logger.infos)
-            self.assertIn(self.translate("Reports generated successfully."), self.mock_logger.infos)
+            self.assertIn(
+                self.translate("Starting report generation..."),
+                self.mock_logger.infos,
+            )
+            self.assertIn(
+                self.translate("Reports generated successfully."),
+                self.mock_logger.infos,
+            )
 
     def test_generate_reports_with_custom_files(self):
         """
@@ -219,8 +254,10 @@ class TestCheckConnect(unittest.TestCase):
         1. The report generation functions are called with these custom paths
         2. The default paths are overridden correctly
         """
-        with patch("checkconnect.cli.checkconnect.create_pdf_report") as mock_pdf, \
-             patch("checkconnect.cli.checkconnect.create_html_report") as mock_html:
+        with (
+            patch("checkconnect.cli.checkconnect.create_pdf_report") as mock_pdf,
+            patch("checkconnect.cli.checkconnect.create_html_report") as mock_html,
+        ):
 
             # Call with custom file paths
             custom_ntp = "custom_ntp.csv"
@@ -242,14 +279,22 @@ class TestCheckConnect(unittest.TestCase):
         """
         # Simulate a PDF generation failure
         pdf_error = Exception("PDF creation error")
-        with patch("checkconnect.cli.checkconnect.create_pdf_report", side_effect=pdf_error) as mock_pdf, \
-             patch("checkconnect.cli.checkconnect.create_html_report") as mock_html:
+        with (
+            patch(
+                "checkconnect.cli.checkconnect.create_pdf_report",
+                side_effect=pdf_error,
+            ) as mock_pdf,
+            patch("checkconnect.cli.checkconnect.create_html_report") as mock_html,
+        ):
 
             # Call the method - should not raise an exception
             self.check_connect.generate_reports()
 
             # Verify error handling
-            self.assertIn(self.translate("Starting report generation..."), self.mock_logger.infos)
+            self.assertIn(
+                self.translate("Starting report generation..."),
+                self.mock_logger.infos,
+            )
             self.assertIn(
                 self.translate(f"Error while generating reports: {pdf_error}"),
                 "".join(self.mock_logger.exceptions),
@@ -269,14 +314,22 @@ class TestCheckConnect(unittest.TestCase):
         """
         # Simulate HTML generation failure
         html_error = Exception("HTML creation error")
-        with patch("checkconnect.cli.checkconnect.create_pdf_report") as mock_pdf, \
-             patch("checkconnect.cli.checkconnect.create_html_report", side_effect=html_error) as mock_html:
+        with (
+            patch("checkconnect.cli.checkconnect.create_pdf_report") as mock_pdf,
+            patch(
+                "checkconnect.cli.checkconnect.create_html_report",
+                side_effect=html_error,
+            ) as mock_html,
+        ):
 
             # Call the method - should not raise an exception
             self.check_connect.generate_reports()
 
             # Verify error handling
-            self.assertIn(self.translate("Starting report generation..."), self.mock_logger.infos)
+            self.assertIn(
+                self.translate("Starting report generation..."),
+                self.mock_logger.infos,
+            )
             self.assertIn(
                 self.translate(f"Error while generating reports: {html_error}"),
                 "".join(self.mock_logger.exceptions),

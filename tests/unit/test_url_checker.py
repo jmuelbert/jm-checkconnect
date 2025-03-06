@@ -31,23 +31,33 @@ class TestURLChecker(unittest.TestCase):
         self.config_parser = configparser.ConfigParser()
         self.config_parser["Network"] = {"timeout": "10"}
         self.mock_logger = MockLogger()
-        self.url_checker = URLChecker(self.config_parser, logger=self.mock_logger) # set logger
+        self.url_checker = URLChecker(
+            self.config_parser,
+            logger=self.mock_logger,
+        )  # set logger
         # self.url_checker.logger = self.mock_logger # NO set direct the instance!
 
         # Translation setup
         self.TRANSLATION_DOMAIN = "checkconnect"
-        self.LOCALES_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'src', 'checkconnect', 'core', 'locales')
+        self.LOCALES_PATH = os.path.join(
+            os.path.dirname(os.path.dirname(__file__)),
+            "src",
+            "checkconnect",
+            "core",
+            "locales",
+        )
 
         try:
             self.translate = gettext.translation(
                 self.TRANSLATION_DOMAIN,
                 self.LOCALES_PATH,
-                languages=[os.environ.get('LANG', 'en')],  # Respect the system language
+                languages=[os.environ.get("LANG", "en")],  # Respect the system language
             ).gettext
         except FileNotFoundError:
             # Fallback to the default English translation if the locale is not found
             def translate(message):
                 return message
+
             self.translate = translate
 
     def test_url_checker_initialization(self):
@@ -61,7 +71,11 @@ class TestURLChecker(unittest.TestCase):
         self.assertEqual(self.url_checker.config_parser, self.config_parser)
         self.assertEqual(self.url_checker.timeout, 10)  # Verify timeout from config
 
-    @patch("checkconnect.core.url_checker.open", new_callable=mock_open, read_data="https://www.example.com\n")
+    @patch(
+        "checkconnect.core.url_checker.open",
+        new_callable=mock_open,
+        read_data="https://www.example.com\n",
+    )
     @patch("requests.get")
     def test_check_urls_success(self, mock_get, mock_file):
         """
@@ -76,14 +90,13 @@ class TestURLChecker(unittest.TestCase):
         mock_response.status_code = 200
         mock_get.return_value = mock_response
 
-        results = self.url_checker.check_urls("urls.txt") # run
+        results = self.url_checker.check_urls("urls.txt")  # run
         expected_result = self.translate("URL: https://www.example.com - Status: 200")
         self.assertIn(expected_result, results)
 
         expected_log = self.translate("Checking URLs from file: urls.txt")
         self.assertIn(expected_log, self.mock_logger.infos)
         self.assertIn(expected_result, self.mock_logger.infos)
-
 
     @patch("checkconnect.core.url_checker.open", side_effect=FileNotFoundError)
     def test_check_urls_file_not_found(self, mock_file):
@@ -96,7 +109,9 @@ class TestURLChecker(unittest.TestCase):
         self.mock_logger.reset()
 
         results = self.url_checker.check_urls("nonexistent_file.txt")
-        expected_result = self.translate("Error: URL file not found: nonexistent_file.txt")
+        expected_result = self.translate(
+            "Error: URL file not found: nonexistent_file.txt",
+        )
         self.assertIn(expected_result, results)
 
         error_log = self.translate("URL file not found: nonexistent_file.txt")
@@ -119,7 +134,11 @@ class TestURLChecker(unittest.TestCase):
         exception_log = self.translate("Error reading URL file: Read error")
         self.assertIn(exception_log, "".join(self.mock_logger.exceptions))
 
-    @patch("checkconnect.core.url_checker.open", new_callable=mock_open, read_data="https://www.example.com\n")
+    @patch(
+        "checkconnect.core.url_checker.open",
+        new_callable=mock_open,
+        read_data="https://www.example.com\n",
+    )
     @patch("requests.get", side_effect=requests.RequestException("Connection error"))
     def test_check_urls_request_error(self, mock_get, mock_file):
         """
@@ -131,12 +150,18 @@ class TestURLChecker(unittest.TestCase):
         self.mock_logger.reset()
 
         results = self.url_checker.check_urls("urls.txt")
-        expected_result = self.translate("Error checking URL https://www.example.com: Connection error")
+        expected_result = self.translate(
+            "Error checking URL https://www.example.com: Connection error",
+        )
         self.assertIn(expected_result, results)
 
         self.assertIn(expected_result, self.mock_logger.errors)
 
-    @patch("checkconnect.core.url_checker.open", new_callable=mock_open, read_data="https://www.example.com\n")
+    @patch(
+        "checkconnect.core.url_checker.open",
+        new_callable=mock_open,
+        read_data="https://www.example.com\n",
+    )
     @patch("requests.get")
     def test_check_urls_write_output_file(self, mock_get, mock_open):
         """
@@ -161,10 +186,16 @@ class TestURLChecker(unittest.TestCase):
 
         self.assertIn(expected_result, results)
         mock_write.assert_called_once_with(f"{expected_result}\n")
-        self.assertIn(self.translate("Results written to output.txt"), self.mock_logger.infos)
+        self.assertIn(
+            self.translate("Results written to output.txt"),
+            self.mock_logger.infos,
+        )
 
-
-    @patch("checkconnect.core.url_checker.open", new_callable=mock_open, read_data="https://www.example.com\n")
+    @patch(
+        "checkconnect.core.url_checker.open",
+        new_callable=mock_open,
+        read_data="https://www.example.com\n",
+    )
     @patch("requests.get")
     def test_check_urls_write_output_file_error(self, mock_get, mock_open):
         """
@@ -187,4 +218,7 @@ class TestURLChecker(unittest.TestCase):
         results = self.url_checker.check_urls("urls.txt", "output.txt")
 
         self.assertIn(expected_result, results)
-        self.assertIn(self.translate("Error writing to output file: Write error"), self.mock_logger.errors)
+        self.assertIn(
+            self.translate("Error writing to output file: Write error"),
+            self.mock_logger.errors,
+        )

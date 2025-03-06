@@ -25,7 +25,11 @@ from checkconnect.gui.checkconnect_gui import CheckConnectGUI
 TRANSLATION_DOMAIN = "checkconnect"
 
 # Set the locales path relative to the current file
-LOCALES_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'gui', 'locales')
+LOCALES_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(__file__)),
+    "gui",
+    "locales",
+)
 
 
 # Function to get the current locale
@@ -33,14 +37,19 @@ def get_system_locale():
     try:
         return locale.getlocale()[0] or locale.getdefaultlocale()[0]
     except:
-        return "en_US" # Fallback
+        return "en_US"  # Fallback
+
 
 # Use it for logger names
 
 logger = logging.getLogger(__name__)  # Get logger for this module
 
 
-def gui_main(config_parser: configparser.ConfigParser, output_file: Optional[str] = None, logger: logging.Logger = None):
+def gui_main(
+    config_parser: configparser.ConfigParser,
+    output_file: Optional[str] = None,
+    logger: logging.Logger = None,
+):
     """
     Main function for launching the CheckConnect GUI.
 
@@ -69,7 +78,7 @@ def gui_main(config_parser: configparser.ConfigParser, output_file: Optional[str
         # Use existing QApplication
         created_new_app = False
 
-    translator = QTranslator() # Create the Translator
+    translator = QTranslator()  # Create the Translator
 
     # Load Translation
     system_locale = get_system_locale()
@@ -90,7 +99,11 @@ def gui_main(config_parser: configparser.ConfigParser, output_file: Optional[str
     else:
         logger.warning(f"Translation file not found for locale: {locale_code}")
 
-    window = CheckConnectGUI(config_parser, output_file, logger=logger) # inject also this logger!
+    window = CheckConnectGUI(
+        config_parser,
+        output_file,
+        logger=logger,
+    )  # inject also this logger!
     window.show()
 
     exit_code = app.exec()  # Run the application event loop
@@ -100,6 +113,6 @@ def gui_main(config_parser: configparser.ConfigParser, output_file: Optional[str
 
     # Only quit if we created the app
     if created_new_app:
-        app.quit()      # Quit the application
+        app.quit()  # Quit the application
 
     sys.exit(exit_code)

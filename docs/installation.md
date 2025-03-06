@@ -1,6 +1,7 @@
 # Installation
 
 ## Prerequisites
+
 - Python 3.6 or later
 - pip 19.0 or later
 
@@ -8,7 +9,7 @@
 
 - Clone the repository: git clone https://github.com/jmuelbert/checkconnect.git
 - Change into the directory: cd checkconnect
-- Install the dependencies: ```bash pip install -r requirements.txt```
+- Install the dependencies: `bash pip install -r requirements.txt`
 - Run the program: python checkconnect.py
 
 ## Configuration
@@ -26,15 +27,10 @@ Config Options
 
 ```json
 {
-    "websites": [
-        "https://www.example.com",
-        "https://www.google.com"
-    ],
-    "ntp_servers": [
-        "time.nist.gov",
-        "time.apple.com"
-    ],
-    "timeout": 5
+  "websites": ["https://www.example.com", "https://www.google.com"],
+  "ntp_servers": ["time.nist.gov", "time.apple.com"],
+  "timeout": 5
 }
 ```
+
 ### Description pyproject.toml

@@ -21,14 +21,14 @@ from checkconnect.core.url_checker import URLChecker
 TRANSLATION_DOMAIN = "checkconnect"
 
 # Set the locales path relative to the current file
-LOCALES_PATH = os.path.join(os.path.dirname(__file__), 'locales')
+LOCALES_PATH = os.path.join(os.path.dirname(__file__), "locales")
 
 # Initialize gettext
 try:
     translate = gettext.translation(
         TRANSLATION_DOMAIN,
         LOCALES_PATH,
-        languages=[os.environ.get('LANG', 'en')],  # Respect the system language
+        languages=[os.environ.get("LANG", "en")],  # Respect the system language
     ).gettext
 except FileNotFoundError:
     # Fallback to the default English translation if the locale is not found
@@ -41,7 +41,11 @@ class CheckConnect:
     Handles network connectivity checks and report generation.
     """
 
-    def __init__(self, config_parser: configparser.ConfigParser, output_file: Optional[str] = None):
+    def __init__(
+        self,
+        config_parser: configparser.ConfigParser,
+        output_file: Optional[str] = None,
+    ):
         """
         Initializes the CheckConnect instance.
 
@@ -53,14 +57,26 @@ class CheckConnect:
         """
         self.config_parser = config_parser
         self.output_file = output_file
-        self.ntp_file = self.config_parser.get("Files", "ntp_servers", fallback="ntp_servers.csv")
+        self.ntp_file = self.config_parser.get(
+            "Files",
+            "ntp_servers",
+            fallback="ntp_servers.csv",
+        )
         self.url_file = self.config_parser.get("Files", "urls", fallback="urls.csv")
         self.url_checker = URLChecker(config_parser)
         self.ntp_checker = NTPChecker(config_parser)
-        self.report_dir = self.config_parser.get("Output", "directory", fallback="reports")  # from the ConfigFile
+        self.report_dir = self.config_parser.get(
+            "Output",
+            "directory",
+            fallback="reports",
+        )  # from the ConfigFile
         self.logger = logging.getLogger(__name__)  # Get logger for this module
 
-    def run(self, ntp_file: Optional[str] = None, url_file: Optional[str] = None) -> None:
+    def run(
+        self,
+        ntp_file: Optional[str] = None,
+        url_file: Optional[str] = None,
+    ) -> None:
         """
         Runs network connectivity checks.
 
@@ -93,7 +109,11 @@ class CheckConnect:
             self.logger.exception(translate(f"Error during tests: {e}"))
             raise  # Re-raise to propagate the error
 
-    def generate_reports(self, ntp_file: Optional[str] = None, url_file: Optional[str] = None) -> None:
+    def generate_reports(
+        self,
+        ntp_file: Optional[str] = None,
+        url_file: Optional[str] = None,
+    ) -> None:
         """
         Generates reports based on the NTP and URL test results.
 

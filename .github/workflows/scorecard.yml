@@ -14,13 +14,13 @@ on: # yamllint disable-line rule:truthy
       - develop
       - release/**
     paths-ignore:
-      - "**.md"
-      - "**.txt"
+      - '**.md'
+      - '**.txt'
       - docs/**
       - .github/*.md
       - LICENSES/**
       - LICENSE
-      - ".gitignore"
+      - '.gitignore'
 
   pull_request:
     types:
@@ -28,13 +28,13 @@ on: # yamllint disable-line rule:truthy
       - edited
       - synchronize
     paths-ignore:
-      - "**.md"
-      - "**.txt"
+      - '**.md'
+      - '**.txt'
       - docs/**
       - .github/*.md
       - LICENSES/**
       - LICENSE
-      - ".gitignore"
+      - '.gitignore'
 
   workflow_dispatch:
 
@@ -159,7 +159,7 @@ jobs:
           retention-days: 5
 
       # Upload the results to GitHub's code scanning dashboard.
-      - name: "Upload to code-scanning"
+      - name: 'Upload to code-scanning'
         uses: github/codeql-action/upload-sarif@dd746615b3b9d728a6a37ca2045b68ca76d4841a # v3.28.8
         with:
           script: |

@@ -24,4 +24,3 @@ NTP-Server werden überprüft...
 time.nist.gov: OK
 time.apple.com: OK
 ```
-

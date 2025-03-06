@@ -61,29 +61,39 @@ class TestCheckConnectGUI(unittest.TestCase):
             - Resetting the MockLogger to ensure a clean slate for each test.
         """
         self.config_parser = configparser.ConfigParser()
-        self.config_parser["Files"] = {"ntp_servers": "ntp_servers.csv", "urls": "urls.csv"}
+        self.config_parser["Files"] = {
+            "ntp_servers": "ntp_servers.csv",
+            "urls": "urls.csv",
+        }
         self.config_parser["Output"] = {"directory": "reports"}
 
         self.gui = CheckConnectGUI(self.config_parser, "output.txt")
         self.mock_logger = MockLogger()
         self.gui.logger = self.mock_logger  # Assign mock logger
-        self.gui.output_log.append = MagicMock() #Mock the methode from gui
+        self.gui.output_log.append = MagicMock()  # Mock the method from gui
         self.mock_logger.reset()
 
         # Translation setup
         self.TRANSLATION_DOMAIN = "checkconnect"
-        self.LOCALES_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'src', 'checkconnect', 'gui', 'locales')
+        self.LOCALES_PATH = os.path.join(
+            os.path.dirname(os.path.dirname(__file__)),
+            "src",
+            "checkconnect",
+            "gui",
+            "locales",
+        )
 
         try:
             self.translate = gettext.translation(
                 self.TRANSLATION_DOMAIN,
                 self.LOCALES_PATH,
-                languages=[os.environ.get('LANG', 'en')],  # Respect the system language
+                languages=[os.environ.get("LANG", "en")],  # Respect the system language
             ).gettext
         except FileNotFoundError:
             # Fallback to the default English translation if the locale is not found
             def translate(message):
                 return message
+
             self.translate = translate
 
     def test_checkconnect_gui_initialization(self):
@@ -100,10 +110,16 @@ class TestCheckConnectGUI(unittest.TestCase):
         self.assertEqual(self.gui.ntp_file, "ntp_servers.csv")
         self.assertEqual(self.gui.url_file, "urls.csv")
         self.assertEqual(self.gui.report_dir, "reports")
-        self.assertIsInstance(self.gui.url_input, QLineEdit)  # Check if widgets are created
+        self.assertIsInstance(
+            self.gui.url_input,
+            QLineEdit,
+        )  # Check if widgets are created
         self.assertIsInstance(self.gui.output_log, QTextEdit)
 
-    @patch("checkconnect.gui.checkconnect_gui.QFileDialog.getOpenFileName", return_value=("new_ntp.csv", ""))
+    @patch(
+        "checkconnect.gui.checkconnect_gui.QFileDialog.getOpenFileName",
+        return_value=("new_ntp.csv", ""),
+    )
     def test_browse_ntp_file(self, mock_getOpenFileName):
         """
         Test browse_ntp_file method.
@@ -116,7 +132,10 @@ class TestCheckConnectGUI(unittest.TestCase):
         self.assertEqual(self.gui.ntp_input.text(), "new_ntp.csv")
         self.assertEqual(self.gui.ntp_file, "new_ntp.csv")
 
-    @patch("checkconnect.gui.checkconnect_gui.QFileDialog.getOpenFileName", return_value=("new_url.csv", ""))
+    @patch(
+        "checkconnect.gui.checkconnect_gui.QFileDialog.getOpenFileName",
+        return_value=("new_url.csv", ""),
+    )
     def test_browse_url_file(self, mock_getOpenFileName):
         """
         Test browse_url_file method.
@@ -152,7 +171,10 @@ class TestCheckConnectGUI(unittest.TestCase):
             call("NTP Result 2\n"),
             call(self.translate("NTP tests completed.\n")),
         ]
-        self.assertEqual(self.gui.output_log.append.mock_calls, expected_log_calls) #Check that the messages was sended to the gui-log
+        self.assertEqual(
+            self.gui.output_log.append.mock_calls,
+            expected_log_calls,
+        )  # Check that the messages was sended to the gui-log
 
     @patch("checkconnect.gui.checkconnect_gui.os.path.exists", return_value=False)
     @patch("checkconnect.gui.checkconnect_gui.QMessageBox.critical")
@@ -167,7 +189,11 @@ class TestCheckConnectGUI(unittest.TestCase):
         self.gui.ntp_input.setText("invalid_ntp.csv")  # Set invalid input file
         self.gui.test_ntp()
 
-        mock_critical.assert_called_once_with(self.gui, self.translate("Error"), self.translate("Invalid or missing NTP file selected."))
+        mock_critical.assert_called_once_with(
+            self.gui,
+            self.translate("Error"),
+            self.translate("Invalid or missing NTP file selected."),
+        )
 
     @patch("checkconnect.gui.checkconnect_gui.os.path.exists", return_value=True)
     @patch("checkconnect.core.url_checker.URLChecker.check_urls")
@@ -192,7 +218,10 @@ class TestCheckConnectGUI(unittest.TestCase):
             call("URL Result 2\n"),
             call(self.translate("URL tests completed.\n")),
         ]
-        self.assertEqual(self.gui.output_log.append.mock_calls, expected_log_calls)  # Check that the messages was sended to the gui-log
+        self.assertEqual(
+            self.gui.output_log.append.mock_calls,
+            expected_log_calls,
+        )  # Check that the messages was sended to the gui-log
 
     @patch("checkconnect.gui.checkconnect_gui.os.path.exists", return_value=False)
     @patch("checkconnect.gui.checkconnect_gui.QMessageBox.critical")
@@ -207,12 +236,25 @@ class TestCheckConnectGUI(unittest.TestCase):
         self.gui.url_input.setText("invalid_urls.csv")  # Set invalid input file
         self.gui.test_urls()
 
-        mock_critical.assert_called_once_with(self.gui, self.translate("Error"), self.translate("Invalid or missing URL file selected."))
+        mock_critical.assert_called_once_with(
+            self.gui,
+            self.translate("Error"),
+            self.translate("Invalid or missing URL file selected."),
+        )
 
-    @patch("checkconnect.gui.checkconnect_gui.create_pdf_report")  # Changed path to match import
-    @patch("checkconnect.gui.checkconnect_gui.create_html_report")  # Changed path to match import
+    @patch(
+        "checkconnect.gui.checkconnect_gui.create_pdf_report",
+    )  # Changed path to match import
+    @patch(
+        "checkconnect.gui.checkconnect_gui.create_html_report",
+    )  # Changed path to match import
     @patch("checkconnect.gui.checkconnect_gui.QMessageBox.information")
-    def test_create_reports_success(self, mock_information, mock_create_html_report, mock_create_pdf_report):
+    def test_create_reports_success(
+        self,
+        mock_information,
+        mock_create_html_report,
+        mock_create_pdf_report,
+    ):
         """
         Test create_reports method success.
 
@@ -223,7 +265,10 @@ class TestCheckConnectGUI(unittest.TestCase):
         expected message.
         """
         # Mock os.path.exists to always return True for file checks
-        with patch("checkconnect.gui.checkconnect_gui.os.path.exists", return_value=True):
+        with patch(
+            "checkconnect.gui.checkconnect_gui.os.path.exists",
+            return_value=True,
+        ):
             mock_create_pdf_report.return_value = None
             mock_create_html_report.return_value = None
 
@@ -231,10 +276,25 @@ class TestCheckConnectGUI(unittest.TestCase):
             self.gui.url_input.setText("urls.csv")
             self.gui.create_reports()
 
-            mock_create_pdf_report.assert_called_once_with("ntp_servers.csv", "urls.csv", "reports")
-            mock_create_html_report.assert_called_once_with("ntp_servers.csv", "urls.csv", "reports")
-            mock_information.assert_called_once_with(self.gui, self.translate("Success"), self.translate("Reports generated successfully."))
-            self.assertEqual(self.gui.output_log.append.mock_calls, [call(self.translate("Reports generated successfully.\n"))])
+            mock_create_pdf_report.assert_called_once_with(
+                "ntp_servers.csv",
+                "urls.csv",
+                "reports",
+            )
+            mock_create_html_report.assert_called_once_with(
+                "ntp_servers.csv",
+                "urls.csv",
+                "reports",
+            )
+            mock_information.assert_called_once_with(
+                self.gui,
+                self.translate("Success"),
+                self.translate("Reports generated successfully."),
+            )
+            self.assertEqual(
+                self.gui.output_log.append.mock_calls,
+                [call(self.translate("Reports generated successfully.\n"))],
+            )
 
     @patch("checkconnect.gui.checkconnect_gui.os.path.exists", return_value=False)
     @patch("checkconnect.gui.checkconnect_gui.QMessageBox.critical")
@@ -251,9 +311,16 @@ class TestCheckConnectGUI(unittest.TestCase):
         self.gui.url_input.setText("invalid_urls.csv")
         self.gui.create_reports()
 
-        mock_critical.assert_called_once_with(self.gui, self.translate("Error"), self.translate("Invalid or missing files for report generation."))
+        mock_critical.assert_called_once_with(
+            self.gui,
+            self.translate("Error"),
+            self.translate("Invalid or missing files for report generation."),
+        )
 
-    @patch("checkconnect.gui.checkconnect_gui.create_pdf_report", side_effect=Exception("Report error"))  # Changed path to match import
+    @patch(
+        "checkconnect.gui.checkconnect_gui.create_pdf_report",
+        side_effect=Exception("Report error"),
+    )  # Changed path to match import
     @patch("checkconnect.gui.checkconnect_gui.QMessageBox.critical")
     def test_create_reports_exception(self, mock_critical, mock_create_pdf_report):
         """
@@ -265,8 +332,15 @@ class TestCheckConnectGUI(unittest.TestCase):
         is displayed with the expected error message.
         """
         # Mock os.path.exists to always return True for file checks
-        with patch("checkconnect.gui.checkconnect_gui.os.path.exists", return_value=True):
+        with patch(
+            "checkconnect.gui.checkconnect_gui.os.path.exists",
+            return_value=True,
+        ):
             self.gui.ntp_input.setText("ntp_servers.csv")
             self.gui.url_input.setText("urls.csv")
             self.gui.create_reports()
-            mock_critical.assert_called_once_with(self.gui, self.translate("Error"), self.translate("Error generating reports: Report error"))
+            mock_critical.assert_called_once_with(
+                self.gui,
+                self.translate("Error"),
+                self.translate("Error generating reports: Report error"),
+            )

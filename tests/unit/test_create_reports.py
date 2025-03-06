@@ -29,23 +29,35 @@ class TestReportGenerator(unittest.TestCase):
         """
         self.mock_logger = MockLogger()
         self.temp_dir = tempfile.TemporaryDirectory()  # Create a temporary directory
-        self.report_generator = ReportGenerator("ntp_file.txt", "url_file.txt", self.temp_dir.name, logger=self.mock_logger)
+        self.report_generator = ReportGenerator(
+            "ntp_file.txt",
+            "url_file.txt",
+            self.temp_dir.name,
+            logger=self.mock_logger,
+        )
         self.mock_logger.reset()
 
         # Translation setup
         self.TRANSLATION_DOMAIN = "checkconnect"
-        self.LOCALES_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'src', 'checkconnect', 'core', 'locales')
+        self.LOCALES_PATH = os.path.join(
+            os.path.dirname(os.path.dirname(__file__)),
+            "src",
+            "checkconnect",
+            "core",
+            "locales",
+        )
 
         try:
             self.translate = gettext.translation(
                 self.TRANSLATION_DOMAIN,
                 self.LOCALES_PATH,
-                languages=[os.environ.get('LANG', 'en')],  # Respect the system language
+                languages=[os.environ.get("LANG", "en")],  # Respect the system language
             ).gettext
         except FileNotFoundError:
             # Fallback to the default English translation if the locale is not found
             def translate(message):
                 return message
+
             self.translate = translate
 
     def tearDown(self):
@@ -57,7 +69,10 @@ class TestReportGenerator(unittest.TestCase):
         """
         self.temp_dir.cleanup()
 
-    @patch("checkconnect.core.create_reports.ReportGenerator._read_file", return_value="ntp data")
+    @patch(
+        "checkconnect.core.create_reports.ReportGenerator._read_file",
+        return_value="ntp data",
+    )
     @patch("os.makedirs", return_value=None)
     def test_create_html_report_success(self, mock_makedirs, mock_read_file):
         """
@@ -72,10 +87,15 @@ class TestReportGenerator(unittest.TestCase):
         # Check Log Messages
         logged_messages = self.mock_logger.infos
         self.assertEqual(len(logged_messages), 1)  # Expect one info message
-        expected_message = self.translate(f"HTML report generated at {os.path.join(self.temp_dir.name, 'report.html')}")
+        expected_message = self.translate(
+            f"HTML report generated at {os.path.join(self.temp_dir.name, 'report.html')}",
+        )
         self.assertEqual(logged_messages[0], expected_message)
 
-    @patch("checkconnect.core.create_reports.ReportGenerator._read_file", side_effect=FileNotFoundError("File not found"))
+    @patch(
+        "checkconnect.core.create_reports.ReportGenerator._read_file",
+        side_effect=FileNotFoundError("File not found"),
+    )
     def test_create_html_report_file_not_found(self, mock_read_file):
         """
         Test HTML report creation when a file is not found.
@@ -86,7 +106,10 @@ class TestReportGenerator(unittest.TestCase):
         with self.assertRaisesRegex(FileNotFoundError, "File not found"):
             self.report_generator.create_html_report()
 
-    @patch("checkconnect.core.create_reports.ReportGenerator._read_file", side_effect=Exception("Generic error"))
+    @patch(
+        "checkconnect.core.create_reports.ReportGenerator._read_file",
+        side_effect=Exception("Generic error"),
+    )
     def test_create_html_report_generic_error(self, mock_read_file):
         """
         Test HTML report creation when a generic error occurs.
@@ -97,8 +120,14 @@ class TestReportGenerator(unittest.TestCase):
         with self.assertRaisesRegex(Exception, "Generic error"):
             self.report_generator.create_html_report()
 
-    @patch("checkconnect.core.create_reports.ReportGenerator._read_file", return_value="ntp data")
-    @patch("pathlib.Path.mkdir", return_value=None)  # Changed from os.makedirs to Path.mkdir
+    @patch(
+        "checkconnect.core.create_reports.ReportGenerator._read_file",
+        return_value="ntp data",
+    )
+    @patch(
+        "pathlib.Path.mkdir",
+        return_value=None,
+    )  # Changed from os.makedirs to Path.mkdir
     @patch("checkconnect.core.create_reports.HTML")
     def test_create_pdf_report_success(self, mock_html, mock_mkdir, mock_read_file):
         """
@@ -144,10 +173,19 @@ class TestReportGenerator(unittest.TestCase):
         self.assertEqual(len(logged_messages), 2)  # Expect two info messages
 
         # Adjust the expected messages to match the new implementation
-        self.assertIn("Creating PDF report", logged_messages[0])  # Check part of the message
-        self.assertIn("PDF report generated at", logged_messages[1])  # Check part of the message
+        self.assertIn(
+            "Creating PDF report",
+            logged_messages[0],
+        )  # Check part of the message
+        self.assertIn(
+            "PDF report generated at",
+            logged_messages[1],
+        )  # Check part of the message
 
-    @patch("checkconnect.core.create_reports.ReportGenerator._read_file", side_effect=FileNotFoundError("File not found"))
+    @patch(
+        "checkconnect.core.create_reports.ReportGenerator._read_file",
+        side_effect=FileNotFoundError("File not found"),
+    )
     def test_create_pdf_report_file_not_found(self, mock_read_file):
         """
         Test PDF report creation when a file is not found.
@@ -158,10 +196,18 @@ class TestReportGenerator(unittest.TestCase):
         with self.assertRaisesRegex(FileNotFoundError, "File not found"):
             self.report_generator.create_pdf_report()
 
-    @patch("checkconnect.core.create_reports.ReportGenerator._read_file", return_value="ntp data")
+    @patch(
+        "checkconnect.core.create_reports.ReportGenerator._read_file",
+        return_value="ntp data",
+    )
     @patch("os.makedirs", return_value=None)
     @patch("checkconnect.core.create_reports.HTML")
-    def test_create_pdf_report_generic_error(self, mock_html, mock_makedirs, mock_read_file):
+    def test_create_pdf_report_generic_error(
+        self,
+        mock_html,
+        mock_makedirs,
+        mock_read_file,
+    ):
         """
         Test PDF report creation when a generic error occurs.
 

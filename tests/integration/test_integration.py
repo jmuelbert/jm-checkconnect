@@ -34,7 +34,7 @@ class TestIntegration(unittest.TestCase):
 
         # Create config.ini file
         self.config_file = os.path.join(self.test_dir, "config.ini")
-        config = configparser.RawConfigParser()
+        config = RawConfigParser()
         config["Logging"] = {
             "level": "DEBUG",
             "console_handler_level": "DEBUG",
@@ -74,14 +74,16 @@ class TestIntegration(unittest.TestCase):
         self.TRANSLATION_DOMAIN = "checkconnect"
         self.LOCALES_PATH = os.path.join(
             os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
-            'src', 'checkconnect', 'locales',
+            "src",
+            "checkconnect",
+            "locales",
         )
 
         try:
             self.translate = gettext.translation(
                 self.TRANSLATION_DOMAIN,
                 self.LOCALES_PATH,
-                languages=[os.environ.get('LANG', 'en')],
+                languages=[os.environ.get("LANG", "en")],
             ).gettext
         except FileNotFoundError:
             # Fallback to a simple identity function
@@ -105,8 +107,9 @@ class TestIntegration(unittest.TestCase):
         # Create a script that directly calls report generation
         test_script = os.path.join(self.test_dir, "test_script.py")
 
-        with open(test_script, 'w') as f:
-            f.write("""
+        with open(test_script, "w") as f:
+            f.write(
+                """
 import configparser
 import os
 import sys
@@ -136,19 +139,29 @@ def main():
 
 if __name__ == "__main__":
     main()
-""")
+""",
+            )
 
         # Run the script
         command = ["python", test_script, self.config_file]
 
         try:
-            result = subprocess.run(command, capture_output=True, text=True, check=False)
+            result = subprocess.run(
+                command,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
 
             print(f"Report script output: {result.stdout}")
             print(f"Report script errors: {result.stderr}")
 
             # Check that the script executed successfully
-            self.assertEqual(result.returncode, 0, f"Report script failed: {result.stderr}")
+            self.assertEqual(
+                result.returncode,
+                0,
+                f"Report script failed: {result.stderr}",
+            )
 
             # Check that report files were created
             html_report = os.path.join(self.reports_dir, "report.html")
@@ -160,8 +173,14 @@ if __name__ == "__main__":
                 print(f"Reports directory contents: {os.listdir(self.reports_dir)}")
 
             # Verify reports exist
-            self.assertTrue(os.path.exists(html_report), f"HTML report not found at {html_report}")
-            self.assertTrue(os.path.exists(pdf_report), f"PDF report not found at {pdf_report}")
+            self.assertTrue(
+                os.path.exists(html_report),
+                f"HTML report not found at {html_report}",
+            )
+            self.assertTrue(
+                os.path.exists(pdf_report),
+                f"PDF report not found at {pdf_report}",
+            )
 
             # Check HTML report content
             with open(html_report) as f:
@@ -182,8 +201,11 @@ if __name__ == "__main__":
         """
         # Construct the command to run
         command = [
-            "python", "-m", "checkconnect",
-            "-c", self.config_file,
+            "python",
+            "-m",
+            "checkconnect",
+            "-c",
+            self.config_file,
             "-v",  # Verbose mode
         ]
 
@@ -195,7 +217,9 @@ if __name__ == "__main__":
 
         # Create a test environment with PYTHONPATH set to find the module
         test_env = os.environ.copy()
-        test_env["PYTHONPATH"] = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+        test_env["PYTHONPATH"] = os.path.dirname(
+            os.path.dirname(os.path.dirname(__file__)),
+        )
 
         # Run the command
         try:
@@ -213,10 +237,17 @@ if __name__ == "__main__":
             print(f"Command stderr: {result.stderr}")
 
             # Check that the command executed successfully
-            self.assertEqual(result.returncode, 0, f"Command failed with code {result.returncode}: {result.stderr}")
+            self.assertEqual(
+                result.returncode,
+                0,
+                f"Command failed with code {result.returncode}: {result.stderr}",
+            )
 
             # Check that log file was created
-            self.assertTrue(os.path.exists(self.log_file), f"Log file not created at {self.log_file}")
+            self.assertTrue(
+                os.path.exists(self.log_file),
+                f"Log file not created at {self.log_file}",
+            )
 
             # Read log file and check for expected output
             with open(self.log_file) as f:

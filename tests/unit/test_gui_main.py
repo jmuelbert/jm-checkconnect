@@ -31,18 +31,25 @@ class TestGuiMain(unittest.TestCase):
 
         # Translation setup
         self.TRANSLATION_DOMAIN = "checkconnect"
-        self.LOCALES_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'src', 'checkconnect', 'gui', 'locales')
+        self.LOCALES_PATH = os.path.join(
+            os.path.dirname(os.path.dirname(__file__)),
+            "src",
+            "checkconnect",
+            "gui",
+            "locales",
+        )
 
         try:
             self.translate = gettext.translation(
                 self.TRANSLATION_DOMAIN,
                 self.LOCALES_PATH,
-                languages=[os.environ.get('LANG', 'en')],  # Respect the system language
+                languages=[os.environ.get("LANG", "en")],  # Respect the system language
             ).gettext
         except FileNotFoundError:
             # Fallback to the default English translation if the locale is not found
             def translate(message):
                 return message
+
             self.translate = translate
 
     @patch("checkconnect.gui.main.CheckConnectGUI")
@@ -79,7 +86,9 @@ class TestGuiMain(unittest.TestCase):
 
         # Assert CheckConnectGUI was created with correct args
         mock_checkconnect_gui.assert_called_once_with(
-            self.config_parser, "output.txt", logger=self.mock_logger,
+            self.config_parser,
+            "output.txt",
+            logger=self.mock_logger,
         )
 
         # Assert methods were called

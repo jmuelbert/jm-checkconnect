@@ -2,6 +2,7 @@
 #
 # SPDX-FileCopyrightText: © 2025-present Jürgen Mülbert
 
+
 class MockLogger:
     """
     Mock class for logging.Logger to capture log messages in tests.

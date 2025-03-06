@@ -12,4 +12,3 @@ __version__ = "0.0.1"
 """
 The version number of the CheckConnect package.
 """
-

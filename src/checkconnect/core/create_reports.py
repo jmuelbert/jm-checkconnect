@@ -14,14 +14,18 @@ from weasyprint import HTML
 TRANSLATION_DOMAIN = "checkconnect"
 
 # Set the locales path relative to the current file
-LOCALES_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'core', 'locales')
+LOCALES_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(__file__)),
+    "core",
+    "locales",
+)
 
 # Initialize gettext
 try:
     translate = gettext.translation(
         TRANSLATION_DOMAIN,
         LOCALES_PATH,
-        languages=[os.environ.get('LANG', 'en')],  # Respect the system language
+        languages=[os.environ.get("LANG", "en")],  # Respect the system language
     ).gettext
 except FileNotFoundError:
     # Fallback to the default English translation if the locale is not found
@@ -260,7 +264,11 @@ class ReportGenerator:
             Exception: If there is an error during report generation.
 
         """
-        self.logger.info(translate(f"Creating PDF report from {self.ntp_file} and {self.url_file} in {self.output_dir}"))
+        self.logger.info(
+            translate(
+                f"Creating PDF report from {self.ntp_file} and {self.url_file} in {self.output_dir}",
+            ),
+        )
 
         try:
             ntp_content, url_content = self._get_report_contents()

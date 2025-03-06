@@ -6,7 +6,6 @@ You can this program use in cli or in gui mode. The gui mode is enabled with a c
 
 - cli-mode
 
-
 ```bash
 python checkconnect
 ```

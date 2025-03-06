@@ -8,13 +8,13 @@
       "dependsOn": ["Install all Test Requirements"],
       "group": {
         "kind": "test",
-        "isDefault": true,
+        "isDefault": true
       },
       "presentation": {
         "reveal": "always",
-        "panel": "new",
+        "panel": "new"
       },
-      "problemMatcher": [],
+      "problemMatcher": []
     },
     {
       "label": "Pytest (changed tests only)",
@@ -22,13 +22,13 @@
       "command": "python3 -m pytest --timeout=10 --picked",
       "group": {
         "kind": "test",
-        "isDefault": true,
+        "isDefault": true
       },
       "presentation": {
         "reveal": "always",
-        "panel": "new",
+        "panel": "new"
       },
-      "problemMatcher": [],
+      "problemMatcher": []
     },
     {
       "label": "Ruff",
@@ -36,13 +36,13 @@
       "command": "pre-commit run ruff --all-files",
       "group": {
         "kind": "test",
-        "isDefault": true,
+        "isDefault": true
       },
       "presentation": {
         "reveal": "always",
-        "panel": "new",
+        "panel": "new"
       },
-      "problemMatcher": [],
-    },
-  ],
+      "problemMatcher": []
+    }
+  ]
 }

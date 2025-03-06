@@ -36,18 +36,25 @@ class TestNTPChecker(unittest.TestCase):
 
         # Translation setup
         self.TRANSLATION_DOMAIN = "checkconnect"
-        self.LOCALES_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'src', 'checkconnect', 'core', 'locales')
+        self.LOCALES_PATH = os.path.join(
+            os.path.dirname(os.path.dirname(__file__)),
+            "src",
+            "checkconnect",
+            "core",
+            "locales",
+        )
 
         try:
             self.translate = gettext.translation(
                 self.TRANSLATION_DOMAIN,
                 self.LOCALES_PATH,
-                languages=[os.environ.get('LANG', 'en')],  # Respect the system language
+                languages=[os.environ.get("LANG", "en")],  # Respect the system language
             ).gettext
         except FileNotFoundError:
             # Fallback to the default English translation if the locale is not found
             def translate(message):
                 return message
+
             self.translate = translate
 
     def tearDown(self):
@@ -65,7 +72,10 @@ class TestNTPChecker(unittest.TestCase):
             Tuple of mock_time, mock_ctime, mock_request
         """
         mock_time = patch("time.time", return_value=1678886400.0).start()
-        mock_ctime = patch("time.ctime", return_value="Mon Mar 15 00:00:00 2023").start()
+        mock_ctime = patch(
+            "time.ctime",
+            return_value="Mon Mar 15 00:00:00 2023",
+        ).start()
         mock_request = patch("ntplib.NTPClient.request").start()
         mock_request.return_value.tx_time = result_time
 
@@ -82,7 +92,11 @@ class TestNTPChecker(unittest.TestCase):
         self.assertIsInstance(self.ntp_checker, NTPChecker)
         self.assertEqual(self.ntp_checker.config_parser, self.config_parser)
 
-    @patch("checkconnect.core.ntp_checker.open", new_callable=mock_open, read_data="pool.ntp.org\n")
+    @patch(
+        "checkconnect.core.ntp_checker.open",
+        new_callable=mock_open,
+        read_data="pool.ntp.org\n",
+    )
     def test_check_ntp_servers_success(self, mock_file):
         """
         Test successful NTP server check.
@@ -94,31 +108,42 @@ class TestNTPChecker(unittest.TestCase):
         mock_time, mock_ctime, mock_request = self._setup_ntp_mocks()
 
         results = self.ntp_checker.check_ntp_servers("ntp_servers.txt")
-        expected_result = self.translate("NTP: pool.ntp.org - Time: Mon Mar 15 00:00:00 2023 - Difference: 5.00s")
+        expected_result = self.translate(
+            "NTP: pool.ntp.org - Time: Mon Mar 15 00:00:00 2023 - Difference: 5.00s",
+        )
         self.assertIn(expected_result, results)
 
-        expected_info_log = self.translate("Checking NTP servers from file: ntp_servers.txt")
+        expected_info_log = self.translate(
+            "Checking NTP servers from file: ntp_servers.txt",
+        )
         self.assertIn(expected_info_log, self.mock_logger.infos)
         self.assertIn(expected_result, self.mock_logger.infos)
 
     def test_check_ntp_servers_with_frozen_time(self):
         """
         Test NTP server check using time mocks.
-    
+
         Note: This test doesn't actually use freezegun due to compatibility issues.
         Instead, it manually mocks the time functions like the other tests.
         """
         # Set up the time mocks manually
         mock_time, mock_ctime, mock_request = self._setup_ntp_mocks()
-        expected_result = self.translate("NTP: pool.ntp.org - Time: Mon Mar 15 00:00:00 2023 - Difference: 5.00s")
+        expected_result = self.translate(
+            "NTP: pool.ntp.org - Time: Mon Mar 15 00:00:00 2023 - Difference: 5.00s",
+        )
 
         # Create a mock for file reading
-        with patch("checkconnect.core.ntp_checker.open", mock_open(read_data="pool.ntp.org\n")):
+        with patch(
+            "checkconnect.core.ntp_checker.open",
+            mock_open(read_data="pool.ntp.org\n"),
+        ):
             results = self.ntp_checker.check_ntp_servers("ntp_servers.txt")
 
         # Check for the expected time difference in the results
-        self.assertTrue(any("Difference: 5.00s" in r for r in results),
-                  f"Expected to find a time difference of 5.00s in results. Got: {results}")
+        self.assertTrue(
+            any("Difference: 5.00s" in r for r in results),
+            f"Expected to find a time difference of 5.00s in results. Got: {results}",
+        )
 
     @patch("checkconnect.core.ntp_checker.open", side_effect=FileNotFoundError)
     def test_check_ntp_servers_file_not_found(self, mock_file):
@@ -129,7 +154,9 @@ class TestNTPChecker(unittest.TestCase):
         specified NTP server file does not exist. It asserts that the expected error message is returned and logged.
         """
         results = self.ntp_checker.check_ntp_servers("nonexistent_file.txt")
-        expected_error = self.translate("Error: NTP file not found: nonexistent_file.txt")
+        expected_error = self.translate(
+            "Error: NTP file not found: nonexistent_file.txt",
+        )
         self.assertIn(expected_error, results)
 
         translated_error = self.translate("NTP file not found: nonexistent_file.txt")
@@ -150,7 +177,11 @@ class TestNTPChecker(unittest.TestCase):
         expected_exception = self.translate("Error reading NTP file: Read error")
         self.assertIn(expected_exception, "".join(self.mock_logger.exceptions))
 
-    @patch("checkconnect.core.ntp_checker.open", new_callable=mock_open, read_data="pool.ntp.org\n")
+    @patch(
+        "checkconnect.core.ntp_checker.open",
+        new_callable=mock_open,
+        read_data="pool.ntp.org\n",
+    )
     @patch("ntplib.NTPClient.request", side_effect=Exception("NTP request failed"))
     def test_check_ntp_servers_request_error(self, mock_request, mock_file):
         """
@@ -160,7 +191,9 @@ class TestNTPChecker(unittest.TestCase):
         during the NTP request process. It asserts that the expected error message is returned and logged.
         """
         results = self.ntp_checker.check_ntp_servers("ntp_servers.txt")
-        expected_error = self.translate("Error retrieving time from NTP server pool.ntp.org: NTP request failed")
+        expected_error = self.translate(
+            "Error retrieving time from NTP server pool.ntp.org: NTP request failed",
+        )
         self.assertIn(expected_error, results)
         self.assertIn(expected_error, self.mock_logger.errors)
 
@@ -175,13 +208,18 @@ class TestNTPChecker(unittest.TestCase):
         and that the appropriate log messages are present.
         """
         mock_time, mock_ctime, mock_request = self._setup_ntp_mocks()
-        expected_result = self.translate("NTP: pool.ntp.org - Time: Mon Mar 15 00:00:00 2023 - Difference: 5.00s")
+        expected_result = self.translate(
+            "NTP: pool.ntp.org - Time: Mon Mar 15 00:00:00 2023 - Difference: 5.00s",
+        )
 
         # Create a mock for both reading and writing
         mocked_open = mock_open(read_data="pool.ntp.org\n")
 
         with patch("checkconnect.core.ntp_checker.open", mocked_open):
-            results = self.ntp_checker.check_ntp_servers("ntp_servers.txt", "output.txt")
+            results = self.ntp_checker.check_ntp_servers(
+                "ntp_servers.txt",
+                "output.txt",
+            )
 
         self.assertIn(expected_result, results)
 
@@ -192,7 +230,7 @@ class TestNTPChecker(unittest.TestCase):
         self.assertTrue(len(write_calls) > 0, "write() was not called")
 
         # Convert calls to strings for easier assertion
-        write_data = ''.join(call_args[0][0] for call_args in write_calls)
+        write_data = "".join(call_args[0][0] for call_args in write_calls)
         self.assertIn(expected_result, write_data)
 
         # Alternatively, you can check if any specific call had the exact content
@@ -202,10 +240,16 @@ class TestNTPChecker(unittest.TestCase):
                 expected_call_found = True
                 break
 
-        self.assertTrue(expected_call_found, f"No write call with exactly '{expected_result}\\n' was found")
+        self.assertTrue(
+            expected_call_found,
+            f"No write call with exactly '{expected_result}\\n' was found",
+        )
 
         # Check log messages
-        self.assertIn(self.translate("Results written to output.txt"), self.mock_logger.infos)
+        self.assertIn(
+            self.translate("Results written to output.txt"),
+            self.mock_logger.infos,
+        )
 
     def test_check_ntp_servers_write_output_file_error(self):
         """
@@ -215,27 +259,46 @@ class TestNTPChecker(unittest.TestCase):
         patching a separate method for writing results.
         """
         mock_time, mock_ctime, mock_request = self._setup_ntp_mocks()
-        expected_result = self.translate("NTP: pool.ntp.org - Time: Mon Mar 15 00:00:00 2023 - Difference: 5.00s")
+        expected_result = self.translate(
+            "NTP: pool.ntp.org - Time: Mon Mar 15 00:00:00 2023 - Difference: 5.00s",
+        )
 
         # Simplified approach: mock reading separately from writing
-        with patch("checkconnect.core.ntp_checker.open", mock_open(read_data="pool.ntp.org\n")):
+        with patch(
+            "checkconnect.core.ntp_checker.open",
+            mock_open(read_data="pool.ntp.org\n"),
+        ):
             # For writing, we'll simulate a failure when attempting to open the output file
             # by patching 'open' with a side_effect for the output file only
 
             # Define a custom side effect for open that raises an exception for output.txt
             original_open = open
+
             def custom_open_side_effect(*args, **kwargs):
                 if args and args[0] == "output.txt":
                     raise Exception("Write error")
                 return mock_open(read_data="pool.ntp.org\n")(*args, **kwargs)
 
-            with patch("checkconnect.core.ntp_checker.open", side_effect=custom_open_side_effect):
-                results = self.ntp_checker.check_ntp_servers("ntp_servers.txt", "output.txt")
+            with patch(
+                "checkconnect.core.ntp_checker.open",
+                side_effect=custom_open_side_effect,
+            ):
+                results = self.ntp_checker.check_ntp_servers(
+                    "ntp_servers.txt",
+                    "output.txt",
+                )
 
         self.assertIn(expected_result, results)
-        self.assertIn(self.translate("Error writing to output file: Write error"), self.mock_logger.errors)
+        self.assertIn(
+            self.translate("Error writing to output file: Write error"),
+            self.mock_logger.errors,
+        )
 
-    @patch("checkconnect.core.ntp_checker.open", new_callable=mock_open, read_data="pool.ntp.org\ntime.nist.gov\n")
+    @patch(
+        "checkconnect.core.ntp_checker.open",
+        new_callable=mock_open,
+        read_data="pool.ntp.org\ntime.nist.gov\n",
+    )
     def test_check_ntp_servers_multiple_servers(self, mock_file):
         """Test checking multiple NTP servers."""
         mock_time, mock_ctime, mock_request = self._setup_ntp_mocks()
@@ -244,8 +307,14 @@ class TestNTPChecker(unittest.TestCase):
 
         # Check that we got results for both servers
         self.assertEqual(len(results), 2, "Should get results for two servers")
-        self.assertTrue(any("pool.ntp.org" in r for r in results), "Expected pool.ntp.org in results")
-        self.assertTrue(any("time.nist.gov" in r for r in results), "Expected time.nist.gov in results")
+        self.assertTrue(
+            any("pool.ntp.org" in r for r in results),
+            "Expected pool.ntp.org in results",
+        )
+        self.assertTrue(
+            any("time.nist.gov" in r for r in results),
+            "Expected time.nist.gov in results",
+        )
 
     @patch("checkconnect.core.ntp_checker.open", new_callable=mock_open, read_data="")
     def test_check_ntp_servers_empty_file(self, mock_file):

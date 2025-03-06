@@ -46,14 +46,19 @@ from checkconnect.core.url_checker import URLChecker
 TRANSLATION_DOMAIN = "checkconnect"
 
 # Set the locales path relative to the current file
-LOCALES_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'gui', 'locales')
+LOCALES_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(__file__)),
+    "gui",
+    "locales",
+)
+
 
 # Function to get the current locale
 def get_system_locale():
     try:
         return locale.getlocale()[0] or locale.getdefaultlocale()[0]
     except:
-        return "en_US" # Fallback
+        return "en_US"  # Fallback
 
 
 class CheckConnectGUI(QWidget):
@@ -64,7 +69,12 @@ class CheckConnectGUI(QWidget):
     It allows users to select NTP and URL files, run connectivity tests, and generate reports.
     """
 
-    def __init__(self, config_parser: configparser.ConfigParser, output_file: Optional[str] = None, logger: logging.Logger = None):
+    def __init__(
+        self,
+        config_parser: configparser.ConfigParser,
+        output_file: Optional[str] = None,
+        logger: logging.Logger = None,
+    ):
         """
         Initializes the CheckConnectGUI instance.
 
@@ -79,13 +89,27 @@ class CheckConnectGUI(QWidget):
         self.config_parser = config_parser
         self.output_file = output_file
         self.logger = logger or logging.getLogger(__name__)  # Instance logger
-        self.url_checker = URLChecker(config_parser, logger=self.logger)  # Pass the logger
-        self.ntp_checker = NTPChecker(config_parser, logger=self.logger)  # Pass the logger
-        self.report_dir = self.config_parser.get("Output", "directory", fallback="reports")
-        self.ntp_file = self.config_parser.get("Files", "ntp_servers", fallback="ntp_servers.csv")
+        self.url_checker = URLChecker(
+            config_parser,
+            logger=self.logger,
+        )  # Pass the logger
+        self.ntp_checker = NTPChecker(
+            config_parser,
+            logger=self.logger,
+        )  # Pass the logger
+        self.report_dir = self.config_parser.get(
+            "Output",
+            "directory",
+            fallback="reports",
+        )
+        self.ntp_file = self.config_parser.get(
+            "Files",
+            "ntp_servers",
+            fallback="ntp_servers.csv",
+        )
         self.url_file = self.config_parser.get("Files", "urls", fallback="urls.csv")
 
-        self.translator = QTranslator() # Create the Translator
+        self.translator = QTranslator()  # Create the Translator
 
         # Load Translation
         self.load_translation()
@@ -115,12 +139,11 @@ class CheckConnectGUI(QWidget):
         else:
             self.logger.warning(f"Translation file not found for locale: {locale_code}")
 
-
     def tr(self, source_text):
-         """
-         A simple translation method.
-         """
-         return QApplication.translate("CheckConnectGUI", source_text)
+        """
+        A simple translation method.
+        """
+        return QApplication.translate("CheckConnectGUI", source_text)
 
     def setup_gui(self):
         """
@@ -131,7 +154,9 @@ class CheckConnectGUI(QWidget):
             - Buttons to trigger NTP and URL tests, report generation, and application exit.
             - An output log to display real-time test results.
         """
-        self.setWindowTitle(self.tr(f"CheckConnect GUI - Version {__about__.__version__}"))  # Set title with version
+        self.setWindowTitle(
+            self.tr(f"CheckConnect GUI - Version {__about__.__version__}"),
+        )  # Set title with version
 
         # Create layout
         layout = QVBoxLayout()
@@ -214,7 +239,11 @@ class CheckConnectGUI(QWidget):
         """
         ntp_file = self.ntp_input.text()
         if not ntp_file or not os.path.exists(ntp_file):
-            QMessageBox.critical(self, self.tr("Error"), self.tr("Invalid or missing NTP file selected."))
+            QMessageBox.critical(
+                self,
+                self.tr("Error"),
+                self.tr("Invalid or missing NTP file selected."),
+            )
             return
 
         self.output_log.append(self.tr("Running NTP tests...\n"))
@@ -233,7 +262,11 @@ class CheckConnectGUI(QWidget):
         """
         url_file = self.url_input.text()
         if not url_file or not os.path.exists(url_file):
-            QMessageBox.critical(self, self.tr("Error"), self.tr("Invalid or missing URL file selected."))
+            QMessageBox.critical(
+                self,
+                self.tr("Error"),
+                self.tr("Invalid or missing URL file selected."),
+            )
             return
 
         self.output_log.append(self.tr("Running URL tests...\n"))
@@ -253,15 +286,32 @@ class CheckConnectGUI(QWidget):
         ntp_file = self.ntp_input.text()
         url_file = self.url_input.text()
 
-        if not ntp_file or not os.path.exists(ntp_file) or not url_file or not os.path.exists(url_file):
-            QMessageBox.critical(self, self.tr("Error"), self.tr("Invalid or missing files for report generation."))
+        if (
+            not ntp_file
+            or not os.path.exists(ntp_file)
+            or not url_file
+            or not os.path.exists(url_file)
+        ):
+            QMessageBox.critical(
+                self,
+                self.tr("Error"),
+                self.tr("Invalid or missing files for report generation."),
+            )
             return
 
         try:
             create_pdf_report(ntp_file, url_file, self.report_dir)
             create_html_report(ntp_file, url_file, self.report_dir)
-            QMessageBox.information(self, self.tr("Success"), self.tr("Reports generated successfully."))
+            QMessageBox.information(
+                self,
+                self.tr("Success"),
+                self.tr("Reports generated successfully."),
+            )
             self.output_log.append(self.tr("Reports generated successfully.\n"))
         except Exception as e:
-            QMessageBox.critical(self, self.tr("Error"), self.tr(f"Error generating reports: {e}"))
+            QMessageBox.critical(
+                self,
+                self.tr("Error"),
+                self.tr(f"Error generating reports: {e}"),
+            )
             self.logger.exception("Error generating reports.")

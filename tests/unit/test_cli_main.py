@@ -32,7 +32,10 @@ class TestCliMain(unittest.TestCase):
         """
         # Create a test configuration
         self.config_parser = configparser.ConfigParser()
-        self.config_parser["Files"] = {"ntp_servers": "ntp_servers.csv", "urls": "urls.csv"}
+        self.config_parser["Files"] = {
+            "ntp_servers": "ntp_servers.csv",
+            "urls": "urls.csv",
+        }
         self.config_parser["Output"] = {"directory": "reports"}
         self.config_parser["Network"] = {"timeout": "5"}
         self.config_parser["Logging"] = {"level": "DEBUG"}
@@ -48,14 +51,17 @@ class TestCliMain(unittest.TestCase):
         self.TRANSLATION_DOMAIN = "checkconnect"
         self.LOCALES_PATH = os.path.join(
             os.path.dirname(os.path.dirname(__file__)),
-            'src', 'checkconnect', 'cli', 'locales',
+            "src",
+            "checkconnect",
+            "cli",
+            "locales",
         )
 
         try:
             self.translate = gettext.translation(
                 self.TRANSLATION_DOMAIN,
                 self.LOCALES_PATH,
-                languages=[os.environ.get('LANG', 'en')],
+                languages=[os.environ.get("LANG", "en")],
             ).gettext
         except FileNotFoundError:
             # Fallback if translation files aren't found
@@ -79,7 +85,10 @@ class TestCliMain(unittest.TestCase):
         mock_check_connect = MagicMock()
 
         # Patch the CheckConnect class to return our mock
-        with patch("checkconnect.cli.main.CheckConnect", return_value=mock_check_connect):
+        with patch(
+            "checkconnect.cli.main.CheckConnect",
+            return_value=mock_check_connect,
+        ):
             # Run the CLIMain instance
             self.cli_main.run(self.config_parser, "output.txt")
 
@@ -118,7 +127,9 @@ class TestCliMain(unittest.TestCase):
                 self.mock_logger.infos,
             )
             self.assertIn(
-                self.translate(f"An error occurred during CLI execution: {test_exception}"),
+                self.translate(
+                    f"An error occurred during CLI execution: {test_exception}",
+                ),
                 "".join(self.mock_logger.exceptions),
             )
 
@@ -135,21 +146,28 @@ class TestCliMain(unittest.TestCase):
         mock_check_connect.run.side_effect = Exception("Test run error")
 
         # Patch the CheckConnect class to return our mock
-        with patch("checkconnect.cli.main.CheckConnect", return_value=mock_check_connect):
+        with patch(
+            "checkconnect.cli.main.CheckConnect",
+            return_value=mock_check_connect,
+        ):
             # Run should not raise an exception
             self.cli_main.run(self.config_parser, "output.txt")
 
             # Verify expected interactions and log messages
             mock_check_connect.run.assert_called_once()
-            self.assertFalse(mock_check_connect.generate_reports.called,
-                           "generate_reports should not be called if run fails")
+            self.assertFalse(
+                mock_check_connect.generate_reports.called,
+                "generate_reports should not be called if run fails",
+            )
 
             self.assertIn(
                 self.translate("Running CheckConnect in CLI mode"),
                 self.mock_logger.infos,
             )
             self.assertIn(
-                self.translate("An error occurred during CLI execution: Test run error"),
+                self.translate(
+                    "An error occurred during CLI execution: Test run error",
+                ),
                 "".join(self.mock_logger.exceptions),
             )
 
@@ -163,10 +181,15 @@ class TestCliMain(unittest.TestCase):
         """
         # Create a mock CheckConnect instance that raises an exception when generate_reports is called
         mock_check_connect = MagicMock()
-        mock_check_connect.generate_reports.side_effect = Exception("Test report generation error")
+        mock_check_connect.generate_reports.side_effect = Exception(
+            "Test report generation error",
+        )
 
         # Patch the CheckConnect class to return our mock
-        with patch("checkconnect.cli.main.CheckConnect", return_value=mock_check_connect):
+        with patch(
+            "checkconnect.cli.main.CheckConnect",
+            return_value=mock_check_connect,
+        ):
             # Run should not raise an exception
             self.cli_main.run(self.config_parser, "output.txt")
 
@@ -179,7 +202,9 @@ class TestCliMain(unittest.TestCase):
                 self.mock_logger.infos,
             )
             self.assertIn(
-                self.translate("An error occurred during CLI execution: Test report generation error"),
+                self.translate(
+                    "An error occurred during CLI execution: Test report generation error",
+                ),
                 "".join(self.mock_logger.exceptions),
             )
 

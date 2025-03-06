@@ -21,7 +21,11 @@ from checkconnect.cli.checkconnect import CheckConnect
 TRANSLATION_DOMAIN = "checkconnect"
 
 # Set the locales path relative to the current file
-LOCALES_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'cli', 'locales')
+LOCALES_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(__file__)),
+    "cli",
+    "locales",
+)
 
 
 # Initialize gettext
@@ -29,7 +33,7 @@ try:
     translate = gettext.translation(
         TRANSLATION_DOMAIN,
         LOCALES_PATH,
-        languages=[os.environ.get('LANG', 'en')],  # Respect the system language
+        languages=[os.environ.get("LANG", "en")],  # Respect the system language
     ).gettext
 except FileNotFoundError:
     # Fallback to the default English translation if the locale is not found
@@ -58,12 +62,17 @@ class CLIMain:
         self.logger.info(translate("Running CheckConnect in CLI mode"))
 
         try:
-            check_connect = CheckConnect(config_parser, output_file)  # Pass config parser
+            check_connect = CheckConnect(
+                config_parser,
+                output_file,
+            )  # Pass config parser
             check_connect.run()
             check_connect.generate_reports()
             self.logger.info(translate("Reports have been generated."))
         except Exception as e:
-            self.logger.exception(translate(f"An error occurred during CLI execution: {e}"))
+            self.logger.exception(
+                translate(f"An error occurred during CLI execution: {e}"),
+            )
 
 
 def cli_main(config_parser: configparser.ConfigParser, output_file: Optional[str]):
