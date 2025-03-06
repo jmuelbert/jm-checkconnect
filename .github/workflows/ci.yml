@@ -71,7 +71,7 @@ jobs:
 
     steps:
       - name: 🐍 Setup Python and hatch
-        uses: ./.github/actions/setup
+      - uses: ./.github/action/setup/hatch_full.yml
         with:
           python-version-file: ${{ env.PYTHON_VERSION_FILE }}
 
@@ -115,7 +115,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        python-version: ['3.8', '3.9', '3.10', '3.11', '3.12']
+        python-version: ['3.10', '3.11', '3.12']
         environment: [staging, production]
         exclude:
           - os: ubuntu-latest
@@ -133,7 +133,7 @@ jobs:
           persist-credentials: false
 
       - name: 🐍 Setup Python and hatch
-        uses: ./.github/actions/setup
+        uses: ./.github/action/setup/hatch_full.yml
         with:
           python-version-file: ${{ env.PYTHON_VERSION_FILE }}
 
