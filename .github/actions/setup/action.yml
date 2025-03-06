@@ -91,9 +91,6 @@ jobs:
       - name: 📝 Pre-Commit Hooks
         run: hatch run lint:precommit
 
-      - name: 🌍 Update Translations
-        run: hatch run translate:all
-
       - name: 📚 Documentation Checks
         run: |
           hatch run docs:build

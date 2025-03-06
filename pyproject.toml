@@ -115,6 +115,10 @@ dependencies = [
   "codespell>=2.3.0",
   "reuse>=5.0.2",
   "radon[toml]>=6.0.1",
+  "cspell>=8.0.0",  # Add cspell here
+  "cspell-dict-de-de>=6.0.0", # German dictionary example
+  "cspell-dict-es-es>=6.0.0",  # Spanish dictionary example
+  "prettier>=3.0.0" # Add prettier      
 ]
 
 [tool.hatch.envs.lint.scripts]
@@ -179,7 +183,7 @@ dependencies = [
 [tool.hatch.envs.docs.scripts]
 build = "mkdocs build --clean --strict"
 validate-links = "mkdocs linkcheck"
-serve = "mkdocs serve --dev-addr localhost:8000"
+serve = "mkdocs serve --dev-addr localhost:8090"
 deploy = "mkdocs gh-deploy --force"
 qualitycheck = "python scripts/doc_quality.py"
 
@@ -188,13 +192,12 @@ dependencies = [
     "pyaml>=25.1.0",
     "rich>=13.9.4",
     "babel>=2.17.0",
-    "PySide6>=6.8,<6.9.0"
 ]
 
 [tool.hatch.envs.translate.scripts]
 all = "python scripts/update_translations.py"
 qt = "python scripts/update_translations.py --qt-only"
-python = "python scripts/update_translations.py --babel-only"
+code = "python scripts/update_translations.py --babel-only"
 
 [tool.coverage.run]
 branch = true

@@ -12,5 +12,6 @@ assets/translations/
 benchmark/
 dist/
 build/
-**/*.pyc|
+**/*.pyc
 **/.*egg-info
+cspell.config.yaml

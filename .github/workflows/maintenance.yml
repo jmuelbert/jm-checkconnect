@@ -22,6 +22,12 @@ jobs:
         with:
           egress-policy: audit
 
+      - name: 🧰 Checkout Repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
       - name: 🧹 Process Stale Items
         id: stale
         uses: actions/stale@5bef64f19d7facfb25b37b414482c7164d639639 # v9.1.0
@@ -89,7 +95,7 @@ jobs:
             security
             dependencies
 
-      - name: 📊 Generate Report
+      - name: 📊 Generate Report and Notify Team
         if: always()
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
         with:
@@ -122,25 +128,18 @@ jobs:
             - Issue lock period: 182 days
             - PR lock period: 90 days`;
 
+            const totalProcessed = staleStats.closed + lockStats.total;
+
             if (staleStats.closed > 0 || lockStats.total > 0) {
+              // Create a new issue with the maintenance report
               await github.rest.issues.create({
                 ...context.repo,
                 title: `Maintenance Report ${new Date().toISOString().split('T')[0]}`,
                 body: report,
                 labels: ['maintenance', 'automated']
               });
-            }
 
-      - name: 📢 Notify Team
-        if: always()
-        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
-        with:
-          script: |
-            const closedItems = parseInt('${{ steps.stale.outputs.closed-issues-count }}') || 0;
-            const lockedItems = parseInt('${{ steps.lock.outputs.locked-issues }}') || 0;
-            const totalProcessed = closedItems + lockedItems;
-
-            if (totalProcessed > 0) {
+              // Add a comment to the latest issue
               const message = `### 🧹 Maintenance Complete
 
               - Items processed: ${totalProcessed}

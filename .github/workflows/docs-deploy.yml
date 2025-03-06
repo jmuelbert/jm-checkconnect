@@ -10,13 +10,13 @@ on:
     paths:
       - 'docs/**'
       - 'mkdocs.yml'
-      - 'src/**/*.py'
-      - '**/*.md'
   workflow_dispatch:
 
 permissions:
   contents: read
-
+  pages: write
+  id-token: write
+  
 jobs:
   build:
     name: Build Documentation
@@ -29,7 +29,6 @@ jobs:
     permissions:
       contents: write
       pages: write
-      issues: write
       id-token: write
 
     steps:
@@ -45,19 +44,9 @@ jobs:
           persist-credentials: false
 
       - name: ⚙️ Setup Python
-        uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5.3.0
+        uses: ./.github/actions/setup
         with:
-          python-version-file: ${{ env.PYTHON_VERSION_FILE }}
-          cache: pip
-          cache-dependency-path: |
-            pyproject.toml
-            .github/workflows/requirements.txt
-
-      - name: 🔧 Install Dependencies
-        run: |
-          pip install -r .github/workflows/requirements.txt
-          sudo apt-get update
-          sudo apt-get install -y graphviz
+          python-version-file: .python-version
 
       - name: 📚 Build Documentation
         id: build

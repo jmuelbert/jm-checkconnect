@@ -103,6 +103,18 @@ repos:
       - id: proselint
         args: ["--config", "pyproject.toml"]
 
+  - repo: https://github.com/streetsidesoftware/cspell
+    rev: v8.4.0
+    hooks:
+      - id: cspell
+        args: ["--config", "cspell.json", "**/*.md"]  # Only check Markdown files
+
+  - repo: https://github.com/pre-commit/mirrors-prettier
+    rev: v4.0.0
+    hooks:
+      - id: prettier
+        types: [markdown, javascript, css, json] # Specify file types to format
+
   # Typos and common mistakes
   - repo: https://github.com/crate-ci/typos
     rev: dictgen-v0.3.1

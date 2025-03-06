@@ -1,30 +1,8 @@
 ---
 version: "0.2"
-language: en,de-DE,it,es-ES
-ignorePaths:
-  - "**/node_modules/**"
-  - "**/vscode_extension/**"
-  - "**/.git/**"
-  - "**/.pnpm-lock.json"
-  - "**/pnpm-lock.yaml"
-  - "**/yarn.lock"
-  - dist/
-  - out/
-  - build/
-  - .vscode
-  - package-lock.json
-  - megalinter-reports
-  - .devcontainer/.dockerignore
-  - .git*
-  - .prettierignore
-  - CHANGELOG.md
-  - "**/report/**"
-  - "**/site/**"
-  - "**/LICENSES/**"
-  - "**/docs/about/EUPL-1.2.md"
-  - cspell.config.yaml
+language: en
 files:
-  - "*/**"
+  - "**/*.md"
 words:
   - jmuelbert
   - Jürgen
@@ -43,27 +21,6 @@ flagWords:
 maxNumberOfProblems: 1000
 import: []
 useGitignore: true
-overrides:
-  - filename: "**/de_DE/**"
-    language: en,de
-  - filename: "**/nl_NL/**"
-    language: en,nl
-  - filename: "**/ru_RU/samples/**"
-    language: ru,en
-  - filename: "**/sv/**"
-    language: en,sv
-  - filename: package.json
-    ignoreWords:
-      - color
-      - cannot
-  - filename: pyproject.toml
-    ignoreWords:
-      - LICENSE
-  - filename: LICENSE
-    ignoreWords:
-      - LICENCE
-      - authorised
-      - Unported
 allowCompoundWords: true
 enableGlobDot: true
 cache:
@@ -71,50 +28,18 @@ cache:
   cacheStrategy: content
 enableFiletypes:
   - shellscript
-dictionaryDefinitions:
-  - name: project-words
-    addWords: true
-    scope:
-      - workspace
-    path: ./config/project-words.txt
-  - name: local-german
-    addWords: true
-    scope:
-      - workspace
-    path: ./config/german-words.txt
-  - name: local-spanish
-    addWords: true
-    scope:
-      - workspace
-    path: ./config/spanish-words.txt
-  - name: local-italiano
-    addWords: true
-    scope:
-      - workspace
-    path: ./config/italian-words.txt
-  - name: local-ruby
-    addWords: false
-    scope:
-      - workspace
-    path: ./config/ruby-words.txt
-  - name: local-python
-    addWords: false
-    scope:
-      - workspace
-    path: ./config/python-words.txt
-  - name: local-github-actions
-    addWords: false
-    scope:
-      - workspace
-    path: ./config/github-actions.txt
+overrides:
+  - filename: "**.de.md"
+    language: en,de
+  - filename: "**.es.md"
+    language: en,es
+  - filename: "**.it.md"
+    language: en,it
 dictionaries:
   - project-words
   - local-german
   - local-spanish
   - local-italiano
-  - local-ruby
-  - local-python
-  - local-github-actions
   - bash
   - companies
   - csharp
