@@ -309,10 +309,26 @@ strict = true
 ignore = [".github/workflows/", "LICENSES/", "assets/translations/"]
 
 [tool.yamllint.rules]
-document-start = "enable"
-line-length = { max = 100, allow-non-breakable-inline-mappings = true }
-quoted-strings = { quote-type = "double", required = false }
-truthy = { allowed-values = ["true", "false"] }
+# Core
+braces = { max-spaces-inside = 1, min-spaces-inside = 0 } # Keep braces tight
+brackets = { max-spaces-inside = 1, min-spaces-inside = 0 } # Same for brackets
+colons = { max-spaces-after = 1, min-spaces-after = 1 } # Enforce space after colon
+commas = { max-spaces-after = 1, min-spaces-after = 0 } # Spaces after commas
+document-start = "enable" # Always start with ---
+empty-lines = { max-end = 0, max-start = 0 } # No leading or trailing empty lines
+indentation = { spaces = 2, check-multi-line-strings = true } # Enforce 2-space indentation
+key-duplicates = "enable" # Disallow duplicate keys
+line-length = { max = 100, allow-non-breakable-inline-mappings = true } # Reasonable line length
+new-lines = { type = "unix" }  # Enforce Unix line endings (LF)
+trailing-spaces = "enable" # No trailing whitespace
+truthy = { allowed-values = ["true", "false"] } # Standardize boolean values
+# Optional / Stylistic
+comments = { level = "warning", require-explanation = false, min-spaces-from-content = 1 } # Comment rules (optional)
+quoted-strings = { quote-type = "double", required = false } # Enforce consistent quote style (optional)
+# Disable rules that might be too strict (adjust to your team's preferences)
+empty-values = { forbid-in-inline = true } # Forbid empty values in inline mappings
+#anchors = { forbid-aliases = true, forbid-anchors = true} # Disallow aliases and anchors
+#hyphens = { max-spaces-after = 1}
 
 [tool.pylint]
 max-line-length = 88

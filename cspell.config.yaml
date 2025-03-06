@@ -15,7 +15,7 @@ words:
   - ntplib
   - ntps
   - tseslint
-  - typer
+  - typerx
 flagWords:
   - xxx
 maxNumberOfProblems: 1000
