@@ -39,7 +39,7 @@ jobs:
 
     steps:
       - name: 🔒 Harden Runner
-        uses: step-security/harden-runner@v3 # Use tag instead of SHA
+        uses: step-security/harden-runner@v2.11.0 # Use tag instead of SHA
         with:
           egress-policy: audit
 
@@ -140,7 +140,7 @@ jobs:
 
     steps:
       - name: 🔒 Harden Runner
-        uses: step-security/harden-runner@v3 # Use tag instead of SHA
+        uses: step-security/harden-runner@v2.11.0 # Use tag instead of SHA
         with:
           egress-policy: audit
 
@@ -199,7 +199,7 @@ jobs:
 
     steps:
       - name: 🔒 Harden Runner
-        uses: step-security/harden-runner@v3 # Use tag instead of SHA
+        uses: step-security/harden-runner@v2.11.0 # Use tag instead of SHA
         with:
           egress-policy: audit
 
@@ -280,7 +280,7 @@ jobs:
 
     steps:
       - name: 🔒 Harden Runner
-        uses: step-security/harden-runner@v3 # Use tag instead of SHA
+        uses: step-security/harden-runner@v2.11.0 # Use tag instead of SHA
         with:
           egress-policy: audit
 
@@ -311,7 +311,7 @@ jobs:
 
     steps:
       - name: 🔒 Harden Runner
-        uses: step-security/harden-runner@v3 # Use tag instead of SHA
+        uses: step-security/harden-runner@v2.11.0 # Use tag instead of SHA
         with:
           egress-policy: audit
 
@@ -359,7 +359,7 @@ jobs:
 
     steps:
       - name: 🔒 Harden Runner
-        uses: step-security/harden-runner@v3 # Use tag instead of SHA
+        uses: step-security/harden-runner@v2.11.0 # Use tag instead of SHA
         with:
           egress-policy: audit
 

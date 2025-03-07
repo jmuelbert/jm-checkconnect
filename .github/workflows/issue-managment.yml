@@ -32,7 +32,7 @@ jobs:
 
     steps:
       - name: 🔒 Harden Runner
-        uses: step-security/harden-runner@v2
+        uses: step-security/harden-runner@v2.11.0
         with:
           egress-policy: audit
 
