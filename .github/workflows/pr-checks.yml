@@ -39,7 +39,7 @@ jobs:
 
     steps:
       - name: 🔒 Harden Runner
-        uses: step-security/harden-runner@v2.11.0 # Use tag instead of SHA
+        uses: step-security/harden-runner@v2 # Use tag instead of SHA
         with:
           egress-policy: audit
 
@@ -140,7 +140,7 @@ jobs:
 
     steps:
       - name: 🔒 Harden Runner
-        uses: step-security/harden-runner@v2.11.0 # Use tag instead of SHA
+        uses: step-security/harden-runner@v2 # Use tag instead of SHA
         with:
           egress-policy: audit
 
@@ -199,11 +199,11 @@ jobs:
 
     steps:
       - name: 🔒 Harden Runner
-        uses: step-security/harden-runner@v2.11.0 # Use tag instead of SHA
+        uses: step-security/harden-runner@v2 # Use tag instead of SHA
         with:
           egress-policy: audit
 
-      - name: 🧰 Checkout Repository
+      - name: 📥 Checkout Repository
         uses: actions/checkout@v4 # Use tag instead of SHA
         with:
           fetch-depth: 0
@@ -280,11 +280,11 @@ jobs:
 
     steps:
       - name: 🔒 Harden Runner
-        uses: step-security/harden-runner@v2.11.0 # Use tag instead of SHA
+        uses: step-security/harden-runner@v2 # Use tag instead of SHA
         with:
           egress-policy: audit
 
-      - name: 🧰 Checkout Repository
+      - name: 📥 Checkout Repository
         uses: actions/checkout@v4 # Use tag instead of SHA
 
       - name: ⚙️ Setup Python
@@ -294,11 +294,20 @@ jobs:
           cache: pip
           cache-dependency-path: pyproject.toml
 
+      - name: ⚙️ Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18' # Or your preferred Node.js version
+
       - name: 🧰 Install Dependencies
         run: |
           python -m pip install --upgrade pip
           pip install hatch
           hatch env create lint
+          npm install # Install Node.js dependencies
+
+      - name: ✨ Run Prettier
+        run: npx prettier --write . # Format all files
 
       - name: ✨ Run Pre-commit Checks
         run: hatch run lint:precommit
@@ -311,7 +320,7 @@ jobs:
 
     steps:
       - name: 🔒 Harden Runner
-        uses: step-security/harden-runner@v2.11.0 # Use tag instead of SHA
+        uses: step-security/harden-runner@v2 # Use tag instead of SHA
         with:
           egress-policy: audit
 
@@ -325,11 +334,17 @@ jobs:
           cache: pip
           cache-dependency-path: pyproject.toml
 
+      - name: ⚙️ Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18' # Or your preferred Node.js version
+
       - name: 🧰 Install Dependencies
         run: |
           python -m pip install --upgrade pip
           pip install hatch
           hatch env create lint
+          npm install # Install Node.js dependencies
 
       - name: 🔍 Run Spell Checks
         id: spell-check
@@ -359,7 +374,7 @@ jobs:
 
     steps:
       - name: 🔒 Harden Runner
-        uses: step-security/harden-runner@v2.11.0 # Use tag instead of SHA
+        uses: step-security/harden-runner@v2 # Use tag instead of SHA
         with:
           egress-policy: audit
 
@@ -381,7 +396,8 @@ jobs:
 
       - name: 📚 Build Docs
         id: build
-        run: hatch run docs:build
+        run: |
+          hatch run docs:build
 
       - name: 🔍 Check Links
         run: hatch run docs:validate-links

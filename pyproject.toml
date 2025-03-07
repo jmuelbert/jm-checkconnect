@@ -110,11 +110,7 @@ dependencies = [
   "codespell>=2.3.0",
   "reuse>=5.0.2",
   "radon[toml]>=6.0.1",
-  "cspell>=8.0.0",  
-  "cspell-dict-de-de>=6.0.0",
-  "cspell-dict-es-es>=6.0.0",
-  "prettier>=3.0.0",  
-  "pyright>=1.1.350"  
+  "pyright>=1.1.350"
 ]
 
 [tool.hatch.envs.lint.scripts]

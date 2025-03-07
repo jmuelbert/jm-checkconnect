@@ -1,10 +1,11 @@
 {
-  "name": "jmbde-python",
+  "name": "checkconnect",
   "version": "0.0.0",
-  "description": "JM BDE - Management of the inventory of computer equipment",
+  "description": "Checks the availability of web addresses and NTP servers.",
   "main": "main.py",
   "scripts": {
     "spellcheck": "cspell **",
+    "format": "prettier --write .",  // Add prettier format script
     "precommit": "lint-staged",
     "sync-labels": "node .github/scripts/sync-labels.js",
     "trunk": "trunk",
@@ -14,7 +15,8 @@
   "keywords": [
     "python",
     "linting",
-    "spellcheck"
+    "spellcheck",
+    "prettier" // Add prettier keyword
   ],
   "author": "Jürgen Mülbert",
   "license": "MIT",
@@ -25,6 +27,7 @@
     "chalk": "4",
     "cspell": "^5.21.2",
     "lint-staged": "^12.5.0",
+    "prettier": "^3.0.0",  // Add prettier as a dev dependency
     "yaml": "^2.7.0"
   },
   "files": [
@@ -35,6 +38,11 @@
   "commitlint": {
     "extends": [
       "@commitlint/config-conventional"
+    ]
+  },
+  "lint-staged": {
+    "*.(js|jsx|ts|tsx|json|css|scss|md)": [
+      "prettier --write"
     ]
   }
 }
