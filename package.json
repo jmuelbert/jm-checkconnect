@@ -5,7 +5,7 @@
   "main": "main.py",
   "scripts": {
     "spellcheck": "cspell **",
-    "format": "prettier --write .",  // Add prettier format script
+    "format": "prettier --write .",q
     "precommit": "lint-staged",
     "sync-labels": "node .github/scripts/sync-labels.js",
     "trunk": "trunk",
@@ -16,7 +16,7 @@
     "python",
     "linting",
     "spellcheck",
-    "prettier" // Add prettier keyword
+    "prettier"
   ],
   "author": "Jürgen Mülbert",
   "license": "MIT",
@@ -27,7 +27,7 @@
     "chalk": "4",
     "cspell": "^5.21.2",
     "lint-staged": "^12.5.0",
-    "prettier": "^3.0.0",  // Add prettier as a dev dependency
+    "prettier": "^3.0.0",
     "yaml": "^2.7.0"
   },
   "files": [
