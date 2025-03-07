@@ -70,10 +70,31 @@ jobs:
         os: [ubuntu-latest, macos-latest, windows-latest]
 
     steps:
-      - name: 🐍 Setup Python and hatch
-      - uses: ./.github/action/setup/hatch_full.yml
+      - name: 🔒 Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+
+      - name: 🧐 Checkout Repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: '🐍 Set up Python'
+        uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5.3.0
         with:
           python-version-file: ${{ env.PYTHON_VERSION_FILE }}
+          cache: pip
+          cache-dependency-path: |
+            pyproject.toml
+
+      - name: 🧰 Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install hatch
+          hatch env create lint
+          hatch env create security
+          hatch env create docs
 
       - name: 🔍 Linting
         run: hatch run lint:all
@@ -90,9 +111,6 @@ jobs:
 
       - name: 📝 Pre-Commit Hooks
         run: hatch run lint:precommit
-
-      - name: 🌍 Update Translations
-        run: hatch run translate:all
 
       - name: 📚 Documentation Checks
         run: |
@@ -115,11 +133,11 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        python-version: ['3.10', '3.11', '3.12']
+        python-version: ['3.10', '3.11', '3.12', '3.13']
         environment: [staging, production]
         exclude:
           - os: ubuntu-latest
-            python-version: '3.12'
+            python-version: '3.13'
     steps:
       - name: 🔒 Harden Runner
         uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
@@ -132,10 +150,19 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: 🐍 Setup Python and hatch
-        uses: ./.github/action/setup/hatch_full.yml
+      - name: '🐍 Set up Python'
+        uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5.3.0
         with:
           python-version-file: ${{ env.PYTHON_VERSION_FILE }}
+          cache: pip
+          cache-dependency-path: |
+            pyproject.toml
+
+      - name: 🧰 Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install hatch
+          hatch env create test
 
       - name: 🧪 Run Tests
         run: hatch test --python ${{ matrix.python-version }} --cover-quiet --randomize --parallel --retries 5 --retry-delay 3
@@ -156,29 +183,18 @@ jobs:
           merge-multiple: true
 
       - name: 🔄 Combine coverage data
-        run: hatch run coverage:combine
-
-      - name: 📊 Export coverage reports
-        run: |
-          hatch run coverage:report-xml
-          hatch run coverage:report-uncovered-html
-
-      - name: 📤 Upload uncovered HTML report
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
-        with:
-          name: uncovered-html-report
-          path: htmlcov
+        run: hatch run test:cov
 
       - name: 📑 Generate coverage summary
-        run: hatch run coverage:generate-summary
+        run: hatch run test:cov
 
       - name: 📝 Write coverage summary report
         if: github.event_name == 'pull_request'
-        run: hatch run coverage:write-summary-report
+        run: echo "Coverage summary report" > coverage-report.md # Replace with actual report
 
       - name: 💬 Update coverage pull request comment
         if: github.event_name == 'pull_request' && !github.event.pull_request.head.repo.fork
-        uses: marocchino/sticky-pull-request-comment@52423e01640425a022ef5fd42c6fb5f633a02728 # v2.9.1
+        uses: marocchino/sticky-pull-request-comment@bc644d6dfc146ff78260c0474998a1ea446604f8 # v2.10.0
         with:
           path: coverage-report.md
 

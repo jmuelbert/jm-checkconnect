@@ -24,7 +24,7 @@ jobs:
     permissions:
       issues: write
       pull-requests: read
-      # project: write
+      projects: write
 
     outputs:
       labeled: ${{ steps.triage.outputs.labeled }}
@@ -185,7 +185,7 @@ jobs:
         with:
           script: |
             const PROJECT_CONFIG = {
-              name: 'jmbde-python',
+              name: 'checkconnect',
               columns: {
                 triage: 'Triage',
                 inProgress: 'In Progress',
@@ -280,7 +280,7 @@ jobs:
     if: needs.process-issue.outputs.priority == 'high'
     runs-on: ubuntu-latest
     permissions:
-      # project: write
+      projects: write
 
     steps:
       - name: 🔄 Update Project Views
