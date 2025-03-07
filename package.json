@@ -5,7 +5,7 @@
   "main": "main.py",
   "scripts": {
     "spellcheck": "cspell **",
-    "format": "prettier --write .",q
+    "format": "prettier --write .",
     "precommit": "lint-staged",
     "sync-labels": "node .github/scripts/sync-labels.js",
     "trunk": "trunk",
