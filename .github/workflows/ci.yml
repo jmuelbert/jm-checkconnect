@@ -231,9 +231,9 @@ jobs:
               dist/*
               LICENSE
               README.md
-            generate_release_notes: true
-            discussion_category_name: Releases
-            body: |
+          generate_release_notes: true
+          discussion_category_name: Releases
+          body: |
               ## Release ${{ nee ds.test-and-build.outputs.version }}
 
               ### 📦 Assets
