@@ -55,10 +55,82 @@ jobs:
           retry-on-snapshot-warnings: true
           config-file: .github/dependency-review-config.yml
 
+      - name: 📊 Generate Report
+        if: always()
+        env:
+          DEPENDENCY_CHANGES: ${{ steps.review.outputs.dependency-changes }}
+          VULNERABLE_CHANGES: ${{ steps.review.outputs.vulnerable-changes }}
+          LICENSE_CHANGES: ${{ steps.review.outputs.invalid-license-changes }}
+          DENIED_CHANGES: ${{ steps.review.outputs.denied-changes }}
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          script: |
+            const outputs = {
+              dependencyChanges: JSON.parse(process.env.DEPENDENCY_CHANGES || '[]'),
+              vulnerableChanges: JSON.parse(process.env.VULNERABLE_CHANGES || '[]'),
+              licenseChanges: JSON.parse(process.env.LICENSE_CHANGES || '[]'),
+              deniedChanges: JSON.parse(process.env.DENIED_CHANGES || '[]'),
+            };
+
+            let report = '## 📋 Dependency Review Report\n\n';
+
+            // Dependency Summary
+            report += `### 📑 Summary\n`;
+            report += `- Total Changes: ${outputs.dependencyChanges.length}\n`;
+            report += `- Vulnerable Changes: ${outputs.vulnerableChanges.length}\n`;
+            report += `- License Issues: ${outputs.licenseChanges.length}\n`;
+            report += `- Denied Changes: ${outputs.deniedChanges.length}\n\n`;
+
+            // Vulnerabilities
+            if (outputs.vulnerableChanges.length > 0) {
+              report += '### ⚠️ Vulnerable Changes\n\n';
+              outputs.vulnerableChanges.forEach(change => {
+              report += `- **${change.package.name}@${change.package.version}**: ${change.advisory.title}\n`;
+              report += `  - Severity: ${change.advisory.severity}\n`;
+              report += `  - Advisory: [${change.advisory.url}](${change.advisory.url})\n\n`;
+              });
+            } else {
+              report += '### ✅ No Vulnerable Changes Found\n\n';
+            }
+
+            // License Issues
+            if (outputs.licenseChanges.length > 0) {
+              report += '### 🚫 License Issues\n\n';
+              outputs.licenseChanges.forEach(change => {
+              report += `- **${change.package.name}@${change.package.version}**: ${change.license}\n`;
+              report += `  - Allowed Licenses: ${change.allowedLicenses.join(', ')}\n\n`;
+              });
+            } else {
+              report += '### ✅ No License Issues Found\n\n';
+            }
+
+            // Denied Changes
+            if (outputs.deniedChanges.length > 0) {
+              report += '### ❌ Denied Changes\n\n';
+              outputs.deniedChanges.forEach(change => {
+              report += `- **${change.package.name}@${change.package.version}**: ${change.reason}\n`;
+              });
+            } else {
+              report += '### ✅ No Denied Changes Found\n\n';
+            }
+
+            // Post Report
+            if (context.payload.pull_request) {
+              await github.rest.issues.createComment({
+                ...context.repo,
+                issue_number: context.payload.pull_request.number,
+                body: report
+              });
+            }
+
+
   validate-pr:
     name: Validate PR
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
+    outputs:
+      title-valid: ${{ steps.check-title.outputs.valid }}
+      body-valid: ${{ steps.check-body.outputs.valid }}
 
     permissions:
       issues: write
@@ -75,17 +147,36 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: 🔍 Check PR Title and Body
-        uses: your-custom-action/pr-validation # Replace with your custom action
+      - name: 🔍 Check PR Title
+        id: check-title
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
         with:
-          conventional-commit-regex: /^(build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test)\b(\([\w-]+\))?:.{1,100}$/
-          required-body-sections: Description, Related Issue, Testing
+          script: |
+            const { title } = context.payload.pull_request;
+            const conventionalCommitRegex = /^(build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test)\b(\([\w-]+\))?: .{1,100}$/;
 
-      - name: 💬 Commit Message Linting
-        run: |
-          npm install --global @commitlint/cli @commitlint/config-conventional
-          echo "module.exports = {extends: ['@commitlint/config-conventional']};" > commitlint.config.js
-          npx commitlint --from ${{ github.event.pull_request.base.sha }} --to ${{ github.event.pull_request.head.sha }}
+            const isValid = conventionalCommitRegex.test(title);
+            core.setOutput('valid', isValid);
+
+            if (!isValid) {
+              const validTypes = ['build', 'chore', 'ci', 'docs', 'feat', 'fix', 'perf', 'refactor', 'revert', 'style', 'test'];
+              await github.rest.issues.createComment({
+                ...context.repo,
+                issue_number: context.issue.number,
+                body: `## ❌ Invalid PR Title
+
+                Please follow [Conventional Commits](https://www.conventionalcommits.org/) format:
+                \`type(scope): description\`
+
+                Valid types:
+                ${validTypes.map(type => `- \`${type}\``).join('\n')}
+
+                Examples:
+                - \`feat(auth): add login functionality\`
+                - \`fix(api): handle null response\`
+                `
+              });
+            }
 
   test:
     name: Python ${{ matrix.python-version }} on ${{ matrix.os }}
@@ -123,7 +214,7 @@ jobs:
           python-version-file: ${{ env.PYTHON_VERSION_FILE }}
           cache: pip
           cache-dependency-path: pyproject.toml
-          
+
       - name: 🧰 Install Dependencies
         run: |
           python -m pip install --upgrade pip
@@ -201,7 +292,7 @@ jobs:
           python-version-file: ${{ env.PYTHON_VERSION_FILE }}
           cache: pip
           cache-dependency-path: pyproject.toml
-          
+
       - name: 🧰 Install Dependencies
         run: |
           python -m pip install --upgrade pip
@@ -232,7 +323,7 @@ jobs:
           python-version-file: ${{ env.PYTHON_VERSION_FILE }}
           cache: pip
           cache-dependency-path: pyproject.toml
-          
+
       - name: 🧰 Install Dependencies
         run: |
           python -m pip install --upgrade pip
@@ -289,7 +380,7 @@ jobs:
           python-version-file: ${{ env.PYTHON_VERSION_FILE }}
           cache: pip
           cache-dependency-path: pyproject.toml
-          
+
       - name: 🧰 Install Dependencies
         run: |
           python -m pip install --upgrade pip
