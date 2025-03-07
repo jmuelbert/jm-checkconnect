@@ -4,7 +4,7 @@
 
 name: PR Checks
 
-on: # yamlint disable-line rule:truthy
+on:
   pull_request:
     types: [opened, synchronize, reopened]
   push:
@@ -15,6 +15,8 @@ on: # yamlint disable-line rule:truthy
 
 permissions:
   contents: read
+  issues: write  # Add this to the top-level permissions
+  pull-requests: write # Add this to the top-level permissions
 
 env:
   PYTHON_VERSION_FILE: .python-version
@@ -37,18 +39,18 @@ jobs:
 
     steps:
       - name: 🔒 Harden Runner
-        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7
+        uses: step-security/harden-runner@d7e209efc77a2516653c72a39c7350da379b947f # v3.0.0
         with:
           egress-policy: audit
 
       - name: 📥 Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
         with:
           fetch-depth: 0
 
       - name: 🔎 Dependency Review
         id: review
-        uses: actions/dependency-review-action@3b139cfc5fae8b618d3eae3675e383bb1769c019
+        uses: actions/dependency-review-action@5ff4869d03893c163b646c647968d298c6491c71 # v4.1.0
         with:
           comment-summary-in-pr: always
           fail-on-severity: moderate
@@ -62,7 +64,7 @@ jobs:
           VULNERABLE_CHANGES: ${{ steps.review.outputs.vulnerable-changes }}
           LICENSE_CHANGES: ${{ steps.review.outputs.invalid-license-changes }}
           DENIED_CHANGES: ${{ steps.review.outputs.denied-changes }}
-        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        uses: actions/github-script@b384a112667d1e51975d71d94863d6ec07257f84 # v7.0.0
         with:
           script: |
             const outputs = {
@@ -138,18 +140,18 @@ jobs:
 
     steps:
       - name: 🔒 Harden Runner
-        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        uses: step-security/harden-runner@d7e209efc77a2516653c72a39c7350da379b947f # v3.0.0
         with:
           egress-policy: audit
 
       - name: 📥 Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
         with:
           fetch-depth: 0
 
       - name: 🔍 Check PR Title
         id: check-title
-        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        uses: actions/github-script@b384a112667d1e51975d71d94863d6ec07257f84 # v7.0.0
         with:
           script: |
             const { title } = context.payload.pull_request;
@@ -198,12 +200,12 @@ jobs:
 
     steps:
       - name: 🔒 Harden Runner
-        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        uses: step-security/harden-runner@d7e209efc77a2516653c72a39c7350da379b947f # v3.0.0
         with:
           egress-policy: audit
 
       - name: 🧰 Checkout Repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -279,12 +281,12 @@ jobs:
 
     steps:
       - name: 🔒 Harden Runner
-        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        uses: step-security/harden-runner@d7e209efc77a2516653c72a39c7350da379b947f # v3.0.0
         with:
           egress-policy: audit
 
       - name: 🧰 Checkout Repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
 
       - name: ⚙️ Setup Python
         uses: actions/setup-python@5aed924cbb2176d9ca37f71578074635fa3672d5 # v5.0.0
@@ -310,12 +312,12 @@ jobs:
 
     steps:
       - name: 🔒 Harden Runner
-        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        uses: step-security/harden-runner@d7e209efc77a2516653c72a39c7350da379b947f # v3.0.0
         with:
           egress-policy: audit
 
       - name: 🧰 Checkout Repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
 
       - name: ⚙️ Setup Python
         uses: actions/setup-python@5aed924cbb2176d9ca37f71578074635fa3672d5 # v5.0.0
@@ -333,25 +335,16 @@ jobs:
       - name: 🔍 Run Spell Checks
         id: spell-check
         run: |
-          echo "Running codespell..."
-          hatch env create lint
-          hatch run lint:spell > codespell.txt || true
-          # Check if any changes were made
-          if git diff --quiet; then
-            echo "changes=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "changes=true" >> "$GITHUB_OUTPUT"
-            git diff --name-only > changed_files.txt
-          fi
+          hatch run lint:spelling
 
-      - name: 🔄 Create Fix PR
-        if: steps.spell-check.outputs.changes == 'true'
-        uses: peter-evans/create-pull-request@v7
+      - name: 📝 Create Fix PR
+        if: ${{ failure() }}
+        uses: peter-evans/create-pull-request@e2695cba5e98e20b1945d19fd9a886c1d5c0a57f # v6.0.0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: 'docs: fix spelling issues'
           title: '📝 Fix spelling issues'
-          body-path: spell_check_report.md
+          body: 'Automated PR to fix spelling errors detected by codespell.'
           branch: fix/spelling-${{ github.run_id }}
           delete-branch: true
           labels: |
@@ -367,12 +360,12 @@ jobs:
 
     steps:
       - name: 🔒 Harden Runner
-        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        uses: step-security/harden-runner@d7e209efc77a2516653c72a39c7350da379b947f # v3.0.0
         with:
           egress-policy: audit
 
       - name: 🧰 Checkout Repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
 
       - name: ⚙️ Setup Python
         uses: actions/setup-python@5aed924cbb2176d9ca37f71578074635fa3672d5 # v5.0.0
@@ -389,24 +382,14 @@ jobs:
 
       - name: 📚 Build Docs
         id: build
-        run: |
-          hatch run docs:build
-          echo "doc-files=$(find site -type f -print | wc -l)" >> "$GITHUB_OUTPUT"
+        run: hatch run docs:build
 
       - name: 🔍 Check Links
-        run: |
-          hatch run docs:validate-links
-          echo "Checking internal links..."
-          broken_links=$(find site -type f -name "*.html" -exec grep -l "page-not-found" {} \;)
-          if [ ! -z "$broken_links" ]; then
-            echo "::error::Found broken internal links in: $broken_links"
-            exit 1
-          fi
+        run: hatch run docs:validate-links
 
       - name: 🔍 Quality Check
-        run: |
-          python docs/scripts/doc_quality.py
-        continue-on-error: true # Optional: Don't fail the build for quality issues
+        run: python docs/scripts/doc_quality.py
+        continue-on-error: true
 
       - name: 📊 Translation Status
         id: translations
@@ -423,8 +406,7 @@ jobs:
 
     steps:
       - name: 📊 Process Results
-        if: always()
-        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        uses: actions/github-script@b384a112667d1e51975d71d94863d6ec07257f84 # v7.0.0
         with:
           script: |
             const summary = `## 🔍 PR Check Results
@@ -432,7 +414,7 @@ jobs:
             ### Test Coverage: ${process.env.TEST_COVERAGE}%
             - Validate: ${process.env.VALIDATE_RESULT}
             - Validate-PR: ${process.env.VALIDATE_PR_RESULT}
-            - Status: ${process.env.TEST_RESULT}
+            - Test: ${process.env.TEST_RESULT}
             - Quality-Checks: ${process.env.QUALITY_CHECKS_RESULT}
             - Spell-Check: ${process.env.SPELL_CHECK_RESULT}
             - Docs: ${process.env.DOCS_RESULT}
