@@ -234,7 +234,7 @@ jobs:
           generate_release_notes: true
           discussion_category_name: Releases
           body: |
-              ## Release ${{ nee ds.test-and-build.outputs.version }}
+              ## Release ${{ needs.test-and-build.outputs.version }}
 
               ### 📦 Assets
               - Package: https://pypi.org/project/${{ env.PACKAGE_NAME }}/${{ needs.test-and-build.outputs.version }}
