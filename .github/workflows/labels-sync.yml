@@ -74,6 +74,7 @@ jobs:
               pnpm add -D $package
             fi
           done
+          pnpm add yaml 
 
       - name: 📝 Generate Report
         if: always()
