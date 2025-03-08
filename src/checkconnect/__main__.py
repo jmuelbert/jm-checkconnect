@@ -166,6 +166,9 @@ def main(gui: bool, config: str, output: str, verbose: bool, version: bool):
         cli_main(config_parser, output)  # Pass config parser to CLI
 
 
+def main_gui():
+    main(["--gui"])
+    
 # Run the main function when the script is executed directly
 if __name__ == "__main__":
     main()
