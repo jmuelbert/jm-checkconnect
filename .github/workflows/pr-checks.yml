@@ -364,49 +364,49 @@ jobs:
             automated-pr
             spelling
 
-    docs:
-      name: Documentation
-      runs-on: ubuntu-latest
-      timeout-minutes: 15
-      needs: test
+  docs:
+    name: Documentation
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: test
 
-      steps:
-        - name: 🔒 Harden Runner
-          uses: step-security/harden-runner@v2 # Use tag instead of SHA
-          with:
-            egress-policy: audit
+    steps:
+      - name: 🔒 Harden Runner
+        uses: step-security/harden-runner@v2 # Use tag instead of SHA
+        with:
+          egress-policy: audit
 
-        - name: 🧰 Checkout Repository
-          uses: actions/checkout@v4
+      - name: 🧰 Checkout Repository
+        uses: actions/checkout@v4
 
-        - name: Call Python Environment Setup
-          uses: ./.github/actions/python-setup
-          with:
-            python-version: '3.x'
+      - name: Call Python Environment Setup
+        uses: ./.github/actions/python-setup
+        with:
+          python-version: '3.x'
           id: python-setup
 
-        - name: 🧰 Install Dependencies
-          run: |
-            hatch env create docs
+      - name: 🧰 Install Dependencies
+        run: |
+          hatch env create docs
 
-        - name: 📚 Build Docs
-          id: build
-          run: |
-            hatch run docs:build
+      - name: 📚 Build Docs
+        id: build
+        run: |
+          hatch run docs:build
 
-        - name: 🔍 Check Links
-          run: hatch run docs:validate-links
+      - name: 🔍 Check Links
+        run: hatch run docs:validate-links
 
-        - name: 🔍 Quality Check
-          run: python docs/scripts/doc_quality.py
-          continue-on-error: true
+      - name: 🔍 Quality Check
+        run: python docs/scripts/doc_quality.py
+        continue-on-error: true
 
-        - name: 📊 Translation Status
-          id: translations
-          run: |
-            # Assuming you have a script at scripts/translation_status.py
-            # that outputs "translation_coverage=<coverage_percentage>"
-            python scripts/translation_status.py >> "$GITHUB_OUTPUT" # Changed this line
+      - name: 📊 Translation Status
+        id: translations
+        run: |
+          # Assuming you have a script at scripts/translation_status.py
+          # that outputs "translation_coverage=<coverage_percentage>"
+          python scripts/translation_status.py >> "$GITHUB_OUTPUT" # Changed this line
 
   report:
     name: Generate Report
