@@ -57,7 +57,7 @@ jobs:
       - name: 🔧 Setup PNPM
         uses: pnpm/action-setup@v4
         with:
-          version: ${{ fromJson(steps.settings.outputs.settings).versions.pnpm }}
+          version: 9.0.0
 
       - name: 🔧 Setup Node.js
         uses: actions/setup-node@v4
@@ -74,7 +74,7 @@ jobs:
               pnpm add -D $package
             fi
           done
-          pnpm add yaml 
+          pnpm add yaml
 
       - name: 📝 Generate Report
         if: always()
