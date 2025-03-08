@@ -56,16 +56,15 @@ jobs:
 
   checks:
     name: Lint, Security, Pre-Commit, Docs Checks
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest  # Run on a single OS (Ubuntu)
     timeout-minutes: 20
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+
     steps:
       - name: 🔒 Harden Runner
         uses: step-security/harden-runner@v2
         with:
           egress-policy: audit
+
       - name: 🧐 Checkout Repository
         uses: actions/checkout@v4
         with:
