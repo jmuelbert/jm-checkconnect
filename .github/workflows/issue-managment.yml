@@ -24,7 +24,7 @@ jobs:
     permissions:
       issues: write
       pull-requests: read
-      projects: write
+      # projects: write
 
     outputs:
       labeled: ${{ steps.triage.outputs.labeled }}
@@ -32,7 +32,7 @@ jobs:
 
     steps:
       - name: 🔒 Harden Runner
-        uses: step-security/harden-runner@v2.11.0
+        uses: step-security/harden-runner@v2
         with:
           egress-policy: audit
 
@@ -279,8 +279,8 @@ jobs:
     needs: process-issue
     if: needs.process-issue.outputs.priority == 'high'
     runs-on: ubuntu-latest
-    permissions:
-      projects: write
+    # permissions:
+      # projects: write
 
     steps:
       - name: 🔄 Update Project Views

@@ -33,20 +33,21 @@ jobs:
 
     steps:
       - name: 🔒 Harden Runner
-        uses: step-security/harden-runner@v2.11.0
+        uses: step-security/harden-runner@v2
         with:
           egress-policy: audit
 
       - name: 🧰 Checkout Repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: ⚙️ Setup Python
-        uses: ./.github/actions/setup
+      - name: Call Python Environment Setup
+        uses: ./.github/actions/python-setup
         with:
-          python-version-file: .python-version
+          python-version: '3.x'
+        id: python-setup
 
       - name: 📚 Build Documentation
         id: build
@@ -108,7 +109,7 @@ jobs:
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4 # or specific "vX.X.X" version tag for this action
+        uses: actions/deploy-pages@v4
 
   notify:
     needs: deploy
