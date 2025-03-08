@@ -37,7 +37,16 @@ console = Console(theme=custom_theme)
 
 
 def get_project_root() -> Path:
-    """Get the project root directory."""
+    """
+    Get the project root directory.
+
+    This function determines the project root directory by locating the current
+    script file and navigating up two levels in the directory structure.  This assumes
+    the script is located in ROOT/scripts/update_translations.py.
+
+    Returns:
+        Path: The project root directory as a Path object.
+    """
     # This script is at ROOT/scripts/update_translations.py
     return Path(__file__).resolve().parent.parent
 
@@ -56,7 +65,16 @@ CORE_LOCALES_DIR = CORE_DIR / "locales"
 
 @dataclass
 class TranslationConfig:
-    """Configuration for the translation update script."""
+    """
+    Configuration for the translation update script.
+
+    This dataclass holds the configuration settings for the translation update script,
+    including the list of languages to be updated.
+
+    Attributes:
+        languages (list[str]): List of language codes to update translations for. Defaults to None.
+        config_path (Path): Path to the configuration file. Defaults to PROJECT_ROOT / "scripts" / "translation_config.yml".
+    """
 
     languages: list[str] = None  # Use None to indicate that it can be empty
     config_path: Path = PROJECT_ROOT / "scripts" / "translation_config.yml"
@@ -64,7 +82,23 @@ class TranslationConfig:
 
     @classmethod
     def from_yaml(cls, path: Path) -> "TranslationConfig":
-        """Load configuration from YAML file."""
+        """
+        Load configuration from YAML file.
+
+        This method reads a YAML file and creates a TranslationConfig object from its contents.
+        If the configuration file is not found, it returns a default TranslationConfig object.
+        It handles FileNotFoundError and yaml.YAMLError exceptions, printing error messages
+        and exiting the program if necessary.
+
+        Args:
+            path (Path): Path to the YAML configuration file.
+
+        Returns:
+            TranslationConfig: A TranslationConfig object populated with the configuration values from the YAML file.
+
+        Raises:
+            SystemExit: If there's an error parsing the YAML file.
+        """
         try:
             with open(path, encoding="utf-8") as f:
                 config = yaml.safe_load(f)
@@ -80,7 +114,15 @@ class TranslationConfig:
         )
 
 def ensure_dir_exists(directory: Path) -> None:
-    """Ensure that the directory exists."""
+    """
+    Ensure that the directory exists.
+
+    This function creates the specified directory and any necessary parent directories if they
+    do not already exist.  If the directory already exists, no action is taken.
+
+    Args:
+        directory (Path): The path to the directory to ensure exists.
+    """
     directory.mkdir(parents=True, exist_ok=True)
 
 
@@ -89,12 +131,12 @@ def run_command(cmd: list[str], cwd: Optional[Path] = None) -> tuple[bool, str]:
     Run a shell command and return its success status and output.
 
     Args:
-        cmd: Command to run as a list of strings
-        cwd: Working directory for the command
+        cmd (list[str]): Command to run as a list of strings.
+        cwd (Optional[Path]): Working directory for the command. Defaults to PROJECT_ROOT.
 
     Returns:
-        Tuple of (success, output)
-
+        tuple[bool, str]: Tuple containing a boolean indicating success (True) or failure (False)
+                         and the command's output as a string.
     """
     try:
         result = subprocess.run(
@@ -110,7 +152,14 @@ def run_command(cmd: list[str], cwd: Optional[Path] = None) -> tuple[bool, str]:
 
 
 def update_qt_translations() -> None:
-    """Update and compile Qt translations using PySide6 tools."""
+    """
+    Update and compile Qt translations using PySide6 tools.
+
+    This function updates and compiles Qt translations for each language specified in the
+    configuration. It uses `pyside6-lupdate` to update the `.ts` (translation source) files
+    from the Python and UI files, and `pyside6-lrelease` to compile the `.ts` files into
+    `.qm` (Qt message) files.
+    """
     console.print(Panel("[info]Updating Qt Translations[/info]", border_style="info"))
 
     # Ensure locale directories exist
@@ -172,7 +221,13 @@ def update_qt_translations() -> None:
 
 
 def update_babel_translations() -> None:
-    """Update and compile Python translations using Babel."""
+    """
+    Update and compile Python translations using Babel.
+
+    This function updates and compiles Python translations for each language specified in the
+    configuration. It uses `pybabel` to extract messages from the Python files, update the
+    `.po` (portable object) files, and compile them into `.mo` (machine object) files.
+    """
     console.print(Panel("[info]Updating Python Translations[/info]", border_style="info"))
 
     # Ensure locale directories exist
@@ -277,7 +332,21 @@ def update_babel_translations() -> None:
 
 
 def create_default_config(config_path: Path) -> TranslationConfig:
-    """Creates a default translation_config.yml config file."""
+    """
+    Creates a default translation_config.yml config file.
+
+    This function creates a default `translation_config.yml` configuration file with pre-defined settings
+    for translation updates.  These settings include a list of languages.
+
+    Args:
+        config_path (Path): The path where the default configuration file should be created.
+
+    Returns:
+        TranslationConfig:  A TranslationConfig object representing the default configuration.
+
+    Raises:
+        SystemExit: If there is an error creating the configuration file.
+    """
     config = TranslationConfig(
         languages=["de", "fr", "es", "it"],
     )
@@ -298,7 +367,15 @@ def create_default_config(config_path: Path) -> TranslationConfig:
     return config
 
 def main() -> int:
-    """Main function to parse arguments and run translation updates."""
+    """
+    Main function to parse arguments and run translation updates.
+
+    This function parses command-line arguments, loads the translation configuration,
+    and runs the requested translation update operations (Qt and/or Babel).
+
+    Returns:
+        int: 0 if the translation update completed successfully, 1 if there was an error.
+    """
     parser = argparse.ArgumentParser(description="Manage CheckConnect translations")
     parser.add_argument(
         "--qt-only", action="store_true", help="Only update Qt translations",
