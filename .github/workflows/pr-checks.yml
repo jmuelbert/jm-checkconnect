@@ -339,7 +339,7 @@ jobs:
           hatch run lint:spelling
 
       - name: 🔍 Run CSpell Checks
-        id:cspell-check
+        id: cspell-check
         run: |
             npx cspell **
 
