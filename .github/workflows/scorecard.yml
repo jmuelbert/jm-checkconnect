@@ -135,26 +135,8 @@ jobs:
 
       # Upload the results to GitHub's code scanning dashboard.
       - name: "Upload to code-scanning"
-        uses: github/codeql-action/upload-sarif@dd746615b3b9d728a6a37ca2045b68ca76d4841a # v3.28.8
+        uses: github/codeql-action/upload-sarif@v3.28.8  # Use tag instead of SHA
         with:
-          script: |
-            const fs = require('fs');
-            const results = JSON.parse(fs.readFileSync('processed-results.json', 'utf8'));
-            const highRisks = results.highRisks;
-            const overallScore = results.overallScore;
-
-            const message = `## 🚨 Supply Chain Security Alert
-
-            High risk security issues detected:
-            - Score: ${overallScore}/10
-            - High Risk Issues: ${highRisks}
-
-            Please review the [security report](${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID})`;
-
-            await github.rest.issues.create({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              title: '🚨 Supply Chain Security Issues Detected',
-              body: message,
-              labels: ['security', 'high-risk', 'needs-attention']
-            });
+          sarif_file: scorecard.sarif
+          checkout_path: ${{ github.workspace }}
+          wait-for-processing: true
