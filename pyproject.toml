@@ -66,7 +66,7 @@ Source = "https://github.com/jmuelbert/checkconnect"
 
 [tool.hatch.entry_points."console_scripts"]
 checkconnect = "checkconnect.__main__:main"
-checkconnect_gui = "checkconnect.__main__:main --gui"
+checkconnect_gui = "checkconnect.__main__:main_gui"
 
 [tool.hatch.version]
 path = "src/checkconnect/__about__.py"
