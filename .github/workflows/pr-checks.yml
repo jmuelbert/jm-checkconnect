@@ -154,35 +154,44 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-                const github = require('@actions/github');
-          
-                const title = github.context.payload.pull_request?.title || '';
-                const conventionalCommitRegex = /^(build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test)\b(\([\w-]+\))?: .{1,100}$/;
-                
-                const isValid = conventionalCommitRegex.test(title);
-                core.setOutput('valid', isValid);
-                
-                if (!isValid) {
-                  const validTypes = ['build', 'chore', 'ci', 'docs', 'feat', 'fix', 'perf', 'refactor', 'revert', 'style', 'test'];
-                  
-                  await github.rest.issues.createComment({
-                    owner: github.context.repo.owner,
-                    repo: github.context.repo.repo,
-                    issue_number: github.context.issue.number,
-                    body: `## ❌ Invalid PR Title
-                
-                    Please follow [Conventional Commits](https://www.conventionalcommits.org/) format:
-                    \`type(scope): description\`
-                
-                    Valid types:
-                    ${validTypes.map(type => `- \`${type}\``).join('\n')}
-                
-                    Examples:
-                    - \`feat(auth): add login functionality\`
-                    - \`fix(api): handle null response\`
-                    `
-                  });
-                }
+            const core = require('@actions/core');
+            const github = require('@actions/github');
+
+            try {
+              const title = github.context.payload.pull_request?.title || '';
+              // Enclose the regex in double quotes and escape special characters
+              const conventionalCommitRegex = "^(build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test)(\\([\\w-]+\\))?: .{1,100}$";
+
+              const regex = new RegExp(conventionalCommitRegex); // Create a RegExp object
+
+              const isValid = regex.test(title);
+              core.setOutput('valid', isValid);
+
+              if (!isValid) {
+                const validTypes = ['build', 'chore', 'ci', 'docs', 'feat', 'fix', 'perf', 'refactor', 'revert', 'style', 'test'];
+
+                await github.rest.issues.createComment({
+                  owner: github.context.repo.owner,
+                  repo: github.context.repo.repo,
+                  issue_number: github.context.issue.number,
+                  body: `## ❌ Invalid PR Title
+
+                  Please follow [Conventional Commits](https://www.conventionalcommits.org/) format:
+                  \`type(scope): description\`
+
+                  Valid types:
+                  ${validTypes.map(type => `- \`${type}\``).join('\n')}
+
+                  Examples:
+                  - \`feat(auth): add login functionality\`
+                  - \`fix(api): handle null response\`
+                  `
+                });
+              }
+            } catch (error) {
+              core.error(`An error occurred during PR title validation: ${error.message}`); // Log the error
+              core.setOutput('valid', false); // Ensure it's marked as invalid on error
+            }
 
   test:
     name: Python ${{ matrix.python-version }} on ${{ matrix.os }}
@@ -224,31 +233,23 @@ jobs:
 
       - name: 🎨 Setup Qt Dependencies
         if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libxcb-xinerama0 \
-            libxcb-icccm4 \
-            libxcb-image0 \
-            libxcb-keysyms1 \
-            libxcb-randr0 \
-            libxcb-render-util0 \
-            libxcb-shape0 \
-            libxcb-xkb1 \
-            libxkbcommon-x11-0 \
-            libegl1
+        uses: ./.github/actions/setup-qt-dependencies
 
       - name: 🧪 Run Tests and Generate Coverage
         id: coverage
         run: |
-          hatch run test:cov
-          COVERAGE=$(grep TOTAL coverage.xml | awk '{print $4}' | sed 's/%//') # Use XML for parsing
-          echo "percentage=${COVERAGE}" >> "$GITHUB_OUTPUT"
+          - name: 🧪 Run Tests and Generate Coverage
+            id: coverage
+            run: |
+              hatch run test:cov
+              # Use xmllint to extract the coverage percentage
+              COVERAGE=$(xmllint --xpath "string(//line-rate)" coverage.xml | awk '{print $1 * 100}')
+              echo "percentage=${COVERAGE}" >> "$GITHUB_OUTPUT"
 
-          if [ "${COVERAGE}" -lt "80" ]; then
-            echo "::warning::Coverage ${COVERAGE}% is below threshold of 80%"
-            exit 1 # Fail the step if coverage is below 80%
-          fi
+              if [ $(echo "${COVERAGE} < 80" | bc -l) -eq 1 ]; then
+                echo "::warning::Coverage ${COVERAGE}% is below threshold of 80%"
+                exit 1 # Fail the step if coverage is below 80%
+              fi
 
       - name: 📤 Upload Coverage
         uses: codecov/codecov-action@v4 # Use tag instead of SHA
@@ -363,49 +364,49 @@ jobs:
             automated-pr
             spelling
 
-  docs:
-    name: Documentation
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    needs: test
+    docs:
+      name: Documentation
+      runs-on: ubuntu-latest
+      timeout-minutes: 15
+      needs: test
 
-    steps:
-      - name: 🔒 Harden Runner
-        uses: step-security/harden-runner@v2 # Use tag instead of SHA
-        with:
-          egress-policy: audit
+      steps:
+        - name: 🔒 Harden Runner
+          uses: step-security/harden-runner@v2 # Use tag instead of SHA
+          with:
+            egress-policy: audit
 
-      - name: 🧰 Checkout Repository
-        uses: actions/checkout@v4
+        - name: 🧰 Checkout Repository
+          uses: actions/checkout@v4
 
-      - name: Call Python Environment Setup
-        uses: ./.github/actions/python-setup
-        with:
-          python-version: '3.x'
-        id: python-setup
+        - name: Call Python Environment Setup
+          uses: ./.github/actions/python-setup
+          with:
+            python-version: '3.x'
+          id: python-setup
 
-      - name: 🧰 Install Dependencies
-        run: |
-          hatch env create docs
+        - name: 🧰 Install Dependencies
+          run: |
+            hatch env create docs
 
-      - name: 📚 Build Docs
-        id: build
-        run: |
-          hatch run docs:build
+        - name: 📚 Build Docs
+          id: build
+          run: |
+            hatch run docs:build
 
-      - name: 🔍 Check Links
-        run: hatch run docs:validate-links
+        - name: 🔍 Check Links
+          run: hatch run docs:validate-links
 
-      - name: 🔍 Quality Check
-        run: python docs/scripts/doc_quality.py
-        continue-on-error: true
+        - name: 🔍 Quality Check
+          run: python docs/scripts/doc_quality.py
+          continue-on-error: true
 
-      - name: 📊 Translation Status
-        id: translations
-        run: |
-          missing_translations=$(find docs/i18n -type f -name "*.md" | wc -l)
-          total_docs=$(find docs/en -type f -name "*.md" | wc -l)
-          echo "translation_coverage=$((missing_translations * 100 / total_docs))" >> "$GITHUB_OUTPUT"
+        - name: 📊 Translation Status
+          id: translations
+          run: |
+            # Assuming you have a script at scripts/translation_status.py
+            # that outputs "translation_coverage=<coverage_percentage>"
+            python scripts/translation_status.py >> "$GITHUB_OUTPUT" # Changed this line
 
   report:
     name: Generate Report
@@ -418,19 +419,31 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
+            const getResultEmoji = (result) => {
+              switch (result) {
+                case 'success': return '✅';
+                case 'failure': return '❌';
+                case 'cancelled': return '🛑';
+                case 'skipped': return '⚪';
+                default: return '❓';
+              }
+            };
+
             const summary = `## 🔍 PR Check Results
 
             ### Test Coverage: ${process.env.TEST_COVERAGE}%
-            - Validate: ${process.env.VALIDATE_RESULT}
-            - Validate-PR: ${process.env.VALIDATE_PR_RESULT}
-            - Test: ${process.env.TEST_RESULT}
-            - Quality-Checks: ${process.env.QUALITY_CHECKS_RESULT}
-            - Spell-Check: ${process.env.SPELL_CHECK_RESULT}
-            - Docs: ${process.env.DOCS_RESULT}
+
+            - Validate: ${getResultEmoji(process.env.VALIDATE_RESULT)} ${process.env.VALIDATE_RESULT}
+            - Validate-PR: ${getResultEmoji(process.env.VALIDATE_PR_RESULT)} ${process.env.VALIDATE_PR_RESULT}
+            - Test: ${getResultEmoji(process.env.TEST_RESULT)} ${process.env.TEST_RESULT} (See details below)
+            - Quality-Checks: ${getResultEmoji(process.env.QUALITY_CHECKS_RESULT)} ${process.env.QUALITY_CHECKS_RESULT}
+            - Spell-Check: ${getResultEmoji(process.env.SPELL_CHECK_RESULT)} ${process.env.SPELL_CHECK_RESULT}
+            - Docs: ${getResultEmoji(process.env.DOCS_RESULT)} ${process.env.DOCS_RESULT}
 
             ### Details
             - [Coverage Report](https://codecov.io/gh/${process.env.REPOSITORY})
             - [Test Results](${process.env.GITHUB_SERVER_URL}/${process.env.REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID})
+            - Translation Coverage: ${process.env.TRANSLATION_COVERAGE}%
             `;
 
             if (context.payload.pull_request) {
@@ -451,6 +464,7 @@ jobs:
           REPOSITORY: ${{ github.repository }}
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_RUN_ID: ${{ github.run_id }}
+          TRANSLATION_COVERAGE: ${{ needs.docs.outputs.translation_coverage }} #Added this line
 
       - name: 🚨 Check Status
         if: needs.test.result != 'success' || needs.quality-checks.result != 'success' || needs.docs.result != 'success' || needs.spell-check.result != 'success'
