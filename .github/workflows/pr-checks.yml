@@ -171,7 +171,7 @@ jobs:
                 \`type(scope): description\`
 
                 Valid types:
-                ${validTypes.map(type => `- \`${type}\``).join('\n')}
+                ${validTypes.map(type => `- \\\`${type}\\\``).join('\n')}
 
                 Examples:
                 - \`feat(auth): add login functionality\`
