@@ -154,30 +154,37 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const { title } = context.payload.pull_request;
-            const conventionalCommitRegex = /^(build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test)\b(\([\w-]+\))?: .{1,100}$/;
-
-            const isValid = conventionalCommitRegex.test(title);
-            core.setOutput('valid', isValid);
-
-            if (!isValid) {
-              const validTypes = ['build', 'chore', 'ci', 'docs', 'feat', 'fix', 'perf', 'refactor', 'revert', 'style', 'test'];
-              await github.rest.issues.createComment({
-                ...context.repo,
-                issue_number: context.issue.number,
-                body: `## ❌ Invalid PR Title
-
-                Please follow [Conventional Commits](https://www.conventionalcommits.org/) format:
-                \`type(scope): description\`
-
-                Valid types:
-                ${validTypes.map(type => `- \\\`${type}\\\``).join('\n')}
-
-                Examples:
-                - \`feat(auth): add login functionality\`
-                - \`fix(api): handle null response\`
-                `
-              });
+            script: |
+                const core = require('@actions/core');
+                const github = require('@actions/github');
+          
+                const title = github.context.payload.pull_request?.title || '';
+                const conventionalCommitRegex = /^(build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test)\b(\([\w-]+\))?: .{1,100}$/;
+                
+                const isValid = conventionalCommitRegex.test(title);
+                core.setOutput('valid', isValid);
+                
+                if (!isValid) {
+                  const validTypes = ['build', 'chore', 'ci', 'docs', 'feat', 'fix', 'perf', 'refactor', 'revert', 'style', 'test'];
+                  
+                  await github.rest.issues.createComment({
+                    owner: github.context.repo.owner,
+                    repo: github.context.repo.repo,
+                    issue_number: github.context.issue.number,
+                    body: `## ❌ Invalid PR Title
+                
+                    Please follow [Conventional Commits](https://www.conventionalcommits.org/) format:
+                    \`type(scope): description\`
+                
+                    Valid types:
+                    ${validTypes.map(type => `- \`${type}\``).join('\n')}
+                
+                    Examples:
+                    - \`feat(auth): add login functionality\`
+                    - \`fix(api): handle null response\`
+                    `
+                  });
+                }
 
   test:
     name: Python ${{ matrix.python-version }} on ${{ matrix.os }}

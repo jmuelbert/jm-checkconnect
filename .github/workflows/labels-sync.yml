@@ -57,7 +57,7 @@ jobs:
       - name: 🔧 Setup PNPM
         uses: pnpm/action-setup@v4
         with:
-          version: 9.0.0
+          version: 10.0.0
 
       - name: 🔧 Setup Node.js
         uses: actions/setup-node@v4

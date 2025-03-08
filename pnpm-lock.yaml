@@ -26,6 +26,9 @@ importers:
       lint-staged:
         specifier: ^12.5.0
         version: 12.5.0
+      prettier:
+        specifier: ^3.0.0
+        version: 3.5.3
       yaml:
         specifier: ^2.7.0
         version: 2.7.0
@@ -647,6 +650,11 @@ packages:
   pidtree@0.5.0:
     resolution: {integrity: sha512-9nxspIM7OpZuhBxPg73Zvyq7j1QMPMPsGKTqRc2XOaFQauDvoNz9fM1Wdkjmeo7l9GXOZiRs97sPkuayl39wjA==}
     engines: {node: '>=0.10'}
+    hasBin: true
+
+  prettier@3.5.3:
+    resolution: {integrity: sha512-QQtaxnoDJeAkDvDKWCLiwIXkTgRhwYDEQCghU9Z6q03iyek/rxRh/2lC3HB7P8sWT2xC/y5JDctPLBIGzHKbhw==}
+    engines: {node: '>=14'}
     hasBin: true
 
   repeat-string@1.6.1:
@@ -1436,6 +1444,8 @@ snapshots:
   picomatch@2.3.1: {}
 
   pidtree@0.5.0: {}
+
+  prettier@3.5.3: {}
 
   repeat-string@1.6.1: {}
 
