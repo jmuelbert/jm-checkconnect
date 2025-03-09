@@ -3,8 +3,8 @@
 # Workflow Settings Configuration
 
 versions:
-  node: '16.x'
-  pnpm: '8.x'
+  node: '20.x'
+  pnpm: '10.x'
 
 dependencies:
   packages:
