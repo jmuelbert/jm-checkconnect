@@ -1,9 +1,6 @@
----
 # SPDX-FileCopyrightText: Jürgen Mülbert
 # SPDX-License-Identifier: EUPL-1.2
-
 name: PR Checks
-
 on:
   pull_request:
     types: [opened, synchronize, reopened]
@@ -12,42 +9,34 @@ on:
       - develop
       - feature/**
       - bugfix/**
-
 permissions:
   contents: read
   issues: write
   pull-requests: write
-
 env:
   PYTHON_VERSION_FILE: .python-version
   PACKAGE_NAME: checkconnect
-
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
-
 jobs:
   validate:
     name: Validate Dependencies
     runs-on: ubuntu-latest
     timeout-minutes: 15
-
     permissions:
       contents: read
       pull-requests: write
       security-events: write
-
     steps:
       - name: 🔒 Harden Runner
         uses: step-security/harden-runner@v2
         with:
           egress-policy: audit
-
       - name: 📥 Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
       - name: 🔎 Dependency Review
         id: review
         uses: actions/dependency-review-action@v4
@@ -56,7 +45,6 @@ jobs:
           fail-on-severity: moderate
           retry-on-snapshot-warnings: true
           config-file: .github/dependency-review-config.yml
-
       - name: 📊 Generate Report
         if: always()
         env:
@@ -124,8 +112,6 @@ jobs:
                 body: report
               });
             }
-
-
   validate-pr:
     name: Validate PR
     runs-on: ubuntu-latest
@@ -133,22 +119,18 @@ jobs:
     outputs:
       title-valid: ${{ steps.check-title.outputs.valid }}
       body-valid: ${{ steps.check-body.outputs.valid }}
-
     permissions:
       issues: write
       pull-requests: write
-
     steps:
       - name: 🔒 Harden Runner
         uses: step-security/harden-runner@v2
         with:
           egress-policy: audit
-
       - name: 📥 Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
       - name: 🔍 Check PR Title
         id: check-title
         uses: actions/github-script@v7
@@ -189,83 +171,94 @@ jobs:
               core.error(`An error occurred during PR title validation: ${error.message}`); // Log the error
               core.setOutput('valid', false); // Ensure it's marked as invalid on error
             }
+      - name: 📝 Check PR Body
+        id: check-body
+        uses: actions/github-script@v7
+        with:
+          script: |
+            try {
+              const body = github.context.payload.pull_request?.body || '';
+              const minBodyLength = 10; // Minimum body length
 
+              const isValid = body.length >= minBodyLength;
+              core.setOutput('valid', isValid);
+
+              if (!isValid) {
+                await github.rest.issues.createComment({
+                  owner: github.context.repo.owner,
+                  repo: github.context.repo.repo,
+                  issue_number: github.context.issue.number,
+                  body: `## ❌ Insufficient PR Body
+
+                  Please provide a detailed description of the changes made in this pull request. The body should be at least ${minBodyLength} characters long.`
+                });
+              }
+            } catch (error) {
+              core.error(`An error occurred during PR body validation: ${error.message}`);
+              core.setOutput('valid', false);
+            }
   test:
-    name: Python ${{ matrix.python-version }} on ${{ matrix.os }}
+    name: Test with Python on ${{ matrix.os }}
     needs: [validate, validate-pr]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
-
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
         #exclude:
         #  - os: ubuntu-latest  # No longer excluding Ubuntu
-
     outputs:
       coverage: ${{ steps.coverage.outputs.percentage }}
-
     steps:
       - name: 🔒 Harden Runner
         uses: step-security/harden-runner@v2 # Use tag instead of SHA
         with:
           egress-policy: audit
-
       - name: 📥 Checkout Repository
         uses: actions/checkout@v4 # Use tag instead of SHA
         with:
           fetch-depth: 0
           persist-credentials: false
-
       - name: Call Python Environment Setup
         uses: ./.github/actions/python-setup
         with:
           python-version: '3.12'
         id: python-setup
-
       - name: 🧰 Install Dependencies
         run: |
           hatch env create test
-
       - name: 🎨 Setup Qt Dependencies
         if: runner.os == 'Linux'
         uses: ./.github/actions/setup-qt-dependencies
-
       - name: 🧪 Run Tests and Generate Coverage
         id: coverage
         run: |
-          - name: 🧪 Run Tests and Generate Coverage
-            id: coverage
-            run: |
-              hatch run test:cov
-              # Use xmllint to extract the coverage percentage
-              COVERAGE=$(xmllint --xpath "string(//line-rate)" coverage.xml | awk '{print $1 * 100}')
-              echo "percentage=${COVERAGE}" >> "$GITHUB_OUTPUT"
+          hatch run +py=3.13 test:cov
+          # Use xmllint to extract the coverage percentage
+          COVERAGE=$(xmllint --xpath "string(//line-rate)" coverage.xml | awk '{print $1 * 100}')
+          echo "percentage=${COVERAGE}" >> "$GITHUB_OUTPUT"
 
-              if [ $(echo "${COVERAGE} < 80" | bc -l) -eq 1 ]; then
-                echo "::warning::Coverage ${COVERAGE}% is below threshold of 80%"
-                exit 1 # Fail the step if coverage is below 80%
-              fi
-
+          if [ $(echo "${COVERAGE} < 80" | bc -l) -eq 1 ]; then
+            echo "::warning::Coverage ${COVERAGE}% is below threshold of 80%"
+            exit 1 # Fail the step if coverage is below 80%
+          fi
       - name: 📤 Upload Coverage
         uses: codecov/codecov-action@v4 # Use tag instead of SHA
         with:
           files: ./coverage.xml
-          flags: ${{ matrix.os }},python-${{ matrix.python-version }}
+          flags: ${{ matrix.os }},python
           fail_ci_if_error: true
-
       - name: 📦 Store Test Results
         if: always()
         uses: actions/upload-artifact@v4 # Use tag instead of SHA
         with:
-          name: test-results-${{ matrix.os }}-${{ matrix.python-version }}
+          name: test-results-${{ matrix.os }}
           path: |
             .coverage
             coverage.xml
             htmlcov/
           retention-days: 7
-
   quality-checks:
     name: Quality Checks
     runs-on: ubuntu-latest
@@ -273,79 +266,65 @@ jobs:
       security-events: write
       issues: write
       pull-requests: write
-
     steps:
       - name: 🔒 Harden Runner
         uses: step-security/harden-runner@v2
         with:
           egress-policy: audit
-
       - name: 📥 Checkout Repository
         uses: actions/checkout@v4
-
       - name: Call Python Environment Setup
         uses: ./.github/actions/python-setup
         with:
           python-version: '3.x'
         id: python-setup
-
       - name: ⚙️ Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
-          node-version: '18' # Or your preferred Node.js version
-
+          node-version: '20'
+          cache: npm
       - name: 🧰 Install Dependencies
         run: |
           hatch env create lint
           npm install # Install Node.js dependencies
-
       - name: ✨ Run Prettier
         run: npx prettier --write . # Format all files
-
       - name: ✨ Run Pre-commit Checks
         run: hatch run lint:precommit
-
   spell-check:
     name: Spell Check
     runs-on: ubuntu-latest
     needs: quality-checks
     timeout-minutes: 15
-
     steps:
       - name: 🔒 Harden Runner
         uses: step-security/harden-runner@v2
         with:
           egress-policy: audit
-
       - name: 🧰 Checkout Repository
         uses: actions/checkout@v4
-
       - name: Call Python Environment Setup
         uses: ./.github/actions/python-setup
         with:
           python-version: '3.x'
         id: python-setup
-
       - name: ⚙️ Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
-          node-version: '18' # Or your preferred Node.js version
-
+          node-version: '20'
+          cache: npm
       - name: 🧰 Install Dependencies
         run: |
           hatch env create lint
           npm install # Install Node.js dependencies
-
       - name: 🔍 Run Spell Checks
         id: spell-check
         run: |
           hatch run lint:spelling
-
       - name: 🔍 Run CSpell Checks
         id: cspell-check
         run: |
-            npx cspell **
-
+          npx cspell **
       - name: 📝 Create Fix PR
         if: ${{ failure() }}
         uses: peter-evans/create-pull-request@v6
@@ -360,57 +339,48 @@ jobs:
             documentation
             automated-pr
             spelling
-
   docs:
     name: Documentation
     runs-on: ubuntu-latest
     timeout-minutes: 15
     needs: test
-
+    outputs:
+      translation_coverage: ${{ steps.translations.outputs.translation_coverage }}
     steps:
       - name: 🔒 Harden Runner
         uses: step-security/harden-runner@v2 # Use tag instead of SHA
         with:
           egress-policy: audit
-
       - name: 🧰 Checkout Repository
         uses: actions/checkout@v4
-
       - name: Call Python Environment Setup
         uses: ./.github/actions/python-setup
         with:
           python-version: '3.x'
           id: python-setup
-
       - name: 🧰 Install Dependencies
         run: |
           hatch env create docs
-
       - name: 📚 Build Docs
         id: build
         run: |
           hatch run docs:build
-
       - name: 🔍 Check Links
         run: hatch run docs:validate-links
-
       - name: 🔍 Quality Check
         run: python docs/scripts/doc_quality.py
         continue-on-error: true
-
       - name: 📊 Translation Status
         id: translations
         run: |
-          # Assuming you have a script at scripts/translation_status.py
-          # that outputs "translation_coverage=<coverage_percentage>"
-          python scripts/translation_status.py >> "$GITHUB_OUTPUT" # Changed this line
-
+          python docs/scripts/translation_status.py | tee output.txt
+          TRANSLATION_COVERAGE=$(grep "translation_coverage=" output.txt | awk -F "=" '{print $2}')
+          echo "translation_coverage=$TRANSLATION_COVERAGE" >> "$GITHUB_OUTPUT"
   report:
     name: Generate Report
     if: always()
     needs: [validate, validate-pr, test, quality-checks, spell-check, docs]
     runs-on: ubuntu-latest
-
     steps:
       - name: 📊 Process Results
         uses: actions/github-script@v7
@@ -461,8 +431,7 @@ jobs:
           REPOSITORY: ${{ github.repository }}
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_RUN_ID: ${{ github.run_id }}
-          TRANSLATION_COVERAGE: ${{ needs.docs.outputs.translation_coverage }} #Added this line
-
+          TRANSLATION_COVERAGE: ${{ needs.docs.outputs.translation_coverage }}
       - name: 🚨 Check Status
-        if: needs.test.result != 'success' || needs.quality-checks.result != 'success' || needs.docs.result != 'success' || needs.spell-check.result != 'success'
+        if: needs.test.result != 'success' || needs.validate-pr.result != 'success' || needs.quality-checks.result != 'success' || needs.docs.result != 'success' || needs.spell-check.result != 'success'
         run: exit 1

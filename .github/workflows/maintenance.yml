@@ -1,3 +1,4 @@
+---
 name: Repository Maintenance
 
 on:
@@ -101,14 +102,17 @@ jobs:
         with:
           script: |
             const staleStats = {
-              issues: parseInt('${{ steps.stale.outputs.stale-issues-count }}') || 0,
-              prs: parseInt('${{ steps.stale.outputs.stale-prs-count }}') || 0,
-              closed: parseInt('${{ steps.stale.outputs.closed-issues-count }}') || 0
+              issues: parseInt('${{ steps.stale.outputs.stale-issue-count }}') || 0,
+              prs: parseInt('${{ steps.stale.outputs.stale-pr-count }}') || 0,
+              closedIssues: parseInt('${{ steps.stale.outputs.closed-issue-count }}') || 0,
+              closedPrs: parseInt('${{ steps.stale.outputs.closed-pr-count }}') || 0
             };
 
             const lockStats = {
-              total: parseInt('${{ steps.lock.outputs.locked-issues }}') || 0,
-              skipped: parseInt('${{ steps.lock.outputs.skipped-issues }}') || 0
+              lockedIssues: parseInt('${{ steps.lock.outputs.locked-issues }}') || 0,
+              lockedPrs: parseInt('${{ steps.lock.outputs.locked-pull-requests }}') || 0,
+              skippedIssues: parseInt('${{ steps.lock.outputs.skipped-issues }}') || 0,
+              skippedPrs: parseInt('${{ steps.lock.outputs.skipped-pull-requests }}') || 0
             };
 
             const report = `## 🧹 Maintenance Report
@@ -116,11 +120,14 @@ jobs:
             ### Stale Items
             - Issues marked stale: ${staleStats.issues}
             - PRs marked stale: ${staleStats.prs}
-            - Items closed: ${staleStats.closed}
+            - Issues closed: ${staleStats.closedIssues}
+            - PRs closed: ${staleStats.closedPrs}
 
             ### Locked Items
-            - Items locked: ${lockStats.total}
-            - Items skipped: ${lockStats.skipped}
+            - Issues locked: ${lockStats.lockedIssues}
+            - PRs locked: ${lockStats.lockedPrs}
+            - Issues skipped: ${lockStats.skippedIssues}
+            - PRs skipped: ${lockStats.skippedPrs}
 
             ### Configuration
             - Issue stale period: 30 days
@@ -128,9 +135,9 @@ jobs:
             - Issue lock period: 182 days
             - PR lock period: 90 days`;
 
-            const totalProcessed = staleStats.closed + lockStats.total;
+            const totalProcessed = staleStats.closedIssues + staleStats.closedPrs + lockStats.lockedIssues + lockStats.lockedPrs;
 
-            if (staleStats.closed > 0 || lockStats.total > 0) {
+            if (staleStats.closedIssues > 0 || staleStats.closedPrs > 0 || lockStats.lockedIssues > 0 || lockStats.lockedPrs > 0) {
               // Create a new issue with the maintenance report
               await github.rest.issues.create({
                 ...context.repo,
