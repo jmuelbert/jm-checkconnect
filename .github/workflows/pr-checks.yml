@@ -201,6 +201,17 @@ jobs:
               core.setOutput('valid', false);
             }
 
+      - name: 🔧 Setup PNPM
+        uses: pnpm/action-setup@v4
+        with:
+          version: latest
+          run_install: true
+      - name: 🔧 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+          cache: 'pnpm'
+
       - name: 🔍 Check Commit Messages
         id: commitlint
         run: |
@@ -367,11 +378,11 @@ jobs:
         with:
           update: true
           # More complete install for GLib, GObject, and other potential needs.
-          install: 
+          install:
             mingw-w64-x86_64-glib2
             mingw-w64-x86_64-gobject-introspection
-            mingw-w64-x86_64-cmake 
-            
+            mingw-w64-x86_64-cmake
+
       - name: Configure PATH (Windows)
         if: runner.os == 'Windows'
         shell: bash
@@ -394,7 +405,7 @@ jobs:
       - name: 🧪 Run Tests on ${{ matrix.os }}
         run: |
           sudo apt-get update
-          sudo apt-get install -y libxcb* libxi* libxkbcommon* 
+          sudo apt-get install -y libxcb* libxi* libxkbcommon*
           xvfb-run --auto-servernum --server-args='-screen 0, 1024x768x24'
           hatch run +py=3.13 test:test
 
@@ -404,7 +415,7 @@ jobs:
         run: |
           hatch run test:cov
           sudo apt-get update
-          sudo apt-get install -y libxcb* libxi* libxkbcommon* 
+          sudo apt-get install -y libxcb* libxi* libxkbcommon*
           xvfb-run --auto-servernum --server-args='-screen 0, 1024x768x24'
           # Use xmllint to extract the coverage percentage
           COVERAGE=$(xmllint --xpath "string(//line-rate)" coverage.xml | awk '{print $1 * 100}')
