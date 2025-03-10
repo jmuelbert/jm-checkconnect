@@ -273,9 +273,6 @@ jobs:
       - name: Call Python Environment Setup
         uses: ./.github/actions/python-setup
         id: python-setup
-      - name: Call Python Environment Setup
-        uses: ./.github/actions/python-setup
-        id: python-setup
       - name: 🔧 Setup PNPM
         uses: pnpm/action-setup@v4
         with:
