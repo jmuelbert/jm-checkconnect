@@ -280,7 +280,7 @@ jobs:
         uses: ./.github/actions/setup-qt-dependencies
       - name: 🧪 Run Tests on ${{ matrix.os }}
         run: |
-          hatch run test:test
+          hatch run +py=3.13 test:test
 
       - name: 🧪 Run Tests and Generate Coverage on ${{ matrix.os }}
         if: runner.os == 'Linux'
