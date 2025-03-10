@@ -241,7 +241,7 @@ jobs:
           brew install cmake  # Required for building some PySide6 wheels
           # You might need to explicitly install additional Qt-related libraries
           # depending on your application's specific needs.  For example:
-          # brew install qt6-base  qt6-declarative
+          brew install qt6-base  qt6-declarative
     
       - name: Set DYLD_LIBRARY_PATH (macOS)
         if: runner.os == 'macOS'
