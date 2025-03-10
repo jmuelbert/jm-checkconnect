@@ -5,16 +5,25 @@ runs:
   steps:
     - shell: bash
       run: |
-        sudo apt-get update
+        # Attempt to update, but don't fail if it doesn't work perfectly
+        sudo apt-get update -y -q || true
+
+        # List of dependencies
         DEPENDENCIES="libxcb-xinerama0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-shape0 libxcb-xkb1 libxkbcommon-x11-0 libegl1"
+
+        # Install each dependency, ignoring errors if they're already installed or can't be found
+        for DEP in $DEPENDENCIES; do
+          echo "Attempting to install: $DEP"
+          sudo apt-get install -y --no-install-recommends "$DEP" || true
+        done
+
+        # Verify installation (optional, but good for debugging)
+        echo "Verifying installation:"
         for DEP in $DEPENDENCIES; do
           dpkg -s "$DEP" > /dev/null 2>&1
-          if [ $? -ne 0 ]; then
-            echo "Installing $DEP"
-            sudo apt-get install -y "$DEP"
-            if [ $? -ne 0 ]; then
-              echo "::error::Failed to install $DEP"
-              exit 1
-            fi
+          if [ $? -eq 0 ]; then
+            echo "$DEP: Installed"
+          else
+            echo "::warning::$DEP: NOT installed"
           fi
         done

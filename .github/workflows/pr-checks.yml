@@ -230,22 +230,29 @@ jobs:
       - name: 🧰 Install Dependencies
         run: |
           hatch env create test
-      - name: 🧰 Install gobject-introspection (macOS)
+      - name: Install GLib and gobject-introspection (macOS)
         if: runner.os == 'macOS'
-        run: brew install gobject-introspection
+        run: |
+          brew install glib
+          brew install gobject-introspection
+    
+      - name: Set DYLD_LIBRARY_PATH (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          echo "DYLD_LIBRARY_PATH=/usr/local/opt/glib/lib:$DYLD_LIBRARY_PATH" >> $GITHUB_ENV
       - name: Set up MSYS2 (Windows)
         if: runner.os == 'Windows'
         uses: msys2/setup-msys2@v2
         with:
           update: true
-          install: gobject-introspection
-  
+          install: mingw-w64-x86_64-glib2 mingw-w64-x86_64-gobject-introspection # Correct MSYS2 package names
+    
       - name: Configure PATH (Windows)
         if: runner.os == 'Windows'
         run: |
           echo "::add-path::C:\msys64\usr\bin"
-          echo "::add-path::C:\msys64\mingw64\bin" # Or mingw32, depending on your architecture          
-          
+          echo "::add-path::C:\msys64\mingw64\bin" # Or mingw32, depending on your architecture
+              
       - name: 🎨 Setup Qt Dependencies on ${{ matrix.os }}
         if: runner.os == 'Linux'
         uses: ./.github/actions/setup-qt-dependencies
