@@ -33,8 +33,6 @@ jobs:
           persist-credentials: false
       - name: Call Python Environment Setup
         uses: ./.github/actions/python-setup
-        with:
-          python-version: '3.x'
         id: python-setup
       - name: 📚 Build Documentation
         id: build

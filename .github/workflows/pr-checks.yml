@@ -14,7 +14,6 @@ permissions:
   issues: write
   pull-requests: write
 env:
-  PYTHON_VERSION_FILE: .python-version
   PACKAGE_NAME: checkconnect
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -222,8 +221,6 @@ jobs:
           persist-credentials: false
       - name: Call Python Environment Setup
         uses: ./.github/actions/python-setup
-        with:
-          python-version: '3.12'
         id: python-setup
       - name: 🧰 Install Dependencies
         run: |
@@ -275,8 +272,6 @@ jobs:
         uses: actions/checkout@v4
       - name: Call Python Environment Setup
         uses: ./.github/actions/python-setup
-        with:
-          python-version: '3.x'
         id: python-setup
       - name: ⚙️ Setup Node.js
         uses: actions/setup-node@v4
@@ -305,18 +300,23 @@ jobs:
         uses: actions/checkout@v4
       - name: Call Python Environment Setup
         uses: ./.github/actions/python-setup
-        with:
-          python-version: '3.x'
         id: python-setup
-      - name: ⚙️ Setup Node.js
+      - name: 🔧 Setup PNPM
+        uses: pnpm/action-setup@v4
+        with:
+          version: latest
+          run_install: |
+            echo "running pnpm install"
+            pnpm install
+      - name: 🔧 Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: npm
+          node-version: 'lts/*'
+          cache: 'pnpm'
       - name: 🧰 Install Dependencies
         run: |
           hatch env create lint
-          npm install # Install Node.js dependencies
+                    pnpm install
       - name: 🔍 Run Spell Checks
         id: spell-check
         run: |
@@ -324,7 +324,7 @@ jobs:
       - name: 🔍 Run CSpell Checks
         id: cspell-check
         run: |
-          npx cspell **
+          pnpm dlx cspell **
       - name: 📝 Create Fix PR
         if: ${{ failure() }}
         uses: peter-evans/create-pull-request@v6
@@ -356,7 +356,6 @@ jobs:
       - name: Call Python Environment Setup
         uses: ./.github/actions/python-setup
         with:
-          python-version: '3.x'
           id: python-setup
       - name: 🧰 Install Dependencies
         run: |

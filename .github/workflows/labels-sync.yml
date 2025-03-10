@@ -31,13 +31,6 @@ jobs:
           egress-policy: audit
       - name: 📥 Checkout
         uses: actions/checkout@v4
-      - name: 📚 Load Workflow Settings
-        id: settings
-        run: |
-          yq --version
-          SETTINGS=$(yq eval -o=json .github/config/workflow-settings.yml)
-          echo "DEBUG: SETTINGS=$SETTINGS"
-          echo "settings=$(echo "$SETTINGS" | jq -c .)" >> "$GITHUB_OUTPUT"
       - name: 🏷️ Sync Labels
         uses: EndBug/label-sync@v2
         with:
@@ -47,21 +40,18 @@ jobs:
       - name: 🔧 Setup PNPM
         uses: pnpm/action-setup@v4
         with:
-          version: 10.0.0
+          version: latest
+          run_install: |
+            echo "running pnpm install"
+            pnpm install
       - name: 🔧 Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ fromJson(steps.settings.outputs.settings).versions.node }}
+          node-version: 'lts/*'
           cache: 'pnpm'
       - name: 📦 Install dependencies
         run: |
           pnpm install
-          # Install additional packages from config if not in package.json
-          for package in $(echo '${{ fromJson(steps.settings.outputs.settings).dependencies.packages }}' | jq -r '.[]'); do
-            if ! grep -q "\"$package\"" package.json; then
-              pnpm add -D "$package"
-            fi
-          done
           pnpm add yaml
       - name: 📝 Generate Report
         if: always()
@@ -80,7 +70,7 @@ jobs:
               fs.readFileSync('.github/labeler.yml', 'utf8')
             );
 
-            let summary = `## 🏷️ Label Sync Report\n\n`;
+            let summary = `### 🏷️ Label Sync Report\n\n`;
 
             // Analyze configurations
             const labelNames = new Set(labelConfig.map(l => l.name));

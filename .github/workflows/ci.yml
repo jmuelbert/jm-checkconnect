@@ -19,7 +19,6 @@ on:
 env:
   FORCE_COLOR: '1'
   PACKAGE_NAME: checkconnect
-  PYTHON_VERSION_FILE: .python-version
 defaults:
   run:
     shell: bash
@@ -63,19 +62,29 @@ jobs:
         with:
           python-version: '3.x'
         id: python-setup
-      - name: ⚙️ Setup Node.js
+      - name: 🔧 Setup PNPM
+        uses: pnpm/action-setup@v4
+        with:
+          version: latest
+          run_install: |
+            echo "running pnpm install"
+            pnpm install
+      - name: 🔧 Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: npm
+          node-version: 'lts/*'
+          cache: 'pnpm'
+      - name: 📦 Install dependencies
+        run: |
+          pnpm install
       - name: 🧰 Install Dependencies
         run: |
           hatch env create lint
           hatch env create security
           hatch env create docs
-          npm install # Install Node.js dependencies
+          pnpm install
       - name: ✨ Run Prettier
-        run: npx prettier --write . # Format all files
+        run: pnpm dlx prettier --write . # Format all files
       - name: 🔍 Linting
         run: hatch run lint:all
       - name: 🔐 Security Checks
@@ -106,7 +115,6 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        python-version: ['3.10', '3.11', '3.12', '3.13']
         environment: [staging, production]
         #exclude:  # Removed exclusion
         #  - os: ubuntu-latest
@@ -123,8 +131,6 @@ jobs:
           persist-credentials: false
       - name: Call Python Environment Setup
         uses: ./.github/actions/python-setup
-        with:
-          python-version: '3.12' #enforce new version
         id: python-setup
       - name: 🧰 Install Dependencies
         run: |
@@ -137,8 +143,9 @@ jobs:
         uses: ./.github/actions/setup-qt-dependencies
       - name: 🧪 Run Tests and Generate Coverage
         id: coverage
+        if: runner.os == 'Linux'
         run: |
-          hatch test --python ${{ matrix.python-version }} --cover-quiet --randomize --parallel --retries 5 --retry-delay 3
+          hatch test:cov --cover-quiet --randomize --parallel --retries 5 --retry-delay 3
           #set up variables to see the coverage
           COVERAGE=$(grep TOTAL .coverage | awk '{print $4}' | sed 's/%//') # Use XML for parsing
           echo "percentage=${COVERAGE}" >> "$GITHUB_OUTPUT"
@@ -148,11 +155,13 @@ jobs:
             exit 1 # Fail the step if coverage is below 80%
           fi
       - name: 🔍 Disambiguate Coverage Filename
-        run: mv .coverage ".coverage.${{ matrix.os }}.${{ matrix.python-version }}"
+        if: runner.os == 'Linux'
+        run: mv .coverage ".coverage.${{ matrix.os }}"
       - name: 📤 Upload Coverage Data
+        if: runner.os == 'Linux'
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-${{ matrix.os }}-${{ matrix.python-version }}
+          name: coverage-${{ matrix.os }}
           path: .coverage*
   release:
     name: Create Release
@@ -211,33 +220,41 @@ jobs:
         with:
           password: ${{ secrets.PYPI_API_TOKEN }}
           verbose: true
-  notify:
-    name: Notifications
-    needs: [release, test-and-build]
-    if: always()
-    runs-on: ubuntu-latest
-    steps:
-      - name: 📧 Process Status
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const { release, test_and_build } = context.needs;
-            const version = test_and_build.outputs.version;
+          
+    notify:
+      name: Notifications
+      needs: [test-and-build] # Removed 'release' from here
+      if: always()
+      runs-on: ubuntu-latest
+      steps:
+        - name: 📧 Process Status
+          uses: actions/github-script@v7
+          with:
+            script: |
+              const { test_and_build } = context.needs;
 
-            if (release.result === 'success') {
-              await github.rest.issues.createComment({
+              const version = test_and_build.outputs.version;
+              const releaseJob = context.needs.release; // Get the result of the release job, if it ran
+
+              let releaseResult = releaseJob ? releaseJob.result : null;  // result may be null if no job
+
+              if (releaseResult === 'success') {
+                await github.rest.issues.createComment({
                 ...context.repo,
                 issue_number: context.issue.number,
                 body: `✅ Version ${version} published successfully!\n\n` +
-                       `📦 PyPI: https://pypi.org/project/${{ env.PACKAGE_NAME }}/${version}\n` +
-                       `📚 Docs: https://${{ env.PACKAGE_NAME }}.readthedocs.io/\n` +
-                       `📊 Coverage reports available in build artifacts`
-              });
-            } else if (release.result === 'failure') {
-              await github.rest.issues.createComment({
-                ...context.repo,
-                issue_number: context.issue.number,
-                body: `❌ Release failed for version ${version}.\n` +
-                      `Please check: ${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`
-              });
-            }
+                  `📦 PyPI: https://pypi.org/project/checkconnect/${version}\n` +
+                  `📚 Docs: https://checkconnect.readthedocs.io/\n` +
+                  `📊 Coverage reports available in build artifacts`
+                });
+              } else if (releaseResult === 'failure') {
+                await github.rest.issues.createComment({
+                  ...context.repo,
+                  issue_number: context.issue.number,
+                  body: `❌ Release failed for version ${version}.\n` +
+                    `Please check: ${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`
+                });
+              }
+              else {
+                console.log('Release job was not run, no release to notify.');
+              }

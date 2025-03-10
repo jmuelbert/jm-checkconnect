@@ -26,7 +26,6 @@ permissions:
 
 env:
   PACKAGE_NAME: checkconnect
-  PYTHON_VERSION_FILE: .python-version
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -59,8 +58,6 @@ jobs:
 
       - name: Call Python Environment Setup
         uses: ./.github/actions/python-setup
-        with:
-          python-version: '3.x'
         id: python-setup
 
       # Initializes the CodeQL tools for scanning.

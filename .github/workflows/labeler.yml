@@ -220,16 +220,6 @@ jobs:
               });
             }
 
-      - name: Upload Analysis Results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: pr-analysis-${{ github.event.pull_request.number }}
-          path: |
-            ./**/analysis-results.json
-            ./**/coverage-report.xml
-          retention-days: 14
-
   verify:
     needs: analyze_and_label
     if: always()

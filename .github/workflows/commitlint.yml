@@ -1,0 +1,32 @@
+name: Commit Linting
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened] # Trigger on PR events
+
+jobs:
+  commit-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Fetch the full history
+      - name: 🔧 Setup PNPM
+        uses: pnpm/action-setup@v4
+        with:
+          version: latest
+          run_install: |
+            echo "running pnpm install"
+            pnpm install
+      - name: 🔧 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+          cache: 'pnpm'
+      - run: |
+          pnpm install -g @commitlint/cli @commitlint/config-conventional
+          pnpm install -D husky
+          pnpm dlx husky add .husky/commit-msg 'pnpm dlx --no-install commitlint --edit $1'
+      - run: git config --get core.hooksPath # Ensure husky is working correctly.  This will fail if husky isn't set up.
+      - run: echo "Linting Commits"
+      - run: git log --pretty=format:%s | while read -r line; do echo "$line" | commitlint; done
