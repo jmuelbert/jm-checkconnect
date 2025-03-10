@@ -59,16 +59,12 @@ jobs:
           fetch-depth: 0
       - name: Call Python Environment Setup
         uses: ./.github/actions/python-setup
-        with:
-          python-version: '3.x'
         id: python-setup
       - name: 🔧 Setup PNPM
         uses: pnpm/action-setup@v4
         with:
           version: latest
-          run_install: |
-            echo "running pnpm install"
-            pnpm install
+          run_install: true
       - name: 🔧 Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -220,7 +216,7 @@ jobs:
         with:
           password: ${{ secrets.PYPI_API_TOKEN }}
           verbose: true
-          
+
     notify:
       name: Notifications
       needs: [test-and-build] # Removed 'release' from here
