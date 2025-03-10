@@ -112,91 +112,95 @@ jobs:
                 body: report
               });
             }
-            validate-pr:
-               name: Validate PR
-               runs-on: ubuntu-latest
-               if: github.event_name == 'pull_request'  # Only run on pull_request events
-               outputs:
-                 title-valid: ${{ steps.check-title.outputs.valid }}
-                 body-valid: ${{ steps.check-body.outputs.valid }}
-               permissions:
-                 issues: write
-                 pull-requests: write
-               steps:
-                 - name: 🔒 Harden Runner
-                   uses: step-security/harden-runner@v2
-                   with:
-                     egress-policy: audit
-                 - name: 📥 Checkout
-                   uses: actions/checkout@v4
-                   with:
-                     fetch-depth: 0
-                 - name: 🔍 Check PR Title
-                   id: check-title
-                   uses: actions/github-script@v7
-                   with:
-                     script: |
-                       try {
-                         const title = github.context.payload.pull_request?.title || '';
-                         // Enclose the regex in double quotes and escape special characters
-                         const conventionalCommitRegex = "^(build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test)(\\([\\w-]+\\))?: .{1,100}$";
+            
+  validate-pr:
+    name: Validate PR
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'  # Only run on pull_request events
+    outputs:
+      title-valid: ${{ steps.check-title.outputs.valid }}
+      body-valid: ${{ steps.check-body.outputs.valid }}
+    permissions:
+      issues: write
+      pull-requests: write
+      
+      steps:
+          - name: 🔒 Harden Runner
+            uses: step-security/harden-runner@v2
+            with:
+              egress-policy: audit
+          - name: 📥 Checkout
+            uses: actions/checkout@v4
+            with:
+              fetch-depth: 0
+          - name: 🔍 Check PR Title
+            id: check-title
+            uses: actions/github-script@v7
+            with:
+              script: |
+                try {
+                  const title = github.context.payload.pull_request?.title || '';
+                  // Enclose the regex in double quotes and escape special characters
+                  const conventionalCommitRegex = "^(build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test)(\\([\\w-]+\\))?: .{1,100}$";
 
-                         const regex = new RegExp(conventionalCommitRegex); // Create a RegExp object
+                  const regex = new RegExp(conventionalCommitRegex); // Create a RegExp object
 
-                         const isValid = regex.test(title);
-                         core.setOutput('valid', isValid);
+                  const isValid = regex.test(title);
+                  core.setOutput('valid', isValid);
 
-                         if (!isValid) {
-                           const validTypes = ['build', 'chore', 'ci', 'docs', 'feat', 'fix', 'perf', 'refactor', 'revert', 'style', 'test'];
+                  if (!isValid) {
+                    const validTypes = ['build', 'chore', 'ci', 'docs', 'feat', 'fix', 'perf', 'refactor', 'revert', 'style', 'test'];
 
-                           await github.rest.issues.createComment({
-                             owner: github.context.repo.owner,
-                             repo: github.context.repo.repo,
-                             issue_number: github.context.issue.number,
-                             body: `## ❌ Invalid PR Title
+                    await github.rest.issues.createComment({
+                      owner: github.context.repo.owner,
+                      repo: github.context.repo.repo,
+                      issue_number: github.context.issue.number,
+                      body: `## ❌ Invalid PR Title
 
-                             Please follow [Conventional Commits](https://www.conventionalcommits.org/) format:
-                             \`type(scope): description\`
+                      Please follow [Conventional Commits](https://www.conventionalcommits.org/) format:
+                      \`type(scope): description\`
 
-                             Valid types:
-                             ${validTypes.map(type => `- \`${type}\``).join('\n')}
+                      Valid types:
+                      ${validTypes.map(type => `- \`${type}\``).join('\n')}
 
-                             Examples:
-                             - \`feat(auth): add login functionality\`
-                             - \`fix(api): handle null response\`
-                             `
-                           });
-                         }
-                       } catch (error) {
-                         core.error(`An error occurred during PR title validation: ${error.message}`); // Log the error
-                         core.setOutput('valid', false); // Ensure it's marked as invalid on error
-                       }
-                 - name: 📝 Check PR Body
-                   id: check-body
-                   uses: actions/github-script@v7
-                   with:
-                     script: |
-                       try {
-                         const body = github.context.payload.pull_request?.body || '';
-                         const minBodyLength = 10; // Minimum body length
+                      Examples:
+                        - \`feat(auth): add login functionality\`
+                        - \`fix(api): handle null response\`
+                        `
+                    });
+                  }
+                } catch (error) {
+                  core.error(`An error occurred during PR title validation: ${error.message}`); // Log the error
+                  core.setOutput('valid', false); // Ensure it's marked as invalid on error
+                }
+              
+          - name: 📝 Check PR Body
+            id: check-body
+            uses: actions/github-script@v7
+            with:
+              script: |
+                try {
+                  const body = github.context.payload.pull_request?.body || '';
+                  const minBodyLength = 10; // Minimum body length
 
-                         const isValid = body.length >= minBodyLength;
-                         core.setOutput('valid', isValid);
+                  const isValid = body.length >= minBodyLength;
+                  core.setOutput('valid', isValid);
 
-                         if (!isValid) {
-                           await github.rest.issues.createComment({
-                             owner: github.context.repo.owner,
-                             repo: github.context.repo.repo,
-                             issue_number: github.context.issue.number,
-                             body: `## ❌ Insufficient PR Body
+                  if (!isValid) {
+                    await github.rest.issues.createComment({
+                      owner: github.context.repo.owner,
+                      repo: github.context.repo.repo,
+                      issue_number: github.context.issue.number,
+                      body: `## ❌ Insufficient PR Body
 
-                             Please provide a detailed description of the changes made in this pull request. The body should be at least ${minBodyLength} characters long.`
-                           });
-                         }
-                       } catch (error) {
-                         core.error(`An error occurred during PR body validation: ${error.message}`);
-                         core.setOutput('valid', false);
-                       }
+                      Please provide a detailed description of the changes made in this pull request. The body should be at least ${minBodyLength} characters long.`
+                    });
+                  }
+                } catch (error) {
+                  core.error(`An error occurred during PR body validation: ${error.message}`);
+                  core.setOutput('valid', false);
+                }
+                
   test:
     name: Test with Python on ${{ matrix.os }}
     needs: [validate, validate-pr]
