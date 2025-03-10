@@ -273,17 +273,27 @@ jobs:
       - name: Call Python Environment Setup
         uses: ./.github/actions/python-setup
         id: python-setup
-      - name: ⚙️ Setup Node.js
+      - name: Call Python Environment Setup
+        uses: ./.github/actions/python-setup
+        id: python-setup
+      - name: 🔧 Setup PNPM
+        uses: pnpm/action-setup@v4
+        with:
+          version: latest
+          run_install: |
+            echo "running pnpm install"
+            pnpm install
+      - name: 🔧 Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: npm
+          node-version: 'lts/*'
+          cache: 'pnpm'
       - name: 🧰 Install Dependencies
         run: |
           hatch env create lint
           npm install # Install Node.js dependencies
       - name: ✨ Run Prettier
-        run: npx prettier --write . # Format all files
+        run: pnpm dlx prettier --write . 
       - name: ✨ Run Pre-commit Checks
         run: hatch run lint:precommit
   spell-check:
@@ -316,7 +326,6 @@ jobs:
       - name: 🧰 Install Dependencies
         run: |
           hatch env create lint
-                    pnpm install
       - name: 🔍 Run Spell Checks
         id: spell-check
         run: |
