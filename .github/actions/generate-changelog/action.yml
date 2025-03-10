@@ -1,0 +1,40 @@
+name: "Generate Changelog"
+description: "Generates a changelog based on conventional commits."
+inputs:
+  preset:
+    description: "The conventional-changelog preset to use (e.g., angular, conventionalcommits)."
+    required: true
+    type: string
+runs:
+  using: "composite"
+  steps:
+    - name: 🔍 Determine Last Tag
+      id: last-tag
+      shell: bash
+      run: |
+        # Get last tag (if exists)
+        LAST_TAG=$(git describe --abbrev=0 --tags 2>/dev/null || echo "")
+        echo "last_tag=$LAST_TAG" >> "$GITHUB_OUTPUT"
+
+    - name: 📝 Generate Changelog
+      id: generate-changelog
+      shell: bash
+      run: |
+        LAST_TAG="${{ steps.last-tag.outputs.last_tag }}"
+        if [ -z "$LAST_TAG" ]; then
+          echo "No previous tag found, generating changelog from start."
+          conventional-changelog -p ${{ inputs.preset }} -i CHANGELOG.tmp -s
+        else
+          echo "Generating changelog since tag $LAST_TAG"
+          conventional-changelog -p ${{ inputs.preset }} -i CHANGELOG.tmp -s -f "$LAST_TAG"
+        fi
+
+        # Clean output
+        if [ -s "CHANGELOG.tmp" ]; then
+          cat CHANGELOG.tmp > changelog_entries.md
+          echo "changelog=$(cat changelog_entries.md)" >> "$GITHUB_OUTPUT"
+        else
+          echo "No significant commits found since last tag."
+          echo "changelog=" >> "$GITHUB_OUTPUT"
+        fi
+        rm -f CHANGELOG.tmp
