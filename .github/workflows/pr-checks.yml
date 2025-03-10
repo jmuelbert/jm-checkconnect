@@ -230,6 +230,22 @@ jobs:
       - name: 🧰 Install Dependencies
         run: |
           hatch env create test
+      - name: 🧰 Install gobject-introspection (macOS)
+        if: runner.os == 'macOS'
+        run: brew install gobject-introspection
+      - name: Set up MSYS2 (Windows)
+        if: runner.os == 'Windows'
+        uses: msys2/setup-msys2@v2
+        with:
+          update: true
+          install: gobject-introspection
+  
+      - name: Configure PATH (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          echo "::add-path::C:\msys64\usr\bin"
+          echo "::add-path::C:\msys64\mingw64\bin" # Or mingw32, depending on your architecture          
+          
       - name: 🎨 Setup Qt Dependencies on ${{ matrix.os }}
         if: runner.os == 'Linux'
         uses: ./.github/actions/setup-qt-dependencies
@@ -297,7 +313,6 @@ jobs:
       - name: 🧰 Install Dependencies
         run: |
           hatch env create lint
-          npm install # Install Node.js dependencies
       - name: ✨ Run Prettier
         run: pnpm dlx prettier --write .
       - name: ✨ Run Pre-commit Checks
