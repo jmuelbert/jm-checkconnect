@@ -8,12 +8,10 @@ on: # yamllint disable-line rule:truthy
   push:
     branches: [main, develop]
     paths-ignore:
-      - 'assets/'
       - 'docs/'
   pull_request:
     branches: [main, develop]
     paths-ignore:
-      - 'assets/'
       - 'docs/'
   schedule:
     - cron: 17 16 * * 3
@@ -45,7 +43,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        language: ['python']
+        include:
+          - language: javascript-typescript
+            build-mode: none
+          - language: python
+            build-mode: none
 
     steps:
       - name: 🔒 Harden Runner
@@ -56,15 +58,12 @@ jobs:
       - name: ⬇️ Checkout repository
         uses: actions/checkout@v4
 
-      - name: Call Python Environment Setup
-        uses: ./.github/actions/python-setup
-        id: python-setup
-
       # Initializes the CodeQL tools for scanning.
-      - name: 'Initialize CodeQL'
+      - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
         with:
           languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
           # If you wish to specify custom queries, you can do so here or in a config file.
           # By default, queries listed here will override any specified in a config file.
           # Prefix the list here with "+" to use these queries and those in the config file.
@@ -72,11 +71,11 @@ jobs:
           # For more details on CodeQL's query packs, refer to: https://docs.github.com/en/code-security/code-scanning/automatically-scanning-your-code-for-vulnerabilities-and-errors/configuring-code-scanning#using-queries-in-ql-packs
           # queries: security-extended,security-and-quality
 
-      - name: 'Perform CodeQL Analysis'
+      - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
         with:
-          category: '${{ matrix.language }}-analyze'
-          output: results/${{ matrix.language }}.sarif
+          category: "/language:${{matrix.language}}"
+          output: 'results'
 
       - name: 📊 Process Results
         if: always()
@@ -84,21 +83,28 @@ jobs:
         with:
           script: |
             const fs = require('fs');
+            const language = "${{ matrix.language }}";  // Get the language from the matrix
+            const sarifFile = `results/${language}.sarif`;
+            let allResults = []; // Accumulate results for all languages
+            let hasSecurityIssues = false;  // Track if any issues were found
 
             try {
-              if (!fs.existsSync('results/python.sarif')) {
-                console.log('No SARIF file found. Skipping results processing.');
-                 return;
+              if (!fs.existsSync(sarifFile)) {
+                console.log(`No SARIF file found for ${language}. Skipping results processing.`);
+                return;
               }
 
-              const sarif = JSON.parse(fs.readFileSync('results/python.sarif', 'utf8'));
+              const sarif = JSON.parse(fs.readFileSync(sarifFile, 'utf8'));
               const results = sarif.runs[0].results || [];
+              allResults = results;
 
-              let summary = `## 🛡️ CodeQL Security Analysis Results\n\n`;
+              let languageSummary = `### ${language} Analysis\n`;
 
               if (results.length === 0) {
-                summary += `✅ No security issues found!\n`;
+                languageSummary += `✅ No security issues found!\n`;
               } else {
+                hasSecurityIssues = true; // Flag that we have issues
+
                 const severity = {
                   error: 0,
                   warning: 0,
@@ -109,41 +115,77 @@ jobs:
                   severity[result.level || 'warning']++;
                 });
 
-                summary += `### Found Issues\n`;
-                summary += `- 🔴 Errors: ${severity.error}\n`;
-                summary += `- 🟡 Warnings: ${severity.warning}\n`;
-                summary += `- 🔵 Notes: ${severity.note}\n\n`;
+                languageSummary += `Found Issues:\n`;
+                languageSummary += `- 🔴 Errors: ${severity.error}\n`;
+                languageSummary += `- 🟡 Warnings: ${severity.warning}\n`;
+                languageSummary += `- 🔵 Notes: ${severity.note}\n\n`;
 
-                if (severity.error > 0 || severity.warning > 0) {
-                  summary += `### Recommendations\n`;
-                  summary += `1. Review the detailed analysis in the Security tab\n`;
-                  summary += `2. Follow the suggested fixes for each issue\n`;
-                  summary += `3. Run CodeQL locally using the GitHub CLI\n`;
-                }
+                languageSummary += `Recommendations:\n`;
+                languageSummary += `1. Review the detailed analysis in the Security tab\n`;
+                languageSummary += `2. Follow the suggested fixes for each issue\n`;
+                languageSummary += `3. Run CodeQL locally using the GitHub CLI\n`;
               }
 
-              // Add to PR if this is a pull request
-              if (context.payload.pull_request) {
+              console.log(languageSummary); // Log to the console for debugging
+
+
+              // Store the language-specific summary in an output variable.  This is needed to combine summaries
+              // in a later step if running in a matrix.
+              core.setOutput(`${language}-summary`, languageSummary);
+
+
+
+            } catch (error) {
+              console.error(`Error processing CodeQL results for ${language}:`, error);
+              core.setFailed(`CodeQL analysis failed for ${language}: ${error.message}`);
+
+            }
+
+      - name: Combine and Post Results
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pythonSummary = core.getInput('python-summary', { required: false });
+            const javascriptTypescriptSummary = core.getInput('javascript-typescript-summary', { required: false });
+
+            let summary = `## 🛡️ CodeQL Security Analysis Results\n\n`;
+
+            if (pythonSummary) {
+              summary += pythonSummary + "\n";
+            }
+
+            if (javascriptTypescriptSummary) {
+              summary += javascriptTypescriptSummary + "\n";
+            }
+
+            if (!pythonSummary && !javascriptTypescriptSummary) {
+              summary += "✅ No CodeQL analysis was run or no results were found for any language.\n";
+            }
+
+            const hasSecurityIssues = pythonSummary?.includes("🔴 Errors:") || javascriptTypescriptSummary?.includes("🔴 Errors:");
+
+            if (context.payload.pull_request) {
                 await github.rest.issues.createComment({
-                  ...context.repo,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
                   issue_number: context.payload.pull_request.number,
                   body: summary
                   });
               }
 
-              // Update PR labels
-              if (context.payload.pull_request) {
-                const labels = results.length === 0
-                ? ['security-validated']
-                : ['security-review-needed'];
+            // Update PR labels (only if it's a pull request)
+            if (context.payload.pull_request) {
+              const labels = hasSecurityIssues
+                ? ['security-review-needed']
+                : ['security-validated'];
 
-                await github.rest.issues.addLabels({
-                  ...context.repo,
-                  issue_number: context.payload.pull_request.number,
-                  labels: labels
-                });
-              }
-
-            } catch (error) {
-              console.error('Error processing CodeQL results:', error);
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.payload.pull_request.number,
+                labels: labels
+              });
             }
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # You might need to set this for the script action to work
