@@ -52,7 +52,7 @@ jobs:
           VULNERABLE_CHANGES: ${{ steps.review.outputs.vulnerable-changes }}
           LICENSE_CHANGES: ${{ steps.review.outputs.invalid-license-changes }}
           DENIED_CHANGES: ${{ steps.review.outputs.denied-changes }}
-        uses: actions/github-script@v7 # Use tag instead of SHA
+        uses: actions/github-script@v7
         with:
           script: |
             const outputs = {
@@ -116,7 +116,7 @@ jobs:
   validate-pr:
     name: Validate PR
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'  # Only run on pull_request events
+    if: github.event_name == 'pull_request' # Only run on pull_request events
     outputs:
       title-valid: ${{ steps.check-title.outputs.valid }}
       body-valid: ${{ steps.check-body.outputs.valid }}
@@ -200,88 +200,6 @@ jobs:
               core.error(`An error occurred during PR body validation: ${error.message}`);
               core.setOutput('valid', false);
             }
-
-      - name: 🔧 Setup PNPM
-        uses: pnpm/action-setup@v4
-        with:
-          version: latest
-          run_install: true
-      - name: 🔧 Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 'lts/*'
-          cache: 'pnpm'
-
-      - name: 🔍 Check Commit Messages
-        id: commitlint
-        run: |
-          pnpm install --global @commitlint/cli @commitlint/config-conventional
-          echo "module.exports = {extends: ['@commitlint/config-conventional']};" > commitlint.config.js
-
-          # Fetch base and head refs
-          git fetch --prune origin +refs/heads/${{ github.event.pull_request.base.ref }}:refs/remotes/origin/${{ github.event.pull_request.base.ref }}
-          git fetch --prune origin +refs/heads/${{ github.event.pull_request.head.ref }}:refs/remotes/origin/${{ github.event.pull_request.head.ref }}
-
-          # Get list of commits
-          COMMITS=$(git rev-list ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }})
-          echo "COMMITS: $COMMITS"
-
-          # Initialize output variables
-          EXIT_CODE=0
-          INVALID_COMMITS=""
-
-          # Loop through commits
-          for commit in $COMMITS; do
-            echo "Checking commit: $commit"
-            if ! git log -1 --format="%B" $commit | npx commitlint; then
-              EXIT_CODE=1
-              INVALID_COMMITS="$INVALID_COMMITS\n$(git log -1 --format="%h: %s" $commit)"
-            fi
-          done
-
-          # If invalid commits found, output them
-          if [ $EXIT_CODE -ne 0 ]; then
-            echo "Invalid commits detected!"
-            echo "invalid_commits<<EOF" >> $GITHUB_OUTPUT
-            echo -e "$INVALID_COMMITS" >> $GITHUB_OUTPUT
-            echo "EOF" >> $GITHUB_OUTPUT
-          fi
-
-          exit $EXIT_CODE
-
-      - name: 💬 Add Commit Lint Comment
-        if: always() && steps.commitlint.outcome != 'skipped'
-        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
-        with:
-          script: |
-            const outcome = '${{ steps.commitlint.outcome }}';
-            const invalidCommits = `${{ steps.commitlint.outputs.invalid_commits }}`;
-
-            let message = '## 📝 Commit Message Check\n\n';
-
-            if (outcome === 'success') {
-              message += '✅ All commit messages follow the conventional commits standard.\n';
-            } else {
-              message += '❌ Some commit messages do not follow the conventional commits standard.\n\n';
-              message += '### Invalid Commits:\n```\n' + invalidCommits + '\n```\n\n';
-              message += 'Please follow the [Conventional Commits](https://www.conventionalcommits.org/) format:\n';
-              message += '```\n<type>[optional scope]: <description>\n\n[optional body]\n\n[optional footer(s)]\n```\n\n';
-              message += 'Valid types:\n';
-              message += '- feat: New feature\n';
-              message += '- fix: Bug fix\n';
-              message += '- docs: Documentation changes\n';
-              message += '- style: Code style changes\n';
-              message += '- refactor: Code refactoring\n';
-              message += '- perf: Performance improvements\n';
-              message += '- test: Adding or updating tests\n';
-              message += '- chore: Maintenance tasks\n';
-            }
-
-            await github.rest.issues.createComment({
-              ...context.repo,
-              issue_number: context.issue.number,
-              body: message
-            });
 
       - name: 🏷️ Update Labels
         if: always() && steps.commitlint.outcome != 'skipped'
@@ -378,8 +296,7 @@ jobs:
         with:
           update: true
           # More complete install for GLib, GObject, and other potential needs.
-          install:
-            mingw-w64-x86_64-glib2
+          install: mingw-w64-x86_64-glib2
             mingw-w64-x86_64-gobject-introspection
             mingw-w64-x86_64-cmake
 
@@ -459,16 +376,18 @@ jobs:
       - name: Call Python Environment Setup
         uses: ./.github/actions/python-setup
         id: python-setup
-      - name: 🔧 Setup PNPM
+
+      - name: 🔧 Setup PNPM and Node.js
         uses: pnpm/action-setup@v4
         with:
           version: latest
-          run_install: true
-      - name: 🔧 Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 'lts/*'
+          node_version: 'lts/*'
           cache: 'pnpm'
+          run_install: false
+
+      - name: ⚙️ Install Dependencies
+        run: pnpm install
+
       - name: 🧰 Install Dependencies
         run: |
           hatch env create lint
@@ -491,16 +410,18 @@ jobs:
       - name: Call Python Environment Setup
         uses: ./.github/actions/python-setup
         id: python-setup
-      - name: 🔧 Setup PNPM
+
+      - name: 🔧 Setup PNPM and Node.js
         uses: pnpm/action-setup@v4
         with:
           version: latest
-          run_install: true
-      - name: 🔧 Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 'lts/*'
+          node_version: 'lts/*'
           cache: 'pnpm'
+          run_install: false
+
+      - name: ⚙️ Install Dependencies
+        run: pnpm install
+
       - name: 🧰 Install Dependencies
         run: |
           hatch env create lint
