@@ -15,3 +15,4 @@ build/
 **/*.pyc
 **/.*egg-info
 cspell.config.yaml
+pnpm-lock.yaml
