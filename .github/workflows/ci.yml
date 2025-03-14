@@ -35,6 +35,10 @@ jobs:
     name: Validate Dependencies
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: write
+      security-events: write
     steps:
       - name: 🔒 Harden Runner
         uses: step-security/harden-runner@v2
@@ -211,6 +215,9 @@ jobs:
         if: runner.os == 'Linux'
         id: coverage
         run: |
+          sudo apt-get update
+          sudo apt-get install -y libxcb* libxi* libxkbcommon*
+          xvfb-run --auto-servernum --server-args='-screen 0, 1024x768x24'
           hatch run test:cov
           # Extract line coverage
           COVERAGE=$(grep TOTAL coverage.xml | awk '{print $4}' | sed 's/%//')
