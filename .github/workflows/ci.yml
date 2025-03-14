@@ -189,7 +189,6 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        #environment: [staging, production] # removed redundant value
     steps:
       - name: 🔒 Harden Runner
         uses: step-security/harden-runner@v2
