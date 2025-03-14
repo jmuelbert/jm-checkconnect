@@ -2,11 +2,10 @@ code_example_required: true
 image_required: true
 min_length: 100
 required_sections:
-- Installation
-- Usage
-- Configuration
+  - Installation
+  - Usage
+  - Configuration
 supported_languages:
-- it
-- es
-- en
-- de
+  - it
+  - es
+  - de
