@@ -215,8 +215,16 @@ jobs:
         id: coverage
         run: |
           sudo apt-get update
-          sudo apt-get install -y libxcb* libxi* libxkbcommon*
-          xvfb-run --auto-servernum --server-args='-screen 0, 1024x768x24'
+            libegl1 \
+            libxkbcommon-x11-0 \
+            libxcb-icccm4 \
+            libxcb-image0 \
+            libxcb-keysyms1 \
+            libxcb-randr0 \
+            libxcb-render-util0 \
+            libxcb-xinerama0 \
+            xvfb
+          sudo Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
           hatch run test:cov
           # Extract line coverage
           COVERAGE=$(grep TOTAL coverage.xml | awk '{print $4}' | sed 's/%//')

@@ -241,9 +241,24 @@ jobs:
               }
             }
 
+  trunk_check:
+    name: Trunk Code Quality Runner
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' # Only run on pull_request events
+    permissions:
+      checks: write # For trunk to post annotations
+      contents: read # For repo checkout
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Trunk Code Quality
+        uses: trunk-io/trunk-action@v1
+
   test:
     name: Test with Python on ${{ matrix.os }}
-    needs: [validate, validate-pr]
+    needs: [validate, validate-pr, trunk_check]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     strategy:
@@ -304,9 +319,23 @@ jobs:
         if: runner.os == 'Windows'
         shell: bash
         run: |
-          echo "::add-path::C:\msys64\usr\bin"
-          echo "::add-path::C:\msys64\mingw64\bin"  # Assumes 64-bit
-          echo "::add-path::C:\msys64\opt\bin"  # Add for potential cmake binaries
+          # Use MSYS2's `where` command to reliably find its install directory
+          msys2_install_dir=$(where bash | head -n 1 | sed 's/\\bash.exe//')
+
+          # Check if MSYS2 is installed at all
+          if [ -z "$msys2_install_dir" ]; then
+            echo "::error title=MSYS2 Not Found::MSYS2 installation not detected.  Ensure it is installed or included in the runner image."
+            exit 1  # Fail the step if MSYS2 is not found.  Crucial!
+          fi
+
+          # Construct the paths dynamically
+          echo "::add-path::$msys2_install_dir\usr\bin"
+          echo "::add-path::$msys2_install_dir\mingw64\bin"
+          echo "::add-path::$msys2_install_dir\opt\bin"
+
+          # Optional: Output for debugging
+          echo "MSYS2 Install Directory: $msys2_install_dir"
+          echo "Updated PATH: $PATH
 
       - name: Verify Installation (Windows) # Check to make sure they were installed
         if: runner.os == 'Windows'
@@ -330,10 +359,18 @@ jobs:
         if: runner.os == 'Linux'
         id: coverage
         run: |
-          hatch run test:cov
           sudo apt-get update
-          sudo apt-get install -y libxcb* libxi* libxkbcommon*
-          xvfb-run --auto-servernum --server-args='-screen 0, 1024x768x24'
+            libegl1 \
+            libxkbcommon-x11-0 \
+            libxcb-icccm4 \
+            libxcb-image0 \
+            libxcb-keysyms1 \
+            libxcb-randr0 \
+            libxcb-render-util0 \
+            libxcb-xinerama0 \
+            xvfb
+          sudo Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
+          hatch run test:cov
           # Use xmllint to extract the coverage percentage
           COVERAGE=$(xmllint --xpath "string(//line-rate)" coverage.xml | awk '{print $1 * 100}')
           echo "percentage=${COVERAGE}" >> "$GITHUB_OUTPUT"
