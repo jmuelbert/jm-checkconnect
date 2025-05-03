@@ -26,13 +26,15 @@ from rich.style import Style
 from rich.theme import Theme
 
 # Rich console setup
-custom_theme = Theme({
-    "info": Style(color="cyan", bold=True),
-    "success": Style(color="green", bold=True),
-    "warning": Style(color="yellow", bold=True),
-    "error": Style(color="red", bold=True),
-    "module": Style(color="magenta", bold=True),
-})
+custom_theme = Theme(
+    {
+        "info": Style(color="cyan", bold=True),
+        "success": Style(color="green", bold=True),
+        "warning": Style(color="yellow", bold=True),
+        "error": Style(color="red", bold=True),
+        "module": Style(color="magenta", bold=True),
+    },
+)
 console = Console(theme=custom_theme)
 
 
@@ -61,7 +63,6 @@ class TranslationConfig:
     languages: list[str] = None  # Use None to indicate that it can be empty
     config_path: Path = PROJECT_ROOT / "scripts" / "translation_config.yml"
 
-
     @classmethod
     def from_yaml(cls, path: Path) -> "TranslationConfig":
         """Load configuration from YAML file."""
@@ -69,15 +70,21 @@ class TranslationConfig:
             with open(path, encoding="utf-8") as f:
                 config = yaml.safe_load(f)
         except FileNotFoundError:
-            console.print(f"[warning]Config file not found: {path}, using default settings.[/warning]")
-            return cls() # Return default config
+            console.print(
+                f"[warning]Config file not found: {path}, using default settings.[/warning]",
+            )
+            return cls()  # Return default config
         except yaml.YAMLError as e:
             console.print(f"[error]Error parsing config file: {path} - {e}[/error]")
             sys.exit(1)  # Exit if there's a YAML parsing error
 
         return cls(
-            languages=config.get("languages", []),  # Default to empty list if 'languages' is not in file
+            languages=config.get(
+                "languages",
+                [],
+            ),  # Default to empty list if 'languages' is not in file
         )
+
 
 def ensure_dir_exists(directory: Path) -> None:
     """Ensure that the directory exists."""
@@ -126,7 +133,9 @@ def update_qt_translations() -> None:
 
         # Create .ts file if it doesn't exist
         if not ts_file.exists():
-            console.print(f"[warning]Creating new translation file: {ts_file}[/warning]")
+            console.print(
+                f"[warning]Creating new translation file: {ts_file}[/warning]",
+            )
             # Create an empty .ts file
             with open(ts_file, "w") as f:
                 f.write(
@@ -168,12 +177,16 @@ def update_qt_translations() -> None:
             console.print(f"[error]Error compiling {ts_file}: {output}[/error]")
             continue
 
-        console.print(f"[success]Successfully updated and compiled {lang} Qt translation[/success]")
+        console.print(
+            f"[success]Successfully updated and compiled {lang} Qt translation[/success]",
+        )
 
 
 def update_babel_translations() -> None:
     """Update and compile Python translations using Babel."""
-    console.print(Panel("[info]Updating Python Translations[/info]", border_style="info"))
+    console.print(
+        Panel("[info]Updating Python Translations[/info]", border_style="info"),
+    )
 
     # Ensure locale directories exist
     for locale_dir in [CLI_LOCALES_DIR, CORE_LOCALES_DIR]:
@@ -187,7 +200,9 @@ def update_babel_translations() -> None:
         module_name = module_dir.name
         pot_file = locale_dir / f"{module_name}.pot"
 
-        console.print(f"[module]Extracting messages from {module_name} module...[/module]")
+        console.print(
+            f"[module]Extracting messages from {module_name} module...[/module]",
+        )
 
         # Find all Python files
         python_files = list(module_dir.glob("**/*.py"))
@@ -250,7 +265,9 @@ def update_babel_translations() -> None:
                 )
 
             if not success:
-                console.print(f"[error]Error updating/initializing {po_file}: {output}[/error]")
+                console.print(
+                    f"[error]Error updating/initializing {po_file}: {output}[/error]",
+                )
                 continue
 
             # Compile PO file to MO file
@@ -291,20 +308,27 @@ def create_default_config(config_path: Path) -> TranslationConfig:
                 f,
                 indent=2,  # Add indentation for readability
             )
-        console.print(f"[success]Created default configuration at {config_path}[/success]")
+        console.print(
+            f"[success]Created default configuration at {config_path}[/success]",
+        )
     except Exception as e:
         console.print(f"[error]Error creating config file: {e}[/error]")
         sys.exit(1)
     return config
 
+
 def main() -> int:
     """Main function to parse arguments and run translation updates."""
     parser = argparse.ArgumentParser(description="Manage CheckConnect translations")
     parser.add_argument(
-        "--qt-only", action="store_true", help="Only update Qt translations",
+        "--qt-only",
+        action="store_true",
+        help="Only update Qt translations",
     )
     parser.add_argument(
-        "--babel-only", action="store_true", help="Only update Babel translations",
+        "--babel-only",
+        action="store_true",
+        help="Only update Babel translations",
     )
     parser.add_argument(
         "--languages",
@@ -322,15 +346,17 @@ def main() -> int:
     else:
         config = TranslationConfig.from_yaml(config.config_path)
 
-
     if args.languages:
         config.languages = args.languages.split(",")
-        console.print(f"[info]Using languages from command line: {', '.join(config.languages)}[/info]")
+        console.print(
+            f"[info]Using languages from command line: {', '.join(config.languages)}[/info]",
+        )
     elif config.languages:
-         console.print(f"[info]Using languages from config file: {', '.join(config.languages)}[/info]")
+        console.print(
+            f"[info]Using languages from config file: {', '.join(config.languages)}[/info]",
+        )
     else:
         console.print("[info]No languages specified, using all available.[/info]")
-
 
     # Check dependencies
     try:
@@ -344,7 +370,9 @@ def main() -> int:
     try:
         run_command(["pybabel", "--version"])
     except FileNotFoundError:
-        console.print("[error]Error: pybabel not found. Install Babel with: pip install Babel[/error]")
+        console.print(
+            "[error]Error: pybabel not found. Install Babel with: pip install Babel[/error]",
+        )
         return 1
 
     # Run requested operations
@@ -356,7 +384,11 @@ def main() -> int:
         update_qt_translations()
         update_babel_translations()
 
-    console.print(Panel("[success]Translation update complete![/success]", border_style="success"))
+    console.print(
+        Panel(
+            "[success]Translation update complete![/success]", border_style="success"
+        ),
+    )
     return 0
 
 

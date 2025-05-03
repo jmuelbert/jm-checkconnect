@@ -15,13 +15,15 @@ from rich.table import Table
 from rich.theme import Theme
 
 # Rich console setup
-custom_theme = Theme({
-    "info": Style(color="cyan", bold=True),
-    "success": Style(color="green", bold=True),
-    "warning": Style(color="yellow", bold=True),
-    "error": Style(color="red", bold=True),
-    "file": Style(color="magenta", bold=False),
-})
+custom_theme = Theme(
+    {
+        "info": Style(color="cyan", bold=True),
+        "success": Style(color="green", bold=True),
+        "warning": Style(color="yellow", bold=True),
+        "error": Style(color="red", bold=True),
+        "file": Style(color="magenta", bold=False),
+    },
+)
 console = Console(theme=custom_theme)
 
 
@@ -90,12 +92,13 @@ class DocChecker:
             self.issues[str(file_path)] = [f"Error reading file: {e}"]
             return
 
-
         file_issues = []
 
         # Basic checks
         if len(content) < self.config.min_length:
-            file_issues.append(f"[warning]Content too short ({len(content)} chars)[/warning]")
+            file_issues.append(
+                f"[warning]Content too short ({len(content)} chars)[/warning]",
+            )
 
         if not re.search(r"^#\s.+", content, re.MULTILINE):
             file_issues.append("[error]Missing main header[/error]")
@@ -113,7 +116,9 @@ class DocChecker:
             sections = set(re.findall(r"^##\s+(.+)$", content, re.MULTILINE))
             missing = self.config.required_sections - sections
             if missing:
-                file_issues.append(f"[error]Missing required sections: {', '.join(missing)}[/error]")
+                file_issues.append(
+                    f"[error]Missing required sections: {', '.join(missing)}[/error]",
+                )
 
         # Image checks
         if self.config.image_required:
@@ -137,8 +142,6 @@ class DocChecker:
             for issue in file_issues:
                 self.console.print(f"  - {issue}")
 
-
-
     def _get_language_code(self, file_path: Path) -> Optional[str]:
         """Extract language code from file path (suffix method)."""
         file_name = file_path.name
@@ -148,7 +151,6 @@ class DocChecker:
             if lang in self.config.supported_languages:
                 return lang
         return None
-
 
     def check_translations(self, docs_dir: Path) -> None:
         """Check if all documents are translated (suffix method)."""
@@ -162,11 +164,11 @@ class DocChecker:
             lang = self._get_language_code(file)
             file_stem = file.name
             if lang:
-                #It is a translation
+                # It is a translation
                 file_stem = ".".join(file.name.split(".")[:-2]) + ".md"
                 translated_docs[lang].add(file_stem)
             else:
-                #It is a default language
+                # It is a default language
                 base_docs.add(file.name)
 
         # Check missing translations
@@ -178,11 +180,13 @@ class DocChecker:
                 for doc in missing:
                     self.console.print(f"  - {doc}")
 
-
     def generate_report(self) -> None:
         """Generate a formatted report of issues."""
         if self.issues:
-            table = Table(title="[error]Documentation Quality Report[/error]", show_lines=True)
+            table = Table(
+                title="[error]Documentation Quality Report[/error]",
+                show_lines=True,
+            )
             table.add_column("[file]File[/file]", style="file")
             table.add_column("[error]Issues[/error]", style="error", overflow="fold")
 
@@ -191,7 +195,12 @@ class DocChecker:
 
             self.console.print(table)
         else:
-            self.console.print(Panel("[success]Documentation quality check passed![/success]", border_style="success"))
+            self.console.print(
+                Panel(
+                    "[success]Documentation quality check passed![/success]",
+                    border_style="success",
+                ),
+            )
 
 
 def create_default_config(config_path: Path) -> DocConfig:
@@ -217,7 +226,9 @@ def create_default_config(config_path: Path) -> DocConfig:
                 f,
                 indent=2,  # Add indentation for readability
             )
-        console.print(f"[success]Created default configuration at {config_path}[/success]")
+        console.print(
+            f"[success]Created default configuration at {config_path}[/success]",
+        )
     except Exception as e:
         console.print(f"[error]Error creating config file: {e}[/error]")
         sys.exit(1)
