@@ -53,11 +53,11 @@ dependencies = [
   "requests>=2.32.3,<3.0.0",
   "ntplib>=0.4.0,<0.5.0",
   "weasyprint>=64.1,<65.0",
-  "PySide6>=6.8,<6.9.0"
+  "PySide6>=6.8,<6.9.0",
+  "structlog>25.2.0,<25.4.0",
+  "tomli-w>=1.2.0,<=1.3.0",
+  "platformdirs>=4.3.7,<5.0.0"
 ]
-
-
-
 
 
 [project.urls]
@@ -75,10 +75,19 @@ checkconnect_gui = "checkconnect.__main__:main --gui"
 [tool.hatch.version]
 path = "src/checkconnect/__about__.py"
 
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/checkconnect"]
 macos-max-compat = true
 
+[tool.hatch.build.targets.sdist]
+include = ["checkconnect/locales/**"]
+
+[tool.setuptools.package-data]
+"checkconnect" = ["locales/*/LC_MESSAGES/*.mo"]
 
 [[tool.hatch.envs.test.matrix]]
 python = ["3.10", "3.11", "3.12", "3.13"]
@@ -92,6 +101,7 @@ dependencies = [
   "pytest-cov>=4.1.0",
   "pytest-timeout>=2.3.1",
   "pytest-randomly>=3.15.0",
+  "pytest-structlog>=1.1",
   "fastapi>=0.115.8",
   "httpx>=0.28.1",
   "typeguard>=4.1.5",
