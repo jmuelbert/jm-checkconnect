@@ -8,10 +8,11 @@
 
 LICENSE
 LICENSES/**
-assets/translations/
+src/checkconnect/gui/locales
 benchmark/
 dist/
 build/
 **/*.pyc
 **/.*egg-info
 cspell.config.yaml
+pnpm-lock.yaml

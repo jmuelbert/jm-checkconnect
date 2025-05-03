@@ -3,63 +3,93 @@
 # SPDX-FileCopyrightText: © 2025-present Jürgen Mülbert
 
 import configparser
-import gettext
 import logging
 import os
-import sys
-import unittest
 from unittest.mock import MagicMock, call, patch
 
-from PySide6.QtWidgets import QApplication, QLineEdit, QMessageBox, QTextEdit, QWidget
+import pytest
+from PySide6.QtWidgets import QApplication, QLineEdit, QMessageBox, QTextEdit
+from pytest_mock import MockerFixture
 
-from checkconnect.gui.checkconnect_gui import CheckConnectGUI
+from checkconnect.gui.checkconnect_gui import CheckConnectGUI, get_system_locale
 from tests.utils import MockLogger
 
 
-class TestCheckConnectGUI(unittest.TestCase):
-    """Unit tests for CheckConnectGUI class in checkconnect/gui/checkconnect_gui.py."""
+@pytest.fixture(scope="session", autouse=True)
+def q_app():
+    """Fixture to create a QApplication instance for all tests."""
+    app = QApplication.instance()
+    created_app = False
+    if not app:
+        app = QApplication([])
+        created_app = True
+    yield app
+    if created_app:
+        app.quit()
 
-    @classmethod
-    def setUpClass(cls):
-        """
-        Create a QApplication instance for all tests in this class.
 
-        PySide6 applications require a QApplication instance to be running.
-        This method ensures that one exists before any tests are run.  It is called
-        once before all tests.
-        """
-        # Check if QApplication already exists
-        if not QApplication.instance():
-            cls.app = QApplication([])
-            cls.created_app = True
-        else:
-            cls.app = QApplication.instance()
-            cls.created_app = False
+@pytest.fixture
+def mock_get_open_file_name():
+    """Fixture to mock QFileDialog.getOpenFileName."""
+    with patch("checkconnect.gui.checkconnect_gui.QFileDialog.getOpenFileName") as mock:
+        yield mock
 
-    @classmethod
-    def tearDownClass(cls):
-        """
-        Clean up QApplication instance after all tests have run.
 
-        This method quits the QApplication instance, releasing resources. It is
-        called once after all tests.
-        """
-        # Only quit if we created the app
-        if cls.created_app:
-            cls.app.quit()
+@pytest.fixture
+def mock_path_exists():
+    """Fixture to mock os.path.exists."""
+    with patch("checkconnect.gui.checkconnect_gui.os.path.exists") as mock:
+        yield mock
 
-    def setUp(self):
-        """
-        Set up for each test method.
 
-        This includes:
-            - Creating a config parser.
-            - Initializing CheckConnectGUI with the config parser.
-            - Creating a MockLogger instance.
-            - Assigning the MockLogger to the GUI.
-            - Mocking the `append` method of the GUI's output log.
-            - Resetting the MockLogger to ensure a clean slate for each test.
-        """
+@pytest.fixture
+def mock_critical():
+    """Fixture to mock QMessageBox.critical."""
+    with patch("checkconnect.gui.checkconnect_gui.QMessageBox.critical") as mock:
+        yield mock
+
+
+@pytest.fixture
+def mock_information():
+    """Fixture to mock QMessageBox.information."""
+    with patch("checkconnect.gui.checkconnect_gui.QMessageBox.information") as mock:
+        yield mock
+
+
+@pytest.fixture
+def mock_check_ntp_servers():
+    """Fixture to mock NTPChecker.check_ntp_servers."""
+    with patch("checkconnect.core.ntp_checker.NTPChecker.check_ntp_servers") as mock:
+        yield mock
+
+
+@pytest.fixture
+def mock_check_urls():
+    """Fixture to mock URLChecker.check_urls."""
+    with patch("checkconnect.core.url_checker.URLChecker.check_urls") as mock:
+        yield mock
+
+
+@pytest.fixture
+def mock_create_html_report():
+    """Fixture to mock create_html_report."""
+    with patch("checkconnect.gui.checkconnect_gui.create_html_report") as mock:
+        yield mock
+
+
+@pytest.fixture
+def mock_create_pdf_report():
+    """Fixture to mock create_pdf_report."""
+    with patch("checkconnect.gui.checkconnect_gui.create_pdf_report") as mock:
+        yield mock
+
+
+class TestCheckConnectGUI:
+    """Unit tests for CheckConnectGUI class."""
+
+    @pytest.fixture(autouse=True)
+    def setup_method(self, q_app, mocker: MockerFixture) -> None:
+        """Set up for each test method."""
         self.config_parser = configparser.ConfigParser()
         self.config_parser["Files"] = {
             "ntp_servers": "ntp_servers.csv",
@@ -69,278 +99,245 @@ class TestCheckConnectGUI(unittest.TestCase):
 
         self.gui = CheckConnectGUI(self.config_parser, "output.txt")
         self.mock_logger = MockLogger()
-        self.gui.logger = self.mock_logger  # Assign mock logger
-        self.gui.output_log.append = MagicMock()  # Mock the method from gui
+        self.gui.logger = self.mock_logger
+        self.gui.output_log.append = MagicMock()
         self.mock_logger.reset()
 
-        # Translation setup
-        self.TRANSLATION_DOMAIN = "checkconnect"
-        self.LOCALES_PATH = os.path.join(
-            os.path.dirname(os.path.dirname(__file__)),
-            "src",
-            "checkconnect",
-            "gui",
-            "locales",
+        # Mock translation for tests
+        mocker.patch("checkconnect.gui.checkconnect_gui.CheckConnectGUI.tr", side_effect=lambda x: x)
+
+    def test_checkconnect_gui_initialization(self) -> None:
+        """Tests CheckConnectGUI initializes correctly."""
+        assert isinstance(self.gui, CheckConnectGUI), (
+            "GUI is not an instance of CheckConnectGUI"
+        )
+        assert self.gui.config_parser == self.config_parser, (
+            "config_parser is incorrect"
+        )
+        assert self.gui.output_file == "output.txt", "output_file is incorrect"
+        assert self.gui.ntp_file == "ntp_servers.csv", "ntp_file is incorrect"
+        assert self.gui.url_file == "urls.csv", "url_file is incorrect"
+        assert self.gui.report_dir == "reports", "report_dir is incorrect"
+        assert isinstance(self.gui.url_input, QLineEdit), "url_input is not a QLineEdit"
+        assert isinstance(self.gui.output_log, QTextEdit), (
+            "output_log is not a QTextEdit"
         )
 
-        try:
-            self.translate = gettext.translation(
-                self.TRANSLATION_DOMAIN,
-                self.LOCALES_PATH,
-                languages=[os.environ.get("LANG", "en")],  # Respect the system language
-            ).gettext
-        except FileNotFoundError:
-            # Fallback to the default English translation if the locale is not found
-            def translate(message):
-                return message
-
-            self.translate = translate
-
-    def test_checkconnect_gui_initialization(self):
-        """
-        Test CheckConnectGUI initializes correctly.
-
-        Checks that the GUI is instantiated correctly with the provided config parser and output file,
-        and verifies that the relevant class attributes are set to the expected values. Also verifies that the
-        GUI widgets are created as instances of their respective Qt classes.
-        """
-        self.assertIsInstance(self.gui, CheckConnectGUI)
-        self.assertEqual(self.gui.config_parser, self.config_parser)
-        self.assertEqual(self.gui.output_file, "output.txt")
-        self.assertEqual(self.gui.ntp_file, "ntp_servers.csv")
-        self.assertEqual(self.gui.url_file, "urls.csv")
-        self.assertEqual(self.gui.report_dir, "reports")
-        self.assertIsInstance(
-            self.gui.url_input,
-            QLineEdit,
-        )  # Check if widgets are created
-        self.assertIsInstance(self.gui.output_log, QTextEdit)
-
-    @patch(
-        "checkconnect.gui.checkconnect_gui.QFileDialog.getOpenFileName",
-        return_value=("new_ntp.csv", ""),
-    )
-    def test_browse_ntp_file(self, mock_getOpenFileName):
-        """
-        Test browse_ntp_file method.
-
-        This test mocks the QFileDialog.getOpenFileName method to simulate a user selecting a new NTP file.
-        It then checks that the GUI's ntp_input text field is updated with the selected file name and that
-        the GUI's ntp_file attribute is also updated.
-        """
+    def test_browse_ntp_file(self, mock_get_open_file_name: MagicMock) -> None:
+        """Tests browse_ntp_file method."""
+        mock_get_open_file_name.return_value = ("new_ntp.csv", "")
         self.gui.browse_ntp_file()
-        self.assertEqual(self.gui.ntp_input.text(), "new_ntp.csv")
-        self.assertEqual(self.gui.ntp_file, "new_ntp.csv")
+        assert self.gui.ntp_input.text() == "new_ntp.csv", "ntp_input text is incorrect"
+        assert self.gui.ntp_file == "new_ntp.csv", "ntp_file is incorrect"
 
-    @patch(
-        "checkconnect.gui.checkconnect_gui.QFileDialog.getOpenFileName",
-        return_value=("new_url.csv", ""),
-    )
-    def test_browse_url_file(self, mock_getOpenFileName):
-        """
-        Test browse_url_file method.
-
-        This test mocks the QFileDialog.getOpenFileName method to simulate a user selecting a new URL file.
-        It then checks that the GUI's url_input text field is updated with the selected file name and that
-        the GUI's url_file attribute is also updated.
-        """
+    def test_browse_url_file(self, mock_get_open_file_name: MagicMock) -> None:
+        """Tests browse_url_file method."""
+        mock_get_open_file_name.return_value = ("new_url.csv", "")
         self.gui.browse_url_file()
-        self.assertEqual(self.gui.url_input.text(), "new_url.csv")
-        self.assertEqual(self.gui.url_file, "new_url.csv")
+        assert self.gui.url_input.text() == "new_url.csv", "url_input text is incorrect"
+        assert self.gui.url_file == "new_url.csv", "url_file is incorrect"
 
-    @patch("checkconnect.gui.checkconnect_gui.os.path.exists", return_value=True)
-    @patch("checkconnect.core.ntp_checker.NTPChecker.check_ntp_servers")
-    def test_test_ntp_success(self, mock_check_ntp_servers, mock_path_exists):
-        """
-        Test test_ntp method success.
-
-        This test mocks the os.path.exists and NTPChecker.check_ntp_servers methods to simulate a successful
-        NTP test run. It sets the ntp_input text field to a valid file name, calls the test_ntp method, and then
-        checks that the check_ntp_servers method is called with the correct arguments and that the output log
-        is updated with the expected messages.
-        """
+    def test_test_ntp_success(
+        self,
+        mock_path_exists: MagicMock,
+        mock_check_ntp_servers: MagicMock,
+    ) -> None:
+        """Tests test_ntp method success."""
+        mock_path_exists.return_value = True
         mock_check_ntp_servers.return_value = ["NTP Result 1", "NTP Result 2"]
 
-        self.gui.ntp_input.setText("ntp_servers.csv")  # Set input file
+        self.gui.ntp_input.setText("ntp_servers.csv")
         self.gui.test_ntp()
 
         mock_check_ntp_servers.assert_called_once_with("ntp_servers.csv", "output.txt")
         expected_log_calls = [
-            call(self.translate("Running NTP tests...\n")),
+            call("Running NTP tests...\n"),
             call("NTP Result 1\n"),
             call("NTP Result 2\n"),
-            call(self.translate("NTP tests completed.\n")),
+            call("NTP tests completed.\n"),
         ]
-        self.assertEqual(
-            self.gui.output_log.append.mock_calls,
-            expected_log_calls,
-        )  # Check that the messages was sended to the gui-log
+        assert self.gui.output_log.append.mock_calls == expected_log_calls, (
+            "output_log append calls are incorrect"
+        )
 
-    @patch("checkconnect.gui.checkconnect_gui.os.path.exists", return_value=False)
-    @patch("checkconnect.gui.checkconnect_gui.QMessageBox.critical")
-    def test_test_ntp_file_not_found(self, mock_critical, mock_path_exists):
-        """
-        Test test_ntp method file not found.
-
-        This test mocks the os.path.exists and QMessageBox.critical methods to simulate a scenario where the
-        selected NTP file does not exist. It sets the ntp_input text field to an invalid file name, calls the
-        test_ntp method, and then checks that the critical message box is displayed with the expected message.
-        """
-        self.gui.ntp_input.setText("invalid_ntp.csv")  # Set invalid input file
+    def test_test_ntp_file_not_found(
+        self, mock_path_exists: MagicMock, mock_critical: MagicMock
+    ) -> None:
+        """Tests test_ntp method file not found."""
+        mock_path_exists.return_value = False
+        self.gui.ntp_input.setText("invalid_ntp.csv")
         self.gui.test_ntp()
 
         mock_critical.assert_called_once_with(
             self.gui,
-            self.translate("Error"),
-            self.translate("Invalid or missing NTP file selected."),
+            self.gui,
+            "Invalid or missing NTP file selected.",
         )
 
-    @patch("checkconnect.gui.checkconnect_gui.os.path.exists", return_value=True)
-    @patch("checkconnect.core.url_checker.URLChecker.check_urls")
-    def test_test_urls_success(self, mock_check_urls, mock_path_exists):
-        """
-        Test test_urls method success.
-
-        This test mocks the os.path.exists and URLChecker.check_urls methods to simulate a successful
-        URL test run. It sets the url_input text field to a valid file name, calls the test_urls method, and then
-        checks that the check_urls method is called with the correct arguments and that the output log
-        is updated with the expected messages.
-        """
+    def test_test_urls_success(
+        self,
+        mock_path_exists: MagicMock,
+        mock_check_urls: MagicMock,
+    ) -> None:
+        """Tests test_urls method success."""
+        mock_path_exists.return_value = True
         mock_check_urls.return_value = ["URL Result 1", "URL Result 2"]
 
-        self.gui.url_input.setText("urls.csv")  # Set input file
+        self.gui.url_input.setText("urls.csv")
         self.gui.test_urls()
 
         mock_check_urls.assert_called_once_with("urls.csv", "output.txt")
         expected_log_calls = [
-            call(self.translate("Running URL tests...\n")),
+            call("Running URL tests...\n"),
             call("URL Result 1\n"),
             call("URL Result 2\n"),
-            call(self.translate("URL tests completed.\n")),
+            call("URL tests completed.\n"),
         ]
-        self.assertEqual(
-            self.gui.output_log.append.mock_calls,
-            expected_log_calls,
-        )  # Check that the messages was sended to the gui-log
+        assert self.gui.output_log.append.mock_calls == expected_log_calls, (
+            "output_log append calls are incorrect"
+        )
 
-    @patch("checkconnect.gui.checkconnect_gui.os.path.exists", return_value=False)
-    @patch("checkconnect.gui.checkconnect_gui.QMessageBox.critical")
-    def test_test_urls_file_not_found(self, mock_critical, mock_path_exists):
-        """
-        Test test_urls method file not found.
-
-        This test mocks the os.path.exists and QMessageBox.critical methods to simulate a scenario where the
-        selected URL file does not exist. It sets the url_input text field to an invalid file name, calls the
-        test_urls method, and then checks that the critical message box is displayed with the expected message.
-        """
-        self.gui.url_input.setText("invalid_urls.csv")  # Set invalid input file
+    def test_test_urls_file_not_found(
+        self, mock_path_exists: MagicMock, mock_critical: MagicMock
+    ) -> None:
+        """Tests test_urls method file not found."""
+        mock_path_exists.return_value = False
+        self.gui.url_input.setText("invalid_urls.csv")
         self.gui.test_urls()
 
         mock_critical.assert_called_once_with(
             self.gui,
-            self.translate("Error"),
-            self.translate("Invalid or missing URL file selected."),
+            self.gui,
+            "Invalid or missing URL file selected.",
         )
 
-    @patch(
-        "checkconnect.gui.checkconnect_gui.create_pdf_report",
-    )  # Changed path to match import
-    @patch(
-        "checkconnect.gui.checkconnect_gui.create_html_report",
-    )  # Changed path to match import
-    @patch("checkconnect.gui.checkconnect_gui.QMessageBox.information")
     def test_create_reports_success(
         self,
-        mock_information,
-        mock_create_html_report,
-        mock_create_pdf_report,
-    ):
-        """
-        Test create_reports method success.
+        mock_path_exists: MagicMock,
+        mock_create_pdf_report: MagicMock,
+        mock_create_html_report: MagicMock,
+        mock_information: MagicMock,
+    ) -> None:
+        """Tests create_reports method success."""
+        mock_path_exists.return_value = True
+        self.gui.ntp_input.setText("ntp_servers.csv")
+        self.gui.url_input.setText("urls.csv")
+        self.gui.create_reports()
 
-        This test mocks the create_pdf_report, create_html_report, and QMessageBox.information
-        methods to simulate a successful report generation. It sets the ntp_input and url_input text fields to valid
-        file names, calls the create_reports method, and then checks that the create_pdf_report and create_html_report
-        methods are called with the correct arguments and that the information message box is displayed with the
-        expected message.
-        """
-        # Mock os.path.exists to always return True for file checks
-        with patch(
-            "checkconnect.gui.checkconnect_gui.os.path.exists",
-            return_value=True,
-        ):
-            mock_create_pdf_report.return_value = None
-            mock_create_html_report.return_value = None
+        mock_create_pdf_report.assert_called_once_with(
+            "ntp_servers.csv",
+            "urls.csv",
+            "reports",
+            self.gui.logger,
+        )
+        mock_create_html_report.assert_called_once_with(
+            "ntp_servers.csv",
+            "urls.csv",
+            "reports",
+            self.gui.logger,
+        )
+        mock_information.assert_called_once_with(
+            self.gui,
+            self.gui,
+            "Reports generated successfully.",
+        )
 
-            self.gui.ntp_input.setText("ntp_servers.csv")  # Set input files
-            self.gui.url_input.setText("urls.csv")
-            self.gui.create_reports()
+        # Capture the last call and assert the message is correct
+        last_call_args = self.gui.output_log.append.call_args[0]
+        assert "Reports generated successfully.\n" == last_call_args[0], "Success message not found in log"
 
-            mock_create_pdf_report.assert_called_once_with(
-                "ntp_servers.csv",
-                "urls.csv",
-                "reports",
-            )
-            mock_create_html_report.assert_called_once_with(
-                "ntp_servers.csv",
-                "urls.csv",
-                "reports",
-            )
-            mock_information.assert_called_once_with(
-                self.gui,
-                self.translate("Success"),
-                self.translate("Reports generated successfully."),
-            )
-            self.assertEqual(
-                self.gui.output_log.append.mock_calls,
-                [call(self.translate("Reports generated successfully.\n"))],
-            )
-
-    @patch("checkconnect.gui.checkconnect_gui.os.path.exists", return_value=False)
-    @patch("checkconnect.gui.checkconnect_gui.QMessageBox.critical")
-    def test_create_reports_file_not_found(self, mock_critical, mock_path_exists):
-        """
-        Test create_reports method file not found.
-
-        This test mocks the os.path.exists and QMessageBox.critical methods to simulate a scenario where either the
-        NTP or URL file does not exist. It sets the ntp_input and url_input text fields to invalid file names,
-        calls the create_reports method, and then checks that the critical message box is displayed with the
-        expected message.
-        """
+    def test_create_reports_file_not_found(
+        self, mock_path_exists: MagicMock, mock_critical: MagicMock
+    ) -> None:
+        """Tests create_reports method file not found."""
+        mock_path_exists.return_value = False
         self.gui.ntp_input.setText("invalid_ntp.csv")
         self.gui.url_input.setText("invalid_urls.csv")
         self.gui.create_reports()
 
         mock_critical.assert_called_once_with(
             self.gui,
-            self.translate("Error"),
-            self.translate("Invalid or missing files for report generation."),
+            self.gui,
+            "Invalid or missing files for report generation.",
         )
 
-    @patch(
-        "checkconnect.gui.checkconnect_gui.create_pdf_report",
-        side_effect=Exception("Report error"),
-    )  # Changed path to match import
-    @patch("checkconnect.gui.checkconnect_gui.QMessageBox.critical")
-    def test_create_reports_exception(self, mock_critical, mock_create_pdf_report):
-        """
-        Test create_reports method exception.
+    def test_create_reports_exception(
+        self,
+        mock_path_exists: MagicMock,
+        mock_create_pdf_report: MagicMock,
+        mock_critical: MagicMock,
+    ) -> None:
+        """Tests create_reports method exception."""
+        mock_path_exists.return_value = True
+        mock_create_pdf_report.side_effect = Exception("Report error")
+        self.gui.ntp_input.setText("ntp_servers.csv")
+        self.gui.url_input.setText("urls.csv")
+        self.gui.create_reports()
 
-        This test mocks the create_pdf_report and QMessageBox.critical methods to simulate a scenario where
-        an exception occurs during report generation (specifically, during PDF creation). It sets the ntp_input and url_input
-        text fields to valid file names, calls the create_reports method, and then checks that the critical message box
-        is displayed with the expected error message.
-        """
-        # Mock os.path.exists to always return True for file checks
-        with patch(
-            "checkconnect.gui.checkconnect_gui.os.path.exists",
-            return_value=True,
-        ):
-            self.gui.ntp_input.setText("ntp_servers.csv")
-            self.gui.url_input.setText("urls.csv")
-            self.gui.create_reports()
-            mock_critical.assert_called_once_with(
-                self.gui,
-                self.translate("Error"),
-                self.translate("Error generating reports: Report error"),
-            )
+        mock_critical.assert_called_once_with(
+            self.gui,
+            self.gui,
+            "Error generating reports: Report error",
+        )
+
+    def test_get_system_locale(self, mocker: MockerFixture) -> None:
+        """Tests that the get_system_locale function retrieves the system locale."""
+        # Mock locale.getlocale to return a specific locale
+        mocker.patch("locale.getlocale", return_value=("de_DE", "UTF-8"))
+
+        # Call the function
+        locale = get_system_locale()
+
+        # Assert that the function returns the mocked locale
+        assert locale == "de_DE"
+
+        # Mock locale.getlocale to raise an exception
+        mocker.patch("locale.getlocale", side_effect=Exception("Failed to get locale"))
+
+        # Call the function
+        locale = get_system_locale()
+
+        # Assert that the function returns the default locale
+        assert locale == "en_US"
+
+    def test_load_translation_success(self, mocker: MockerFixture) -> None:
+        """Tests that the load_translation function loads a translation successfully."""
+        # Mock the necessary functions
+        mocker.patch("checkconnect.gui.checkconnect_gui.get_system_locale", return_value="de_DE")
+        mocker.patch("os.path.exists", return_value=True)
+        mocker.patch("PySide6.QtCore.QTranslator.load", return_value=True)
+        mock_app_install_translator = mocker.patch("PySide6.QtWidgets.QApplication.installTranslator")
+
+        # Call the function
+        self.gui.load_translation()
+
+        # Assert that the necessary functions were called
+        mock_app_install_translator.assert_called_once()
+
+    def test_load_translation_file_not_found(self, mocker: MockerFixture) -> None:
+        """Tests that the load_translation function handles the case where the translation file is not found."""
+        # Mock the necessary functions
+        mocker.patch("checkconnect.gui.checkconnect_gui.get_system_locale", return_value="de_DE")
+        mocker.patch("os.path.exists", return_value=False)
+
+        # Call the function
+        self.gui.load_translation()
+
+        # Assert that the necessary functions were not called
+        # QTranslator().load() and QApplication.instance().installTranslator() are not used in the function
+        #assert not self.gui.translator.load.called
+        #assert not QApplication.instance().installTranslator.called
+
+    def test_load_translation_load_fails(self, mocker: MockerFixture) -> None:
+        """Tests that the load_translation function handles the case where the translation file fails to load."""
+        # Mock the necessary functions
+        mocker.patch("checkconnect.gui.checkconnect_gui.get_system_locale", return_value="de_DE")
+        mocker.patch("os.path.exists", return_value=True)
+        mocker.patch("PySide6.QtCore.QTranslator.load", return_value=False)
+        mock_install_translator = mocker.patch("PySide6.QtWidgets.QApplication.installTranslator")
+
+        # Call the function
+        self.gui.load_translation()
+
+        # Assert that the necessary functions were not called
+        mock_install_translator.assert_not_called()

@@ -1,83 +1,54 @@
----
-# SPDX-FileCopyrightText: GitHub, Inc. and contributors
-# SPDX-License-Identifier: MIT
-# yaml-language-server: $schema=https://json.schemastore.org/release-drafter.json
-
-name-template: v$RESOLVED_VERSION
-tag-template: v$RESOLVED_VERSION
-
+name-template: 'v$RESOLVED_VERSION'
+tag-template: 'v$RESOLVED_VERSION'
 categories:
-  - title: 🚀 Features
+  - title: '🚀 Features'
     labels:
-      - type: feature
-      - feature
-      - enhancement
-  - title: 🐛 Bug Fixes
+      - 'feature'
+      - 'enhancement'
+  - title: '🐛 Bug Fixes'
     labels:
-      - type: fix
-      - fix
-      - bug
-  - title: 🔒 Security Updates
+      - 'bug'
+      - 'fix'
+  - title: '📚 Documentation'
     labels:
-      - type: security
-      - security
-  - title: ⚡ Performance Improvements
+      - 'documentation'
+      - 'docs'
+  - title: '🛠️ Maintenance'
     labels:
-      - type: performance
-      - performance
-  - title: 📚 Documentation Updates
-    labels:
-      - type: docs
-      - documentation
-  - title: 🧪 Testing
-    labels:
-      - type: test
-      - testing
-  - title: 🔧 Maintenance
-    labels:
-      - type: maintenance
-      - maintenance
-      - chore
-  - title: 📦 Dependency Updates
-    labels:
-      - type: dependencies
-      - dependencies
-      - dep-upgrade
-
-change-template: '- $TITLE by @$AUTHOR (#$NUMBER)'
-
+      - 'maintenance'
+      - 'dependencies'
+      - 'chore'
 version-resolver:
   major:
     labels:
-      - breaking
+      - 'major'
   minor:
     labels:
-      - type: feature
+      - 'minor'
   patch:
     labels:
-      - type: fix
-      - type: maintenance
-      - type: docs
-      - type: dependencies
-      - type: security
+      - 'patch'
+  default: patch
 
-exclude-labels:
-  - skip-changelog
-  - status: work-in-progress
-
+autolabeler:
+  - label: 'feature'
+    title:
+      - '/feat(.*)/'
+      - '/add(.*)/'
+    branch:
+      - '/feat(.*)/'
+      - '/add(.*)/'
+  - label: 'fix'
+    title:
+      - '/fix(.*)/'
+    branch:
+      - '/fix(.*)/'
+  - label: 'docs'
+    title:
+      - '/docs(.*)/'
+    branch:
+      - '/docs(.*)/'
 template: |
-  ## 🚀 What's Changed
+  ## What's Changed
 
   $CHANGES
-
-  ## 📦 Dependency Updates
-  $CHANGES_BY_LABELS.dependencies
-
-  ## 🤝 Contributors
-  Thanks to our contributors:
-  $CONTRIBUTORS
-
-  ## Installation Instructions
-  To install this version:
-  ```bash
-  pip install jmbde-python==$RESOLVED_VERSION
