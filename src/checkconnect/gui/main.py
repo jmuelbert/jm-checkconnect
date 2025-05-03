@@ -10,6 +10,7 @@ This module serves as the main entry for the GUI version of CheckConnect.
 
 import configparser
 import gettext
+import importlib
 import locale
 import logging
 import os
@@ -87,15 +88,14 @@ def gui_main(
     locale_code = QLocale(system_locale).name()
 
     # Construct the translation file path
-    translation_file = os.path.join(LOCALES_PATH, f"checkconnect_{locale_code}.qm")
+    translations_path = str(
+        importlib.resources.files("checkconnect") / "gui/translations",
+    )
 
-    if os.path.exists(translation_file):
-        # Load the translation file
-        translator.load(translation_file)
-
+    if translator.load(f"{translations_path}/{locale}.qm"):
         # Install the translator
         app.installTranslator(translator)
-        logger.info(f"Translation loaded for locale: {locale_code}")
+        logger.debug(f"Translation loaded for locale: {locale_code}")
     else:
         logger.warning(f"Translation file not found for locale: {locale_code}")
 

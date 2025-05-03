@@ -228,7 +228,6 @@ class TestCheckConnect(unittest.TestCase):
             patch("checkconnect.cli.checkconnect.create_pdf_report") as mock_pdf,
             patch("checkconnect.cli.checkconnect.create_html_report") as mock_html,
         ):
-
             # Call the method under test
             self.check_connect.generate_reports()
 
@@ -258,7 +257,6 @@ class TestCheckConnect(unittest.TestCase):
             patch("checkconnect.cli.checkconnect.create_pdf_report") as mock_pdf,
             patch("checkconnect.cli.checkconnect.create_html_report") as mock_html,
         ):
-
             # Call with custom file paths
             custom_ntp = "custom_ntp.csv"
             custom_url = "custom_urls.csv"
@@ -286,7 +284,6 @@ class TestCheckConnect(unittest.TestCase):
             ) as mock_pdf,
             patch("checkconnect.cli.checkconnect.create_html_report") as mock_html,
         ):
-
             # Call the method - should not raise an exception
             self.check_connect.generate_reports()
 
@@ -321,7 +318,6 @@ class TestCheckConnect(unittest.TestCase):
                 side_effect=html_error,
             ) as mock_html,
         ):
-
             # Call the method - should not raise an exception
             self.check_connect.generate_reports()
 
