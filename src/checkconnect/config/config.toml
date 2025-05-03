@@ -1,0 +1,13 @@
+[logger]
+level = "DEBUG"
+format = "%(asctime)s - %(levelname)s - %(name)s - %(message)s"
+
+[file_handler]
+enabled = true
+file_path = "checkconnect.log"
+
+[limited_file_handler]
+enabled = true
+file_path = "limited_checkconnect.log"
+max_bytes = 2048
+backup_count = 2
