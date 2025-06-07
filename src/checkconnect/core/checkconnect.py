@@ -5,74 +5,86 @@
 """
 CheckConnect Module.
 
-This module provides a command-line interface (CLI) for managing network connectivity tests
-and generating reports. It tests the connectivity to NTP servers and URLs, and allows the user
-to generate HTML and PDF reports based on the results.
+This module provides the core logic for managing network connectivity tests
+and generating reports. It includes functionalities to test connectivity
+to NTP servers and URLs, and to produce reports in various formats based
+on the test outcomes.
 
-The module includes the following features:
-- Running network tests for NTP servers and URLs.
-- Generating HTML and PDF reports from the results of these tests.
-- Using configuration settings from a TOML file.
-- Supporting multiple languages for the application.
+The module integrates with the application's configuration, logging, and
+translation managers to ensure a consistent and robust testing environment.
 
 Classes:
-- `CheckConnect`: A class that manages the NTP and URL tests and report generation.
+- `CheckConnect`: The main class orchestrating NTP and URL checks, and report generation.
 
 Dependencies:
-- `checkconnect.config.appcontext`: For managing application context and initialization.
-- `checkconnect.core.ntp_checker`: For NTP server connectivity checks.
-- `checkconnect.core.url_checker`: For URL connectivity checks.
+- `checkconnect.config.appcontext`: Manages the application-wide context.
+- `checkconnect.core.ntp_checker`: Handles NTP server connectivity tests.
+- `checkconnect.core.url_checker`: Handles URL connectivity tests.
+- `checkconnect.reports.report_manager`: Manages saving and loading test results, and generating summaries.
 """
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING, TypeVar
 
 import structlog
 
+from checkconnect.core.ntp_checker import NTPChecker, NTPCheckerConfig
+from checkconnect.core.url_checker import URLChecker, URLCheckerConfig
 from checkconnect.reports.report_manager import ReportManager
-
-from .ntp_checker import NTPChecker, NTPCheckerConfig
-from .url_checker import URLChecker, URLCheckerConfig
 
 if TYPE_CHECKING:
     from checkconnect.config.appcontext import AppContext
 
 
-# Definiere einen TypeVar für die Checker-Klasse, der auf NTPChecker oder URLChecker beschränkt ist
+# Define a TypeVar for checker classes, constrained to NTPChecker or URLChecker.
 CheckerT = TypeVar("CheckerT", bound="NTPChecker | URLChecker")
-# Definiere einen TypeVar für die Config-Klasse, der auf NTPCheckerConfig oder URLCheckerConfig beschränkt ist
+# Define a TypeVar for configuration classes, constrained to NTPCheckerConfig or URLCheckerConfig.
 ConfigT = TypeVar("ConfigT", bound="NTPCheckerConfig | URLCheckerConfig")
 
 log = structlog.get_logger(__name__)
 
+
 class CheckConnect:
     """
-    Manage connectivity tests and report generation for NTP and URL checks.
+    Manages network connectivity tests for NTP servers and URLs, and orchestrates report generation.
 
-    This class:
-        - Runs network tests for NTP servers and URLs.
-        - Generates reports based on the test results.
+    This class serves as the central component for executing connectivity checks
+    and coordinating with various sub-components (e.g., NTPChecker, URLChecker,
+    ReportManager) to perform its functions. It initializes these components
+    based on the provided application context and handles the full lifecycle
+    of the connectivity tests.
 
     Attributes
     ----------
-        context (AppContext): Shared application context
-        reports_dir (Path): Path for the reports or null if that config on settings
-
+    context (AppContext): The shared application context containing configuration,
+                          logger, and translation manager.
+    logger (BoundLogger): The structured logger instance for logging events specific
+                          to the CheckConnect operations.
+    translator (TranslationManager): The translation manager for internationalization support.
+    config (SettingsManager): The settings manager providing access to application configuration.
+    _ (Callable): A shortcut for the `gettext` translation function.
+    report_dir (str): The configured directory path for storing generated reports.
+    report_manager (ReportManager): An instance of `ReportManager` for handling test result data.
+    ntp_checker (NTPChecker): An instance of `NTPChecker` configured for NTP connectivity tests.
+    url_checker (URLChecker): An instance of `URLChecker` configured for URL connectivity tests.
+    ntp_results (list[str]): A list to store the results of NTP checks after execution.
+    url_results (list[str]): A list to store the results of URL checks after execution.
     """
 
     def __init__(self, context: AppContext) -> None:
         """
         Initialize the CheckConnect instance.
 
-        Initializes NTP and URL checkers using shared context.
-        Extracts relevant settings such as output directory.
+        This constructor initializes the `CheckConnect` object by setting up
+        its core dependencies, including the logger, translator, configuration,
+        and instances of `ReportManager`, `NTPChecker`, and `URLChecker`.
+        Checker instances are dynamically configured based on application settings.
 
         Args:
         ----
-            context (AppContext): Shared application context with logger,
-                translator, and configuration.
-
+            context (AppContext): The shared application context, providing access
+                                  to logging, translation, and configuration settings.
         """
         self.context = context
         self.logger = log
@@ -84,20 +96,16 @@ class CheckConnect:
 
         self.report_manager = ReportManager.from_context(context=self.context)
 
-        # Initialize checkers
+        # Initialize checkers dynamically based on their respective configurations
         self.ntp_checker = self._setup_checker(
             NTPChecker,
             NTPCheckerConfig,
             "ntp_servers",
         )
 
-        self.url_checker = self._setup_checker(
-            URLChecker,
-            URLCheckerConfig,
-            "urls"
-        )
+        self.url_checker = self._setup_checker(URLChecker, URLCheckerConfig, "urls")
 
-        # Results will be populated after `run()` is called
+        # Initialize result storage; these will be populated after `run_all_checks()`
         self.ntp_results: list[str] = []
         self.url_results: list[str] = []
 
@@ -106,47 +114,36 @@ class CheckConnect:
         checker_cls: type[CheckerT],
         config_cls: type[ConfigT],
         key: str,
-    ) -> Any:
+    ) -> CheckerT:
         """
-        Help to set up a checker instance with its config.
+        Helper method to set up and configure a checker instance.
+
+        This method retrieves network configuration details from the application context,
+        constructs a configuration object using the provided `config_cls`, and then
+        instantiates the `checker_cls` with this configuration. It handles potential
+        configuration errors by logging them and re-raising the exception.
 
         Args:
         ----
-            checker_cls: The checker class (e.g., NTPChecker).
-            config_cls: The config model class.
-            key: The config key for 'ntp_servers' or 'urls'.
+            checker_cls: The class of the checker to instantiate (e.g., `NTPChecker`, `URLChecker`).
+            config_cls: The Pydantic configuration model class for the checker (e.g., `NTPCheckerConfig`).
+            key: The configuration key (e.g., "ntp_servers" or "urls") to retrieve the list
+                 of items to be checked.
 
         Returns:
         -------
-            An instance of the checker.
+            An instantiated and configured checker object.
 
+        Raises:
+        ------
+            Exception: If an error occurs during the configuration or instantiation
+                       of the checker, typically due to invalid settings.
         """
-        import sys  # Import sys for debugging prints
-
-        print(f"\n--- DEBUG: Entering _setup_checker for key='{key}' ---", file=sys.stderr)
-        print(f"DEBUG: self.config: {self.config}", file=sys.stderr)
-        print(f"DEBUG: self.config.get_section: {self.config.get_section}", file=sys.stderr)
-
         network_config = self.config.get_section("network")
-        print(f"DEBUG: network_config received from self.config.get_section('network'): {network_config}", file=sys.stderr)
-        print(f"DEBUG: Type of network_config: {type(network_config)}", file=sys.stderr)
-        print(f"DEBUG: network_config.get: {network_config.get}", file=sys.stderr)
 
         # Get values that will be passed to Pydantic config_cls
         ntp_or_url_list = network_config.get(key, [])
         timeout_value = network_config.get("timeout", 5)
-
-        print(f"DEBUG: Value for '{key}': {ntp_or_url_list}, Type: {type(ntp_or_url_list)}", file=sys.stderr)
-        print(f"DEBUG: Value for 'timeout': {timeout_value}, Type: {type(timeout_value)}", file=sys.stderr)
-
-        print(f"DEBUG: _setup_checker: About to instantiate {config_cls.__name__}", file=sys.stderr)
-        print(f"DEBUG: _setup_checker: Passing context to config_cls: {self.context}", file=sys.stderr)
-        print(f"DEBUG: _setup_checker: Type of context: {type(self.context)}", file=sys.stderr)
-        print(f"DEBUG: _setup_checker: Current self._ : {self._}", file=sys.stderr) # This is context.gettext mock
-        print(f"DEBUG: _setup_checker: Checking for 'gettextsetup_checker' attribute on self: {hasattr(self, 'gettextsetup_checker')}", file=sys.stderr)
-        print(f"DEBUG: _setup_checker: Checking for 'gettextsetup_checker' attribute on self.context: {hasattr(self.context, 'gettextsetup_checker')}", file=sys.stderr)
-        print(f"DEBUG: _setup_checker: Checking for 'gettextsetup_checker' attribute on self._: {hasattr(self._, 'gettextsetup_checker')}", file=sys.stderr) # This is crucial
-
 
         try:
             config_dict = {
@@ -154,27 +151,23 @@ class CheckConnect:
                 "timeout": timeout_value,
                 "context": self.context,
             }
-            print(f"DEBUG: _setup_checker: Instantiating {config_cls.__name__} with: {config_dict}", file=sys.stderr)
             config = config_cls(**config_dict)
-            print(f"DEBUG: _setup_checker: Successfully instantiated {config_cls.__name__}", file=sys.stderr)
 
             return checker_cls(config=config)
 
-        except Exception as e:
-            print(f"ERROR: _setup_checker: Exception during config_cls instantiation: {e}", file=sys.stderr)
-            print(f"ERROR: _setup_checker: Exception type: {type(e)}", file=sys.stderr)
-
-            # Re-raise to see the full traceback and confirm the source
+        except Exception:
             msg: str = self.context.gettext(f"Error configuring {checker_cls.__name__}")
             self.logger.exception(msg)
             raise
 
     def run_all_checks(self) -> None:
         """
-        Run all connectivity tests (NTP and URLs).
+        Execute all configured network connectivity tests (NTP and URLs).
 
-        This method executes both the URL and NTP connectivity tests,
-        logging progress and results. Exceptions are logged and re-raised.
+        This method orchestrates the execution of both URL and NTP connectivity
+        tests. It logs the start and completion of the checks, and handles
+        any exceptions that occur during their execution by logging them and
+        re-raising.
         """
         self.logger.info(self.context.gettext("Starting all checks..."))
 
@@ -184,8 +177,18 @@ class CheckConnect:
         self.logger.info(self.context.gettext("All checks completed successfully."))
 
     def run_url_checks(self) -> None:
-        """Run URL checks only."""
-        urls_text = self.config.get("network","urls")
+        """
+        Run only the URL connectivity checks.
+
+        This method invokes the `run_url_checks` method of the `url_checker` instance,
+        stores the results, and saves them using the `report_manager`.
+        It logs the process and handles potential exceptions during the checks.
+
+        Raises:
+        ------
+            Exception: If an error occurs during the URL connectivity checks.
+        """
+        urls_text = self.config.get("network", "urls")
         msg = self.context.gettext(f"Starting URL checks with {urls_text}")
         self.logger.info(msg)
         try:
@@ -197,7 +200,17 @@ class CheckConnect:
             raise
 
     def run_ntp_checks(self) -> None:
-        """Run NTP checks only."""
+        """
+        Run only the NTP connectivity checks.
+
+        This method invokes the `run_ntp_checks` method of the `ntp_checker` instance,
+        stores the results, and saves them using the `report_manager`.
+        It logs the process and handles potential exceptions during the checks.
+
+        Raises:
+        ------
+            Exception: If an error occurs during the NTP connectivity checks.
+        """
         self.logger.info(self.context.gettext("Starting NTP checks..."))
 
         try:
