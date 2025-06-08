@@ -2,121 +2,243 @@
 #
 # SPDX-FileCopyrightText: © 2025-present Jürgen Mülbert
 
-import configparser
-import gettext
-import logging
-import os
-from typing import List
+"""Check the HTTP status of URLs."""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
 
 import requests
+import structlog
+from pydantic import BaseModel, ConfigDict, HttpUrl, field_validator, model_validator
 
-# Define the translation domain
-TRANSLATION_DOMAIN = "checkconnect"
+from checkconnect.config.appcontext import AppContext  # noqa: TCH001
 
-# Set the locales path relative to the current file
-LOCALES_PATH = os.path.join(
-    os.path.dirname(os.path.dirname(__file__)),
-    "core",
-    "locales",
-)
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+
+log = structlog.get_logger(__name__)
 
 
-# Initialize gettext
-try:
-    translate = gettext.translation(
-        TRANSLATION_DOMAIN,
-        LOCALES_PATH,
-        languages=[os.environ.get("LANG", "en")],  # Respect the system language
-    ).gettext
-except FileNotFoundError:
-    # Fallback to the default English translation if the locale is not found
-    def translate(message):
-        return message
+class URLCheckerConfig(BaseModel):
+    """
+    Pydantic model for validating URLChecker configuration.
+
+    This model includes fields for URL servers, timeout, and application context.
+    It also includes validators for the URL server list and timeout value.
+
+    Attributes
+    ----------
+    urls list[HttpUrl]:
+        List of URL server hostnames.
+    timeout (int):
+        Timeout for each NTP request in seconds.
+    context (AppContext):
+        Application context for logging and other services.
+
+    """
+
+    urls: list[HttpUrl]
+    timeout: int
+    context: AppContext
+
+    model_config = ConfigDict(
+        arbitrary_types_allowed=True,
+    )  # Allow TranslationManager and logger
+
+    @model_validator(mode="before")
+    @classmethod
+    def check_context_present(cls, values: Mapping[str, Any]) -> Mapping[str, Any]:
+        """
+        Validate that the application context is provided.
+
+        Args:
+            values (Mapping[str, Any]): The dictionary of field values being validated.
+
+        Returns:
+            Mapping[str, Any]: The validated dictionary of field values.
+
+        Raises:
+            ValueError: If 'context' is not provided in the values.
+        """
+        context = values.get("context")
+        if context is None:
+            msg = "context must be provided to URLCheckerConfig."
+            raise ValueError(msg)
+        return values
+
+    @field_validator("urls")
+    @classmethod
+    def urls_must_not_be_empty(cls, urls: list[HttpUrl]) -> list[HttpUrl]:
+        """Ensure the list of URLs is not empty."""
+        if not urls:
+            msg: str = "At least one URL must be provided"
+            raise ValueError(msg)
+        return urls
+
+    @field_validator("timeout")
+    @classmethod
+    def timeout_must_be_positive(cls, value: int) -> int:
+        """
+        Validate that the timeout is a positive integer.
+
+        This method checks if the timeout value is greater than zero.
+        If not, a ValueError is raised.
+
+        Args:
+            value (int): The timeout value to validate.
+
+        Returns:
+            int: The validated timeout value.
+
+        Raises:
+            ValueError: If the timeout value is not a positive integer.
+        """
+        if value <= 0:
+            msg = "Timeout must be a positive integer"
+            raise ValueError(msg)
+        return value
 
 
 class URLChecker:
     """
-    Checks the HTTP status of URLs.
+    Check the HTTP status of URLs.
+
+    This class provides functionality to check the HTTP status of a list of URLs,
+    using the `requests` library to send HTTP GET requests and handle potential
+    exceptions.
+
+    Attributes
+    ----------
+    config (NTPCheckerConfig):
+        The configuration object holding parameters for the checker.
+    logger (structlog.stdlib.BoundLogger):
+        Logger instance for logging messages.
+    translator (Any):
+        Translator instance from the context, used for localization of messages.
+    _ (Callable[[str], str]):
+        A shortcut to the translation function `translator.gettext`.
+    results (list[str]):
+        A list to store the results of each NTP check.
+
     """
 
-    def __init__(
-        self,
-        config_parser: configparser.ConfigParser,
-        logger: logging.Logger = None,
-    ):
+    def __init__(self, config: URLCheckerConfig) -> None:
         """
-        Initializes the URLChecker with a configuration parser.
+        Initialize the URLChecker with a validated configuration.
 
         Args:
         ----
-            config_parser (configparser.ConfigParser): The configuration parser containing the settings.
-            logger (logging.Logger, optional): A logger instance. If None, a default logger is created.
+            config: A URLCheckerConfig instance containing the configuration parameters.
+
+        Raises:
+            ValueError: If `config.context` is None or if no NTP servers are
+                        provided in the configuration.
+        """
+        if not config.context:
+            msg = config.context.translator.gettext("URLCheckerConfig.context must not be None")
+            raise ValueError(msg)
+        self.config: URLCheckerConfig = config
+        self.logger = log
+        self.translator = config.context.translator
+        self._ = self.translator.gettext
+
+        self.results: list[str] = []
+
+        if not self.config.urls:
+            msg = self._("No URL servers provided in configuration.")
+            raise ValueError(msg)
+
+    @classmethod
+    def from_context(cls, context: AppContext) -> URLChecker:
+        """
+        Create an URLChecker instance from an application context with default parameters.
+
+        This class method constructs an `URLCheckerConfig` with an empty list
+        of URL servers and a default timeout of 5 seconds, then initializes
+        an `URLChecker` instance.
+
+        Parameters
+        ----------
+        context : AppContext
+            The application context containing logger and translator.
+
+        Returns
+        -------
+        URLChecker
+            A configured URLChecker instance.
 
         """
-        self.config_parser = config_parser
-        self.timeout = self.config_parser.getint(
-            "Network",
-            "timeout",
-            fallback=5,
-        )  # Timeout read from Config
-        self.logger = logger or logging.getLogger(
-            __name__,
-        )  # Create a logger instance if none is passed in
+        config = URLCheckerConfig(
+            urls=[],
+            timeout=5,
+            context=context,
+        )
+        return cls(config=config)
 
-    def check_urls(self, url_file: str, output_file: str = None) -> list[str]:
+    @classmethod
+    def from_params(cls, context: AppContext, urls: list[HttpUrl], timeout: int) -> URLChecker:
         """
-        Checks the HTTP status of URLs in a file.
+        Create an URLChecker from an application context and specific parameters.
+
+        This class method constructs an `URLCheckerConfig` using the provided
+        `context`, `urls`, and `timeout`, then initializes an `URLChecker` instance.
 
         Args:
-        ----
-            url_file (str): The path to the file containing the URLs.
-            output_file (str, optional): The path to the file to write the results to. Defaults to None.
+            context (AppContext):
+                The application context containing config, logger, and translator.
+            urls (list[str]):
+                The list of URL servers to check.
+            timeout (int):
+                The timeout in seconds to wait for a response from each NTP server.
 
         Returns:
+            URLChecker: A configured URLChecker instance.
+        """
+
+        config = URLCheckerConfig(context=context, urls=urls, timeout=timeout)
+        return cls(config=config)
+
+    def run_url_checks(self) -> list[str]:
+        """
+        Check the HTTP status of URLs.
+
+        This method iterates through the list of URLs, sends an HTTP GET
+        request to each URL, and logs the status code.  If a request
+        exception occurs, it logs the error message.
+        Any errors during the request are caught and logged.
+
+        Returns
         -------
-            List[str]: A list of strings, each representing the result of checking a URL.  If errors occur during file reading, a list containing a single error string is returned.
+            A list of strings, where each string represents the result of checking a URL.
+            The result can be either the status code of the URL or an error message
+            if the URL check failed.
 
         """
-        self.logger.info(translate(f"Checking URLs from file: {url_file}"))
-        try:
-            with open(url_file) as f:
-                urls = [line.strip() for line in f if line.strip()]
-        except FileNotFoundError:
-            error_message = translate(f"URL file not found: {url_file}")
-            self.logger.error(error_message)
-            return [
-                f"Error: URL file not found: {url_file}",
-            ]  # Keep the Error: prefix for now, in case tests rely on this
-        except Exception as e:
-            error_message = translate(f"Error reading URL file: {e}")
-            self.logger.exception(error_message)
-            return [
-                f"Error: Could not read URL file: {e}",
-            ]  # Keep the Error: prefix for now, in case tests rely on this
+        self.logger.info(self._("Checking URLs ..."))
 
-        if not urls:
-            self.logger.warning(translate("No URLs found in the file."))
-            return [translate("No URLs found in the file.")]
-
-        results = []
-        for url in urls:
+        for url in self.config.urls:
+            msg: str = self._(f"Checking URL server: {url}")
+            self.logger.debug(msg)
             try:
-                response = requests.get(url, timeout=self.timeout)
-                result = translate(f"URL: {url} - Status: {response.status_code}")
-                self.logger.info(result)
-                results.append(result)
+                response: requests.Response = requests.get(
+                    str(url),
+                    timeout=self.config.timeout,
+                )
+                result: str = self._(f"Successfully connected to {url} with Status: {response.status_code}")
+                self.logger.debug(result)
+                self.results.append(result)
             except requests.RequestException as e:
-                error_message = translate(f"Error checking URL {url}: {e}")
-                self.logger.error(error_message)
-                results.append(error_message)
+                error_message: str = self._(f"Error by connection to {url}: {e}")
+                self.logger.exception(error_message)
+                self.results.append(error_message)
+            except Exception as e:  # Another specific exception should be managed.
+                error_message = self._(f"An unexpected error occurred while checking {url}: {e}")
+                self.logger.exception(error_message)
+                self.results.append(error_message)
 
-        if output_file:
-            try:
-                with open(output_file, "w") as f:  # Change to "w" to overwrite
-                    for result in results:
-                        f.write(result + "\n")
-                self.logger.info(translate(f"Results written to {output_file}"))
-            except Exception as e:
-                self.logger.error(translate(f"Error writing to output file: {e}"))
+        self.logger.info(self._("All URL servers checked."))
+        return self.results
 
-        return results  # returning a list of results
+
+URLCheckerConfig.model_rebuild()
