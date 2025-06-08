@@ -2,339 +2,616 @@
 #
 # SPDX-FileCopyrightText: © 2025-present Jürgen Mülbert
 
-import configparser
-import gettext
-import logging
-import os
-import unittest
-from unittest.mock import MagicMock, mock_open, patch
+"""
+Unit tests for the NTPChecker class.
 
+This module contains comprehensive unit tests for the `NTPChecker` class and
+its associated configuration model `NTPCheckerConfig`. It verifies the
+correct initialization, validation, and execution of NTP connectivity checks,
+including handling various success and failure scenarios.
+"""
+
+from __future__ import annotations
+
+import time
+from typing import TYPE_CHECKING, Any
+
+import ntplib
 import pytest
+from pydantic import ValidationError
 
-from checkconnect.core.ntp_checker import NTPChecker
-from tests.utils import MockLogger
+from checkconnect.core.ntp_checker import NTPChecker, NTPCheckerConfig
 
 
-class TestNTPChecker(unittest.TestCase):
-    """Unit tests for NTPChecker class."""
 
-    def setUp(self):
+
+if TYPE_CHECKING:
+    from unittest.mock import MagicMock
+
+    from pytest_mock import MockerFixture
+    from pytest.logging import LogCaptureFixture  # Import LogCaptureFixture for caplog
+
+    from checkconnect.config.appcontext import AppContext
+
+
+@pytest.fixture
+def valid_ntp_config(app_context_fixture: AppContext) -> NTPCheckerConfig:
+    """
+    Fixture that returns a valid NTPCheckerConfig instance.
+
+    This fixture provides a pre-configured `NTPCheckerConfig` object with
+    example NTP server addresses and a timeout, suitable for various tests.
+
+    Args:
+        app_context_fixture (AppContext): A pytest fixture providing an `AppContext`.
+
+    Returns:
+        NTPCheckerConfig: An instance of `NTPCheckerConfig` with valid settings.
+    """
+    return NTPCheckerConfig(
+        context=app_context_fixture,
+        ntp_servers=["time.google.com", "8.8.8.8"],
+        timeout=5,
+    )
+
+
+@pytest.fixture
+def mock_success(mocker: MockerFixture) -> str:
+    """
+    Mocks a successful `ntplib.NTPClient.request` call.
+
+    This fixture sets up a mock for the `ntplib.NTPClient.request` method
+    to simulate a successful NTP response.
+
+    Args:
+        mocker (MockerFixture): The `pytest-mock` fixture for creating mocks.
+
+    Returns:
+        str: A string "NTP:" indicating the mock's purpose (though not directly used in assertions).
+    """
+    mock_ntp_response = mocker.Mock()
+    mock_ntp_response.tx_time = 1234567890.12345
+    mocker.patch("ntplib.NTPClient.request", return_value=mock_ntp_response)
+
+    return "NTP:"
+
+
+class TestNTPCheckerConfig:
+    """
+    Test cases for the `NTPCheckerConfig` Pydantic model.
+
+    This class verifies that `NTPCheckerConfig` handles valid and invalid
+    input correctly, ensuring proper data validation and error handling
+    for NTP server lists and timeout values.
+    """
+
+    @pytest.mark.unit
+    def test_valid_config(self, valid_ntp_config: NTPCheckerConfig) -> None:
         """
-        Set up for test methods.
+        Test the successful creation of a valid `NTPCheckerConfig` instance.
 
-        This includes:
-            - Creating a config parser.
-            - Initializing NTPChecker with the config parser.
-            - Creating a MockLogger instance.
-            - Assigning the MockLogger to the NTPChecker.
-        """
-        self.config_parser = configparser.ConfigParser()
-        self.config_parser["Network"] = {"timeout": "10"}
-        self.mock_logger = MockLogger()
-        self.ntp_checker = NTPChecker(self.config_parser, logger=self.mock_logger)
-        self.mock_logger.reset()
-
-        # Translation setup
-        self.TRANSLATION_DOMAIN = "checkconnect"
-        self.LOCALES_PATH = os.path.join(
-            os.path.dirname(os.path.dirname(__file__)),
-            "src",
-            "checkconnect",
-            "core",
-            "locales",
-        )
-
-        try:
-            self.translate = gettext.translation(
-                self.TRANSLATION_DOMAIN,
-                self.LOCALES_PATH,
-                languages=[os.environ.get("LANG", "en")],  # Respect the system language
-            ).gettext
-        except FileNotFoundError:
-            # Fallback to the default English translation if the locale is not found
-            def translate(message):
-                return message
-
-            self.translate = translate
-
-    def tearDown(self):
-        """Clean up after tests."""
-        # If any additional cleanup is needed for your NTPChecker implementation
-
-    def _setup_ntp_mocks(self, result_time=1678886405.0):
-        """
-        Helper to set up common NTP test mocks.
+        Verifies that the `ntp_servers` and `timeout` attributes are correctly
+        assigned from the provided valid configuration.
 
         Args:
-            result_time: The server time to return from the mocked NTP request
-
-        Returns:
-            Tuple of mock_time, mock_ctime, mock_request
+            valid_ntp_config (NTPCheckerConfig): A pytest fixture providing a valid config.
         """
-        mock_time = patch("time.time", return_value=1678886400.0).start()
-        mock_ctime = patch(
-            "time.ctime",
-            return_value="Mon Mar 15 00:00:00 2023",
-        ).start()
-        mock_request = patch("ntplib.NTPClient.request").start()
-        mock_request.return_value.tx_time = result_time
+        assert valid_ntp_config.ntp_servers == ["time.google.com", "8.8.8.8"]
+        assert valid_ntp_config.timeout == 5
 
-        self.addCleanup(patch.stopall)
-        return mock_time, mock_ctime, mock_request
-
-    def test_ntp_checker_initialization(self):
+    @pytest.mark.unit
+    def test_ntp_checker_runs(self, valid_ntp_config: NTPCheckerConfig) -> None:
         """
-        Test NTPChecker initializes with config.
+        Test the initialization of `NTPChecker` with a valid configuration.
 
-        This test checks that the NTPChecker class is initialized correctly with the provided
-        config parser and that the config_parser attribute is set as expected.
+        Verifies that an `NTPChecker` instance can be successfully created
+        with a valid `NTPCheckerConfig` and that its internal configuration
+        matches the input.
+
+        Args:
+            valid_ntp_config (NTPCheckerConfig): A pytest fixture providing a valid config.
         """
-        self.assertIsInstance(self.ntp_checker, NTPChecker)
-        self.assertEqual(self.ntp_checker.config_parser, self.config_parser)
+        checker = NTPChecker(config=valid_ntp_config)
+        assert isinstance(checker, NTPChecker)
+        assert len(checker.config.ntp_servers) == 2
+        assert checker.config.timeout == 5
 
-    @patch(
-        "checkconnect.core.ntp_checker.open",
-        new_callable=mock_open,
-        read_data="pool.ntp.org\n",
-    )
-    def test_check_ntp_servers_success(self, mock_file):
+    @pytest.mark.unit
+    @pytest.mark.parametrize("app_context_fixture", ["simple"], indirect=True)
+    def test_negative_timeout(self, app_context_fixture: AppContext) -> None:
         """
-        Test successful NTP server check.
+        Test that a negative timeout value raises a `ValidationError`.
 
-        This test mocks the open, ntplib.NTPClient.request, time.time, and time.ctime methods to simulate
-        a successful NTP server check. It calls the check_ntp_servers method with a mock NTP server file
-        and then checks that the expected results are returned and that the appropriate log messages are present.
+        Args:
+            app_context_fixture (AppContext): A pytest fixture providing an `AppContext`.
         """
-        mock_time, mock_ctime, mock_request = self._setup_ntp_mocks()
-
-        results = self.ntp_checker.check_ntp_servers("ntp_servers.txt")
-        expected_result = self.translate(
-            "NTP: pool.ntp.org - Time: Mon Mar 15 00:00:00 2023 - Difference: 5.00s",
-        )
-        self.assertIn(expected_result, results)
-
-        expected_info_log = self.translate(
-            "Checking NTP servers from file: ntp_servers.txt",
-        )
-        self.assertIn(expected_info_log, self.mock_logger.infos)
-        self.assertIn(expected_result, self.mock_logger.infos)
-
-    def test_check_ntp_servers_with_frozen_time(self):
-        """
-        Test NTP server check using time mocks.
-
-        Note: This test doesn't actually use freezegun due to compatibility issues.
-        Instead, it manually mocks the time functions like the other tests.
-        """
-        # Set up the time mocks manually
-        mock_time, mock_ctime, mock_request = self._setup_ntp_mocks()
-        expected_result = self.translate(
-            "NTP: pool.ntp.org - Time: Mon Mar 15 00:00:00 2023 - Difference: 5.00s",
-        )
-
-        # Create a mock for file reading
-        with patch(
-            "checkconnect.core.ntp_checker.open",
-            mock_open(read_data="pool.ntp.org\n"),
-        ):
-            results = self.ntp_checker.check_ntp_servers("ntp_servers.txt")
-
-        # Check for the expected time difference in the results
-        self.assertTrue(
-            any("Difference: 5.00s" in r for r in results),
-            f"Expected to find a time difference of 5.00s in results. Got: {results}",
-        )
-
-    @patch("checkconnect.core.ntp_checker.open", side_effect=FileNotFoundError)
-    def test_check_ntp_servers_file_not_found(self, mock_file):
-        """
-        Test when NTP file is not found.
-
-        This test mocks the open method to raise a FileNotFoundError to simulate the scenario where the
-        specified NTP server file does not exist. It asserts that the expected error message is returned and logged.
-        """
-        results = self.ntp_checker.check_ntp_servers("nonexistent_file.txt")
-        expected_error = self.translate(
-            "Error: NTP file not found: nonexistent_file.txt",
-        )
-        self.assertIn(expected_error, results)
-
-        translated_error = self.translate("NTP file not found: nonexistent_file.txt")
-        self.assertIn(translated_error, self.mock_logger.errors)
-
-    @patch("checkconnect.core.ntp_checker.open", side_effect=Exception("Read error"))
-    def test_check_ntp_servers_file_read_error(self, mock_file):
-        """
-        Test when there is an error reading the NTP file.
-
-        This test mocks the open method to raise a generic Exception to simulate an error occurring while
-        attempting to read the NTP server file. It asserts that the expected error message is returned and logged.
-        """
-        results = self.ntp_checker.check_ntp_servers("ntp_servers.txt")
-        expected_result = self.translate("Error: Could not read NTP file: Read error")
-        self.assertIn(expected_result, results)
-
-        expected_exception = self.translate("Error reading NTP file: Read error")
-        self.assertIn(expected_exception, "".join(self.mock_logger.exceptions))
-
-    @patch(
-        "checkconnect.core.ntp_checker.open",
-        new_callable=mock_open,
-        read_data="pool.ntp.org\n",
-    )
-    @patch("ntplib.NTPClient.request", side_effect=Exception("NTP request failed"))
-    def test_check_ntp_servers_request_error(self, mock_request, mock_file):
-        """
-        Test when there is an error during the NTP request.
-
-        This test mocks the open and ntplib.NTPClient.request methods to simulate an error occurring
-        during the NTP request process. It asserts that the expected error message is returned and logged.
-        """
-        results = self.ntp_checker.check_ntp_servers("ntp_servers.txt")
-        expected_error = self.translate(
-            "Error retrieving time from NTP server pool.ntp.org: NTP request failed",
-        )
-        self.assertIn(expected_error, results)
-        self.assertIn(expected_error, self.mock_logger.errors)
-
-    def test_check_ntp_servers_write_output_file(self):
-        """
-        Test successful NTP server check and writing to output file.
-
-        This test mocks the open (for both reading and writing), ntplib.NTPClient.request, time.time,
-        and time.ctime methods to simulate a successful NTP server check and the writing of results to an
-        output file. It calls the check_ntp_servers method with both an NTP server file and an output file,
-        and then checks that the expected results are returned, that the results are written to the output file,
-        and that the appropriate log messages are present.
-        """
-        mock_time, mock_ctime, mock_request = self._setup_ntp_mocks()
-        expected_result = self.translate(
-            "NTP: pool.ntp.org - Time: Mon Mar 15 00:00:00 2023 - Difference: 5.00s",
-        )
-
-        # Create a mock for both reading and writing
-        mocked_open = mock_open(read_data="pool.ntp.org\n")
-
-        with patch("checkconnect.core.ntp_checker.open", mocked_open):
-            results = self.ntp_checker.check_ntp_servers(
-                "ntp_servers.txt",
-                "output.txt",
+        with pytest.raises(ValidationError) as exc_info:
+            NTPCheckerConfig(
+                ntp_servers=["time.google.com"],
+                timeout=-10,
+                context=app_context_fixture,
             )
+        assert "Timeout must be a positive integer" in str(exc_info.value)
 
-        self.assertIn(expected_result, results)
-
-        # Check that the file was written to with the expected content
-        write_calls = mocked_open().write.call_args_list
-
-        # Make sure the write method was called
-        self.assertTrue(len(write_calls) > 0, "write() was not called")
-
-        # Convert calls to strings for easier assertion
-        write_data = "".join(call_args[0][0] for call_args in write_calls)
-        self.assertIn(expected_result, write_data)
-
-        # Alternatively, you can check if any specific call had the exact content
-        expected_call_found = False
-        for call_args in write_calls:
-            if call_args[0][0] == f"{expected_result}\n":
-                expected_call_found = True
-                break
-
-        self.assertTrue(
-            expected_call_found,
-            f"No write call with exactly '{expected_result}\\n' was found",
-        )
-
-        # Check log messages
-        self.assertIn(
-            self.translate("Results written to output.txt"),
-            self.mock_logger.infos,
-        )
-
-    def test_check_ntp_servers_write_output_file_error(self):
+    @pytest.mark.unit
+    @pytest.mark.parametrize("app_context_fixture", ["simple"], indirect=True)
+    def test_invalid_timeout_type(self, app_context_fixture: AppContext) -> None:
         """
-        Test when there is an error writing to the output file.
+        Test that an invalid type for timeout (e.g., string) raises a `ValidationError`.
 
-        This test uses a simpler approach by mocking the file reading normally but then
-        patching a separate method for writing results.
+        Args:
+            app_context_fixture (AppContext): A pytest fixture providing an `AppContext`.
         """
-        mock_time, mock_ctime, mock_request = self._setup_ntp_mocks()
-        expected_result = self.translate(
-            "NTP: pool.ntp.org - Time: Mon Mar 15 00:00:00 2023 - Difference: 5.00s",
-        )
+        with pytest.raises(ValidationError) as exc_info:
+            NTPCheckerConfig(
+                ntp_servers=["pool.ntp.org"],
+                timeout="not-an-int",  # type: ignore[arg-type]
+                context=app_context_fixture,
+            )
+        assert "Input should be a valid integer" in str(exc_info.value)
 
-        # Simplified approach: mock reading separately from writing
-        with patch(
-            "checkconnect.core.ntp_checker.open",
-            mock_open(read_data="pool.ntp.org\n"),
-        ):
-            # For writing, we'll simulate a failure when attempting to open the output file
-            # by patching 'open' with a side_effect for the output file only
-
-            # Define a custom side effect for open that raises an exception for output.txt
-            original_open = open
-
-            def custom_open_side_effect(*args, **kwargs):
-                if args and args[0] == "output.txt":
-                    raise Exception("Write error")
-                return mock_open(read_data="pool.ntp.org\n")(*args, **kwargs)
-
-            with patch(
-                "checkconnect.core.ntp_checker.open",
-                side_effect=custom_open_side_effect,
-            ):
-                results = self.ntp_checker.check_ntp_servers(
-                    "ntp_servers.txt",
-                    "output.txt",
-                )
-
-        self.assertIn(expected_result, results)
-        self.assertIn(
-            self.translate("Error writing to output file: Write error"),
-            self.mock_logger.errors,
-        )
-
-    @patch(
-        "checkconnect.core.ntp_checker.open",
-        new_callable=mock_open,
-        read_data="pool.ntp.org\ntime.nist.gov\n",
-    )
-    def test_check_ntp_servers_multiple_servers(self, mock_file):
-        """Test checking multiple NTP servers."""
-        mock_time, mock_ctime, mock_request = self._setup_ntp_mocks()
-
-        results = self.ntp_checker.check_ntp_servers("ntp_servers.txt")
-
-        # Check that we got results for both servers
-        self.assertEqual(len(results), 2, "Should get results for two servers")
-        self.assertTrue(
-            any("pool.ntp.org" in r for r in results),
-            "Expected pool.ntp.org in results",
-        )
-        self.assertTrue(
-            any("time.nist.gov" in r for r in results),
-            "Expected time.nist.gov in results",
-        )
-
-    @patch("checkconnect.core.ntp_checker.open", new_callable=mock_open, read_data="")
-    def test_check_ntp_servers_empty_file(self, mock_file):
-        """Test checking an empty NTP server file."""
-        results = self.ntp_checker.check_ntp_servers("ntp_servers.txt")
-
-        # Check that we got no results
-        self.assertEqual(len(results), 0, "Should get no results for empty file")
-
-        # Check that appropriate warning was logged
-        # Note: You may need to update this based on your actual implementation
-        # self.assertIn("No NTP servers found in file", self.mock_logger.warnings)
-
-    def test_ntp_checker_cleanup(self):
+    @pytest.mark.unit
+    @pytest.mark.parametrize("app_context_fixture", ["simple"], indirect=True)
+    def test_invalid_ntp_server_format(self, app_context_fixture: AppContext) -> None:
         """
-        Test that NTPChecker properly cleans up resources when done.
+        Test that an invalid NTP server format raises a `ValidationError`.
 
-        This is a placeholder test - implement with actual cleanup checks
-        based on your NTPChecker implementation.
+        Args:
+            app_context_fixture (AppContext): A pytest fixture providing an `AppContext`.
         """
-        # Example: If NTPChecker has a close() method to clean up resources
-        # self.ntp_checker.close()
-        # self.assertFalse(hasattr(self.ntp_checker, "_open_resources"))
+        with pytest.raises(ValidationError) as exc_info:
+            NTPCheckerConfig(
+                ntp_servers=["not-a-url"],
+                timeout=5,
+                context=app_context_fixture,
+            )
+        assert "ntp_servers" in str(exc_info.value)
+
+    @pytest.mark.unit
+    @pytest.mark.parametrize("app_context_fixture", ["simple"], indirect=True)
+    def test_empty_ntp_servers_list(self, app_context_fixture: AppContext) -> None:
+        """
+        Test that an empty list of NTP servers raises a `ValidationError`.
+
+        Args:
+            app_context_fixture (AppContext): A pytest fixture providing an `AppContext`.
+        """
+        with pytest.raises(ValidationError) as exc_info:
+            NTPCheckerConfig(
+                ntp_servers=[],
+                timeout=5,
+                context=app_context_fixture,
+            )
+        assert "ntp_servers" in str(exc_info.value)
+
+    @pytest.mark.unit
+    @pytest.mark.parametrize("app_context_fixture", ["simple"], indirect=True)
+    def test_direct_config_initialization(
+        self,
+        app_context_fixture: AppContext,
+    ) -> None:
+        """
+        Test `NTPCheckerConfig` instantiation when parameters are provided directly.
+
+        Verifies that the configuration object is correctly created from explicit
+        `ntp_servers` and `timeout` arguments along with the context.
+
+        Args:
+            app_context_fixture (AppContext): A pytest fixture providing an `AppContext`.
+        """
+        config = NTPCheckerConfig(
+            ntp_servers=["time.cloudflare.com"],
+            timeout=10,
+            context=app_context_fixture,
+        )
+        assert isinstance(config, NTPCheckerConfig)
+        assert config.ntp_servers == ["time.cloudflare.com"]
+        assert config.timeout == 10
+        assert config.context == app_context_fixture
+
+
+class TestNTPChecker:
+    """
+    Test cases for the `NTPChecker` class.
+
+    This class contains tests for the core functionality of `NTPChecker`,
+    including successful NTP requests, handling network errors, and
+    processing multiple servers. It leverages mocks to isolate network
+    interactions.
+    """
+
+    @pytest.mark.unit
+    @pytest.mark.parametrize("app_context_fixture", ["simple"], indirect=True)
+    def test_ntp_checker_integration(
+        self,
+        app_context_fixture: AppContext,
+        mocker: MockerFixture,
+        caplog: LogCaptureFixture,
+    ) -> None:
+        """
+        Test `NTPChecker`'s integration with mocked `ntplib.NTPClient.request`.
+
+        This test verifies that `NTPChecker` can successfully perform an NTP check
+        when `ntplib.NTPClient.request` is mocked to return a valid response.
+        It also checks for appropriate log messages, including the `[mocked]` prefix.
+
+        Args:
+            app_context_fixture (AppContext): A pytest fixture providing an `AppContext`.
+            mocker (MockerFixture): The `pytest-mock` fixture for creating mocks.
+            caplog (LogCaptureFixture): The `pytest` fixture to capture log messages.
+        """
+        caplog.set_level(10)  # Set log level to DEBUG to capture INFO messages
+
+        mock_response = mocker.Mock()
+        mock_response.tx_time = 1713450000.0
+        mocker.patch("ntplib.NTPClient.request", return_value=mock_response)
+
+        checker = NTPChecker.from_params(
+            context=app_context_fixture,
+            ntp_servers=["pool.ntp.org"],
+            timeout=5,
+        )
+
+        results = checker.run_ntp_checks()
+        assert len(results) == 1
+        assert "[mocked] Successfully retrieved time from pool.ntp.org - Time:" in results[0]
+
+        # Check logger output for info messages with the '[mocked]' prefix
+        assert any("[mocked] Checking NTP servers.." in record.message for record in caplog.records)
+        assert any("[mocked] Checking NTP server: pool.ntp.org" in record.message for record in caplog.records)
+        assert any("[mocked] Successfully retrieved time from pool.ntp.org" in record.message for record in caplog.records)
+
+
+    @pytest.mark.unit
+    @pytest.mark.parametrize("app_context_fixture", ["simple"], indirect=True)
+    def test_initialization(self, valid_ntp_config: NTPCheckerConfig) -> None:
+        """
+        Test `NTPChecker` initialization.
+
+        Verifies that an `NTPChecker` instance can be created and that its
+        `config` attribute is correctly set.
+
+        Args:
+            valid_ntp_config (NTPCheckerConfig): A pytest fixture providing a valid config.
+        """
+        checker = NTPChecker(config=valid_ntp_config)
+        assert isinstance(checker, NTPChecker)
+        assert checker.config == valid_ntp_config
+        assert checker.config.context == valid_ntp_config.context
+
+    @pytest.mark.unit
+    @pytest.mark.parametrize("app_context_fixture", ["simple"], indirect=True)
+    def test_from_params(self, app_context_fixture: AppContext) -> None:
+        """
+        Test the `NTPChecker.from_params` classmethod.
+
+        Verifies that this convenience constructor correctly creates an
+        `NTPChecker` instance with the specified parameters, which are
+        then wrapped into an `NTPCheckerConfig`, and that the context is passed.
+
+        Args:
+            app_context_fixture (AppContext): A pytest fixture providing an `AppContext`.
+        """
+        checker = NTPChecker.from_params(
+            ntp_servers=["pool.ntp.org"],
+            timeout=5,
+            context=app_context_fixture,
+        )
+        assert isinstance(checker, NTPChecker)
+        assert len(checker.config.ntp_servers) == 1
+        assert checker.config.timeout == 5
+        assert checker.config.context == app_context_fixture
+
+    @pytest.mark.unit
+    @pytest.mark.parametrize("app_context_fixture", ["simple"], indirect=True)
+    def test_run_ntp_checks_successful(
+        self,
+        mocker: MockerFixture,
+        valid_ntp_config: NTPCheckerConfig,
+        caplog: LogCaptureFixture,
+    ) -> None:
+        """
+        Test `run_ntp_checks` when all NTP requests are successful.
+
+        Mocks `ntplib.NTPClient.request` to always return a successful response
+        and verifies that the results list contains success messages for all servers.
+        Also checks for expected log messages including the `[mocked]` prefix.
+
+        Args:
+            mocker (MockerFixture): The `pytest-mock` fixture for creating mocks.
+            valid_ntp_config (NTPCheckerConfig): A pytest fixture providing a valid config.
+            caplog (LogCaptureFixture): The `pytest` fixture to capture log messages.
+        """
+        caplog.set_level(10)  # Set log level to DEBUG
+
+        mock_response = mocker.MagicMock()
+        mock_response.tx_time = time.time()
+        mocker.patch("ntplib.NTPClient.request", return_value=mock_response)
+
+        checker = NTPChecker(config=valid_ntp_config)
+        results = checker.run_ntp_checks()
+
+        assert len(results) == 2
+        assert "[mocked] Successfully retrieved time from time.google.com" in results[0]
+        assert "[mocked] Successfully retrieved time from 8.8.8.8" in results[1]
+
+        # Check logger output
+        assert any(
+            "[mocked] Successfully retrieved time from time.google.com" in record.message
+            for record in caplog.records
+        )
+        assert any(
+            "[mocked] Successfully retrieved time from 8.8.8.8" in record.message
+            for record in caplog.records
+        )
+
+
+    @pytest.mark.unit
+    @pytest.mark.parametrize("app_context_fixture", ["simple"], indirect=True)
+    def test_run_ntp_checks_request_error(
+        self,
+        mocker: MockerFixture,
+        valid_ntp_config: NTPCheckerConfig,
+        caplog: LogCaptureFixture,
+    ) -> None:
+        """
+        Test `run_ntp_checks` when an `ntplib.NTPException` occurs during a request.
+
+        Mocks `ntplib.NTPClient.request` to raise an `NTPException` and verifies
+        that the result reflects the error and an appropriate log message is emitted
+        with the `[mocked]` prefix.
+
+        Args:
+            mocker (MockerFixture): The `pytest-mock` fixture for creating mocks.
+            valid_ntp_config (NTPCheckerConfig): A pytest fixture providing a valid config.
+            caplog (LogCaptureFixture): The `pytest` fixture to capture log messages.
+        """
+        caplog.set_level(10)  # Set log level to DEBUG
+
+        mocker.patch(
+            "ntplib.NTPClient.request",
+            side_effect=ntplib.NTPException("Test error"),
+        )
+
+        checker = NTPChecker(config=valid_ntp_config)
+        results = checker.run_ntp_checks()
+
+        assert len(results) == 2  # Two servers in valid_ntp_config
+        assert "[mocked] Error retrieving time from NTP server time.google.com: Test error" in results[0]
+        assert "[mocked] Error retrieving time from NTP server 8.8.8.8: Test error" in results[1]
+
+        # Check logger output for error messages
+        assert any(
+            "[mocked] Error retrieving time from NTP server time.google.com" in record.message
+            and "Test error" in record.message
+            and record.levelname == "ERROR"  # Check log level
+            for record in caplog.records
+        )
+        assert any(
+            "[mocked] Error retrieving time from NTP server 8.8.8.8" in record.message
+            and "Test error" in record.message
+            and record.levelname == "ERROR"  # Check log level
+            for record in caplog.records
+        )
+
+
+    @pytest.mark.unit
+    @pytest.mark.parametrize("app_context_fixture", ["simple"], indirect=True)
+    def test_ntp_checker_with_context(
+        self,
+        mocker: MockerFixture,
+        app_context_fixture: AppContext,
+        caplog: LogCaptureFixture,
+    ) -> None:
+        """
+        Test `NTPChecker` functionality with a specific server configured via `from_params`.
+
+        Verifies successful NTP check and associated log messages including the `[mocked]` prefix.
+
+        Args:
+            mocker (MockerFixture): The `pytest-mock` fixture for creating mocks.
+            app_context_fixture (AppContext): A pytest fixture providing an `AppContext`.
+            caplog (LogCaptureFixture): The `pytest` fixture to capture log messages.
+        """
+        caplog.set_level(10)  # Set log level to DEBUG
+
+        mock_response = mocker.Mock()
+        mock_response.tx_time = 1234567890
+        mock_client = mocker.Mock()
+        mock_client.request.return_value = mock_response
+        mocker.patch("ntplib.NTPClient", return_value=mock_client)
+
+        ntp_checker = NTPChecker.from_params(
+            context=app_context_fixture,
+            ntp_servers=["pool.ntp.org"],
+            timeout=5,
+        )
+
+        results = ntp_checker.run_ntp_checks()
+
+        assert len(results) == 1
+        assert "[mocked] Successfully retrieved time from pool.ntp.org " in results[0]
+
+        # Check logger output
+        assert any(
+            "[mocked] Checking NTP server: pool.ntp.org" in record.message for record in caplog.records
+        )
+        assert any(
+            "[mocked] Successfully retrieved time from pool.ntp.org" in record.message for record in caplog.records
+        )
+
+
+    @pytest.mark.unit
+    @pytest.mark.parametrize("app_context_fixture", ["simple"], indirect=True)
+    def test_ntp_checker_with_general_failure(
+        self,
+        mocker: MockerFixture,
+        app_context_fixture: AppContext,
+        caplog: LogCaptureFixture,
+    ) -> None:
+        """
+        Test `NTPChecker`'s error handling for a general exception during NTP request.
+
+        Mocks `ntplib.NTPClient.request` to raise a generic `Exception` and
+        verifies that the result indicates an error and an error log is generated
+        with the `[mocked]` prefix and correct exception info.
+
+        Args:
+            mocker (MockerFixture): The `pytest-mock` fixture for creating mocks.
+            app_context_fixture (AppContext): A pytest fixture providing an `AppContext`.
+            caplog (LogCaptureFixture): The `pytest` fixture to capture log messages.
+        """
+        caplog.set_level(10)  # Set log level to DEBUG
+
+        mock_request = mocker.patch("ntplib.NTPClient.request")
+        mock_request.side_effect = Exception("Timeout!")
+
+        checker = NTPChecker.from_params(
+            context=app_context_fixture,
+            ntp_servers=["fake.ntp.org"],
+            timeout=2,
+        )
+
+        results = checker.run_ntp_checks()
+
+        assert len(results) == 1
+        assert "[mocked] An unexpected error occurred while checking NTP server fake.ntp.org: Timeout!" in results[0]
+
+        # Check logger output (the exception will be caught and logged by logger.exception)
+        assert any(
+            "[mocked] An unexpected error occurred while checking NTP server fake.ntp.org" in record.message
+            and record.levelname == "ERROR"  # Or CRITICAL/EXCEPTION depending on structlog setup
+            and "Timeout!" in record.exc_info[1].args[0]  # Check original exception message in exc_info
+            for record in caplog.records
+        )
+
+
+    @pytest.mark.unit
+    @pytest.mark.parametrize("app_context_fixture", ["simple"], indirect=True)
+    def test_multiple_ntp_servers(
+        self,
+        mocker: MockerFixture,
+        app_context_fixture: AppContext,
+        caplog: LogCaptureFixture,
+    ) -> None:
+        """
+        Test checking multiple NTP servers with mixed results (success, failure, success).
+
+        This test simulates a scenario where some NTP server checks succeed and others fail,
+        and verifies that `NTPChecker` correctly records all outcomes and logs them
+        appropriately with the `[mocked]` prefix.
+
+        Args:
+            mocker (MockerFixture): The `pytest-mock` fixture for creating mocks.
+            app_context_fixture (AppContext): A pytest fixture providing an `AppContext`.
+            caplog (LogCaptureFixture): The `pytest` fixture to capture log messages.
+        """
+        caplog.set_level(10)  # Set log level to DEBUG
+
+        # Mock for successful NTP response
+        mock_success_response = mocker.Mock()
+        mock_success_response.tx_time = 1234567890.12345
+
+        # Mock the .request method of NTPClient to return mixed results
+        mocker.patch(
+            "ntplib.NTPClient.request",
+            side_effect=[
+                mock_success_response,  # 1st server: Success
+                ntplib.NTPException("Failed to connect"),  # 2nd server: Failure
+                mock_success_response,  # 3rd server: Success
+            ],
+        )
+
+        config = NTPCheckerConfig(
+            ntp_servers=[
+                "pool.ntp.org",
+                "fake.ntp.org",
+                "8.8.8.8",
+            ],
+            timeout=5,
+            context=app_context_fixture
+        )
+        checker = NTPChecker(config=config)
+        results = checker.run_ntp_checks()
+
+        assert len(results) == 3
+        assert "[mocked] Successfully retrieved time from pool.ntp.org" in results[0]
+        assert "[mocked] Error retrieving time from NTP server fake.ntp.org: Failed to connect" in results[1]
+        assert "[mocked] Successfully retrieved time from 8.8.8.8" in results[2]
+
+        # Check logger output for mixed results
+        assert any(
+            "[mocked] Checking NTP server: pool.ntp.org" in record.message for record in caplog.records
+        )
+        assert any(
+            "[mocked] Successfully retrieved time from pool.ntp.org" in record.message for record in caplog.records
+        )
+        assert any(
+            "[mocked] Checking NTP server: fake.ntp.org" in record.message for record in caplog.records
+        )
+        assert any(
+            "[mocked] Error retrieving time from NTP server fake.ntp.org: Failed to connect" in record.message
+            and record.levelname == "ERROR"
+            for record in caplog.records
+        )
+        assert any(
+            "[mocked] Checking NTP server: 8.8.8.8" in record.message for record in caplog.records
+        )
+        assert any(
+            "[mocked] Successfully retrieved time from 8.8.8.8" in record.message for record in caplog.records
+        )
+
+
+@pytest.mark.parametrize(
+    ("test_input", "expected_error_substring"),
+    [
+        (
+            {"ntp_servers": "not-a-list", "timeout": 5},
+            "Input should be a valid list",
+        ),
+        (
+            {"ntp_servers": ["pool.ntp.org"], "timeout": "not-an-int"},
+            "Input should be a valid integer",
+        ),
+        (
+            {"ntp_servers": ["pool.ntp.org"], "timeout": 0},
+            "Timeout must be a positive integer",
+        ),
+        (
+            {"ntp_servers": ["not-a-url"], "timeout": 5},
+            "Invalid NTP servers:",
+        ),
+    ],
+)
+@pytest.mark.unit
+def test_config_validation_errors(
+    test_input: dict[str, Any],
+    expected_error_substring: str,
+    app_context_fixture: AppContext,  # Included as it's typically needed for context-related features
+) -> None:
+    """
+    Test various validation error scenarios for `NTPCheckerConfig`.
+
+    This parameterized test ensures that `NTPCheckerConfig` correctly
+    raises `ValidationError` for invalid inputs, such as incorrect data types,
+    out-of-range values, or malformed NTP server addresses.
+
+    Args:
+        test_input (dict[str, Any]): A dictionary containing parameters to
+                                     pass to `NTPCheckerConfig`.
+        expected_error_substring (str): A substring expected to be present
+                                        in the `ValidationError` message.
+        app_context_fixture (AppContext): A pytest fixture providing an `AppContext`.
+    """
+    with pytest.raises(ValidationError) as exc_info:
+        # We need to include 'context' in test_input if it's a required field for NTPCheckerConfig
+        # or handle it separately if it's passed during instantiation, not validation.
+        # Based on the NTPCheckerConfig model, 'context' is a field, so it needs to be provided.
+        # However, for testing *validation* of other fields, we can provide a dummy context.
+        # The test_input dictionary usually covers the fields being tested for validation.
+        # So, we modify this part to always include a valid context.
+        NTPCheckerConfig(
+            **test_input,
+            context=app_context_fixture,
+        )
+    assert expected_error_substring in str(exc_info.value)
