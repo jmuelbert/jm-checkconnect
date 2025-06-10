@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING, Any
 
 import pytest
 import requests
-from pydantic import ValidationError, HttpUrl
+from pydantic import HttpUrl, ValidationError
 from requests import RequestException
 
 from checkconnect.core.url_checker import URLChecker, URLCheckerConfig
@@ -25,8 +25,8 @@ from checkconnect.core.url_checker import URLChecker, URLCheckerConfig
 if TYPE_CHECKING:
     from unittest.mock import MagicMock
 
-    from pytest_mock import MockerFixture
     from pytest.logging import LogCaptureFixture  # Import LogCaptureFixture for caplog
+    from pytest_mock import MockerFixture
 
     from checkconnect.config.appcontext import AppContext
 
@@ -124,15 +124,20 @@ class TestURLCheckerConfig:
 
     @pytest.mark.unit
     @pytest.mark.parametrize("app_context_fixture", ["simple"], indirect=True)
-    def test_invalid_timeout(self, app_context_fixture: AppContext) -> None:
-        """Test that negative timeout raises ValidationError."""
+    def test_invalid_timeout_type(self, app_context_fixture: AppContext) -> None:
+        """
+        Test that an invalid type for timeout (e.g., string) raises a `ValidationError`.
+
+        Args:
+            app_context_fixture (AppContext): A pytest fixture providing an `AppContext`.
+        """
         with pytest.raises(ValidationError) as exc_info:
             URLCheckerConfig(
                 urls=["http://example.com"],
-                timeout=-1,
+                timeout="not-an-int",  # type: ignore[arg-type]
                 context=app_context_fixture,
             )
-        assert "timeout" in str(exc_info.value)
+        assert "Input should be a valid integer" in str(exc_info.value)
 
     @pytest.mark.unit
     @pytest.mark.parametrize("app_context_fixture", ["simple"], indirect=True)
@@ -156,7 +161,7 @@ class TestURLCheckerConfig:
 
     @pytest.mark.unit
     @pytest.mark.parametrize("app_context_fixture", ["simple"], indirect=True)
-    def test_empty_urls(
+    def test_empty_urls_list(
         self,
         app_context_fixture: AppContext,
     ) -> None:
@@ -167,7 +172,7 @@ class TestURLCheckerConfig:
             app_context_fixture (AppContext): A pytest fixture providing an `AppContext`.
         """
         with pytest.raises(ValidationError) as exc_info:
-           checker = URLChecker.from_params(
+            URLCheckerConfig(
                 urls=[],
                 timeout=5,
                 context=app_context_fixture,
@@ -176,7 +181,7 @@ class TestURLCheckerConfig:
         assert "Value error, At least one URL must be provided" in str(exc_info.value)
 
     @pytest.mark.parametrize(
-        "test_input,expected_error",
+        ("test_input", "expected_error_substring"),
         [
             (
                 {"urls": "not-a-list", "timeout": 5},
@@ -200,7 +205,7 @@ class TestURLCheckerConfig:
     def test_config_validation_errors(
         self,
         test_input: dict[str, Any],
-        expected_error: str,
+        expected_error_substring: str,
         app_context_fixture: AppContext,
     ) -> None:
         """
@@ -222,7 +227,7 @@ class TestURLCheckerConfig:
                 **test_input,
                 context=app_context_fixture,
             )
-        assert expected_error in str(exc_info.value)
+        assert expected_error_substring in str(exc_info.value)
 
 
 class TestURLChecker:
@@ -304,7 +309,16 @@ class TestURLChecker:
         self,
         app_context_fixture: AppContext,
     ) -> None:
-        """Test URLChecker.from_params classmethod."""
+        """
+        Test the `URLChecker.from_params` classmethod.
+
+        Verifies that this convenience constructor correctly creates an
+        `URLChecker` instance with the specified parameters, which are
+        then wrapped into an `URLCheckerConfig`, and that the context is passed.
+
+        Args:
+            app_context_fixture (AppContext): A pytest fixture providing an `AppContext`.
+        """
         checker = URLChecker.from_params(
             urls=["http://example.com"],
             timeout=5,
@@ -455,7 +469,7 @@ class TestURLChecker:
         caplog: LogCaptureFixture
     ) -> None:
         """
-        Test `URLChecker`'s error handling for a general exception during URL request.
+        Test `URLChecker`'s error handling for a site not found exception during URL request.
 
         Mocks `requests.get` to raise a ConnectionError `Exception` and
         verifies that the result indicates an error and an error log is generated

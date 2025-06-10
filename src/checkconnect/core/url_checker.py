@@ -2,7 +2,13 @@
 #
 # SPDX-FileCopyrightText: © 2025-present Jürgen Mülbert
 
-"""Check the HTTP status of URLs."""
+"""
+Check the HTTP status of URLs.
+
+This module defines the URLChecker class and configuration for verifying
+URL (Web) server connectivity and time synchronization using the `requests` library.
+It validates input configurations, performs URL requests, and logs results.
+"""
 
 from __future__ import annotations
 
@@ -29,11 +35,11 @@ class URLCheckerConfig(BaseModel):
 
     Attributes
     ----------
-    urls list[HttpUrl]:
+    urls : list[HttpUrl]
         List of URL server hostnames.
-    timeout (int):
-        Timeout for each NTP request in seconds.
-    context (AppContext):
+    timeout : int
+        Timeout for each HTTP request in seconds.
+    context : AppContext
         Application context for logging and other services.
 
     """
@@ -70,7 +76,18 @@ class URLCheckerConfig(BaseModel):
     @field_validator("urls")
     @classmethod
     def urls_must_not_be_empty(cls, urls: list[HttpUrl]) -> list[HttpUrl]:
-        """Ensure the list of URLs is not empty."""
+        """
+        Validate that the list of URLs is not empty.
+
+        Args:
+            urls (list[HttpUrl]): The list of URLs to validate.
+
+        Returns:
+            list[HttpUrl]: The validated list of URLs.
+
+        Raises:
+            ValueError: If the list of URLs is empty.
+        """
         if not urls:
             msg: str = "At least one URL must be provided"
             raise ValueError(msg)
@@ -110,16 +127,16 @@ class URLChecker:
 
     Attributes
     ----------
-    config (NTPCheckerConfig):
+    config : URLCheckerConfig
         The configuration object holding parameters for the checker.
-    logger (structlog.stdlib.BoundLogger):
+    logger : structlog.stdlib.BoundLogger
         Logger instance for logging messages.
-    translator (Any):
+    translator : Any
         Translator instance from the context, used for localization of messages.
-    _ (Callable[[str], str]):
+    _ : Callable[[str], str]
         A shortcut to the translation function `translator.gettext`.
-    results (list[str]):
-        A list to store the results of each NTP check.
+    results : list[str]
+        A list to store the results of each URL check.
 
     """
 
@@ -129,10 +146,11 @@ class URLChecker:
 
         Args:
         ----
-            config: A URLCheckerConfig instance containing the configuration parameters.
+            config (URLCheckerConfig): A URLCheckerConfig instance containing the
+                                       configuration parameters.
 
         Raises:
-            ValueError: If `config.context` is None or if no NTP servers are
+            ValueError: If `config.context` is None or if no URLs are
                         provided in the configuration.
         """
         if not config.context:
@@ -187,10 +205,10 @@ class URLChecker:
         Args:
             context (AppContext):
                 The application context containing config, logger, and translator.
-            urls (list[str]):
+            urls (list[HttpUrl]):
                 The list of URL servers to check.
             timeout (int):
-                The timeout in seconds to wait for a response from each NTP server.
+                The timeout in seconds to wait for a response from each URL.
 
         Returns:
             URLChecker: A configured URLChecker instance.
@@ -204,15 +222,15 @@ class URLChecker:
         Check the HTTP status of URLs.
 
         This method iterates through the list of URLs, sends an HTTP GET
-        request to each URL, and logs the status code.  If a request
+        request to each URL, and logs the status code. If a request
         exception occurs, it logs the error message.
         Any errors during the request are caught and logged.
 
         Returns
         -------
-            A list of strings, where each string represents the result of checking a URL.
-            The result can be either the status code of the URL or an error message
-            if the URL check failed.
+            list[str]: A list of strings, where each string represents the result of checking a URL.
+                       The result can be either the status code of the URL or an error message
+                       if the URL check failed.
 
         """
         self.logger.info(self._("Checking URLs ..."))
