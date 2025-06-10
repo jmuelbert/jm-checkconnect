@@ -1,0 +1,124 @@
+# Dutch translations for PROJECT.
+# Copyright (C) 2025 ORGANIZATION
+# This file is distributed under the same license as the PROJECT project.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2025.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: PROJECT VERSION\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2025-05-08 10:13+0200\n"
+"PO-Revision-Date: 2025-05-08 10:13+0200\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: nl\n"
+"Language-Team: nl <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.17.0\n"
+
+#: src/checkconnect/core/url_checker.py:106
+msgid "Checking URLs from config"
+msgstr ""
+
+#: src/checkconnect/core/url_checker.py:109
+#: src/checkconnect/core/url_checker.py:110
+msgid "No URLs found in the config."
+msgstr ""
+
+#: src/checkconnect/core/ntp_checker.py:110
+msgid "Checking NTP servers from config"
+msgstr ""
+
+#: src/checkconnect/core/ntp_checker.py:113
+#: src/checkconnect/core/ntp_checker.py:114
+msgid "No NTP-Server found in the config."
+msgstr ""
+
+#: src/checkconnect/cli/checkconnect.py:85
+msgid "Starting CheckConnect..."
+msgstr ""
+
+#: src/checkconnect/cli/checkconnect.py:93
+msgid "Checking NTP servers..."
+msgstr ""
+
+#: src/checkconnect/cli/checkconnect.py:100
+msgid "Checking URLs..."
+msgstr ""
+
+#: src/checkconnect/cli/checkconnect.py:106
+msgid "Tests completed successfully."
+msgstr ""
+
+#: src/checkconnect/cli/checkconnect.py:108
+msgid "File not found."
+msgstr ""
+
+#: src/checkconnect/cli/checkconnect.py:111
+msgid "Error during tests."
+msgstr ""
+
+#: src/checkconnect/cli/checkconnect.py:124
+msgid "Starting report generation..."
+msgstr ""
+
+#: src/checkconnect/cli/checkconnect.py:132
+msgid "Creating PDF report..."
+msgstr ""
+
+#: src/checkconnect/cli/checkconnect.py:144
+msgid "Creating HTML report..."
+msgstr ""
+
+#: src/checkconnect/cli/checkconnect.py:155
+msgid "Reports generated successfully."
+msgstr ""
+
+#: src/checkconnect/cli/checkconnect.py:157
+msgid "Error while generating reports."
+msgstr ""
+
+#: src/checkconnect/cli/checkconnect.py:189
+#: src/checkconnect/cli/checkconnect.py:230 src/checkconnect/main.py:113
+#: src/checkconnect/main.py:146
+msgid "Path to the config.toml file."
+msgstr ""
+
+#: src/checkconnect/cli/main.py:101
+msgid "Path to the output report file."
+msgstr ""
+
+#: src/checkconnect/cli/main.py:134
+msgid "Run connectivity checks against configured NTP and HTTPS servers."
+msgstr ""
+
+#: src/checkconnect/gui/gui.py:133
+msgid "Verbose logging enabled."
+msgstr ""
+
+#: src/checkconnect/main.py:80
+msgid "Show the version and exit."
+msgstr ""
+
+#: src/checkconnect/main.py:102
+msgid "Run network tests and generate reports in command-line interface mode."
+msgstr ""
+
+#: src/checkconnect/main.py:120 src/checkconnect/main.py:157
+msgid "Language for the application (e.g., 'en', 'de')."
+msgstr ""
+
+#: src/checkconnect/main.py:127
+msgid "Mode: 'run' for testing, 'generate-reports' for reports only."
+msgstr ""
+
+#: src/checkconnect/main.py:140
+msgid "Run in graphical user interface mode."
+msgstr ""
+
+#: src/checkconnect/main.py:164
+msgid "Enable verbose logging."
+msgstr ""
+
