@@ -121,4 +121,3 @@ msgstr ""
 #: src/checkconnect/main.py:164
 msgid "Enable verbose logging."
 msgstr ""
-
