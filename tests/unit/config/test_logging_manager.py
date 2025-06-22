@@ -694,7 +694,7 @@ class TestLoggingManagerHandler:
 
         # Instantiate LoggingManager. This will trigger _setup_logger.
         # It needs config, and its internal Path/user_log_dir will be handled by mock_logging_manager_dependencies.
-        LoggingManager(config=mock_settings_manager_instance)
+        LoggingManager(config=mock_settings_manager_instance, enable_console_logging=True)
 
         # Assert that the setFormatter method was called on the mocked stream handler instance
         mock_handlers["stream"].setFormatter.assert_called_once()
@@ -802,12 +802,11 @@ class TestLoggingManagerHandler:
         # Assuming mock_handlers["rotating_file"] is for the limited_file_handler in this test
         mock_handlers["rotating_file"].setFormatter.assert_called_once_with(mock_handlers["processor_formatter"])
 
-        assert mock_root_logger.addHandler.call_count == 2
+        assert mock_root_logger.addHandler.call_count == 1
 
         mock_root_logger.addHandler.assert_any_call(mock_handlers["rotating_file"])
 
         assert mock_handlers["rotating_file"] in logging.getLogger().handlers
-        assert mock_handlers["stream"] in logging.getLogger().handlers
 
     @pytest.mark.unit
     @pytest.mark.usefixtures("cleanup_singletons", "structlog_base_config", "mock_logging_manager_dependencies")
@@ -831,7 +830,7 @@ class TestLoggingManagerHandler:
         }.get(section, {})
 
         with pytest.raises(LogHandlerError) as excinfo:
-            LoggingManager(config=mock_settings_manager_instance)
+            LoggingManager(config=mock_settings_manager_instance, enable_console_logging=True)
 
         assert "Failed to set up console handler due to formatter or memory issues: " in str(excinfo.value)
 
@@ -858,7 +857,7 @@ class TestLoggingManagerHandler:
         }.get(section, {})
 
         with pytest.raises(LogHandlerError) as excinfo:
-            LoggingManager(config=mock_settings_manager_instance)
+            LoggingManager(config=mock_settings_manager_instance, enable_console_logging=True)
 
         assert "Failed to set up console handler due to formatter or memory issues: " in str(excinfo.value)
 
@@ -884,7 +883,7 @@ class TestLoggingManagerHandler:
         }.get(section, {})
 
         with pytest.raises(LogHandlerError) as excinfo:
-            LoggingManager(config=mock_settings_manager_instance)
+            LoggingManager(config=mock_settings_manager_instance, enable_console_logging=True)
 
         assert "Failed to set up console handler due to formatter or memory issues: " in str(excinfo.value)
 
@@ -916,7 +915,7 @@ class TestLoggingManagerHandler:
         }.get(section, {})
 
         with pytest.raises(LogHandlerError) as excinfo:
-            LoggingManager(config=mock_settings_manager_instance)
+            LoggingManager(config=mock_settings_manager_instance, enable_console_logging=True)
 
         assert "Failed to add console handler: " in str(excinfo.value)
 
@@ -968,11 +967,6 @@ class TestLoggingManagerHandler:
         # 3. Assert that the error message was added to setup_errors
         assert len(manager.setup_errors) == 1
         assert "Failed to create file handler" in manager.setup_errors[0]
-
-        # Ensure no handlers were added if the file handler creation failed
-        mock_get_logger.return_value.addHandler.assert_called_once_with(
-            mock_handlers["stream"]
-        )  # Only stream handler should be added
 
         # Ensure setFormatter was not called for the failing handler
         mock_handlers["file"].setFormatter.assert_not_called()
@@ -1033,11 +1027,6 @@ class TestLoggingManagerHandler:
         # (Assuming your mock_handlers fixture exposes the class mock for instantiation checks)
         # OR, if you just want to check the instance mock in mock_handlers:
         mock_handlers["rotating_file"].assert_not_called()  # This implies the instance itself wasn't touched/returned
-
-        # Ensure no handlers were added if the rotating file handler creation failed
-        mock_get_logger.return_value.addHandler.assert_called_once_with(
-            mock_handlers["stream"]
-        )  # Only stream handler should be added
 
         # Ensure setFormatter was not called for the failing handler
         mock_handlers["rotating_file"].setFormatter.assert_not_called()
@@ -1268,7 +1257,7 @@ class TestLoggingManagerStructLog:
         }.get(section, {})
 
         # LoggingManager erzeugen
-        manager = LoggingManager(config=mock_settings_manager_instance)
+        manager = LoggingManager(config=mock_settings_manager_instance, enable_console_logging=True)
 
         mock_root_logger.handlers = [
             mock_handlers["stream"],

@@ -177,7 +177,6 @@ class LoggingManager:
     """
     _instance = None
     _is_initialized: bool = False # To prevent re-initialization
-    _is_cli: bool = True # To enable CLI logging
 
     # Constants with improved typing
     APP_NAME: Final[str] = __app_name__
@@ -202,7 +201,12 @@ class LoggingManager:
             cls._instance = super().__new__(cls)
         return cls._instance
 
-    def __init__(self, config: SettingsManager | None = None, cli_log_level: int | None = None) -> None:
+    def __init__(
+        self,
+        config: SettingsManager | None = None,
+        cli_log_level: int | None = None,
+        enable_console_logging: bool = False
+    ) -> None:
         """
         Initialize logger.
 
@@ -218,7 +222,7 @@ class LoggingManager:
                 self.setup_errors = [] # <--- This is what we'll assert on
                 self.log_dir = self._ensure_log_dir()  # Can raise LogDirectoryError
                 self._active_handlers = []
-                self.setup_logging(cli_log_level)
+                self.setup_logging(cli_log_level, enable_console_logging)
                 self._is_initialized = True
             except Exception as e:
                 msg = self._(f"[bold red]Failed to initialize LoggingManager: {e}[/bold red]")
@@ -287,14 +291,19 @@ class LoggingManager:
         """
         return self.log_dir / filename
 
-    def setup_logging(self, cli_override_level: int | None = None) -> structlog.stdlib.BoundLogger:
+    def setup_logging(
+        self, 
+        cli_log_level: int = logging.INFO,
+        enable_console_logging: bool = False
+    ) -> structlog.stdlib.BoundLogger:
         """
         Configures structlog and Python logging handlers. This method can be called
         publicly to reconfigure logging if necessary, e.g., to change the log level.
 
         Args:
-            cli_override_level: An optional logging module level (e.g., logging.DEBUG)
+            cli_log_level:  An optional logging module level (e.g., logging.DEBUG)
                                 that overrides the level from the config file.
+
 
         Returns
         -------
@@ -310,8 +319,8 @@ class LoggingManager:
         logger_config = self.config.get_section("logger")
         log_level_str = logger_config.get("level", "INFO").upper()
         # Determine the final log level: CLI override takes precedence
-        if cli_override_level is not None:
-            log_level = cli_override_level
+        if cli_log_level is not None:
+            log_level = cli_log_level
         else:
             # Validate log level from config
             log_level = getattr(logging, log_level_str, None)
@@ -355,7 +364,8 @@ class LoggingManager:
         )
 
         # Add handlers (now using the `ProcessorFormatter` instances)
-        if self._is_cli:
+        # Add console handler if enabled
+        if enable_console_logging:
             try:
                 self._add_console_handler(console_formatter, root_logger)
             except LogHandlerError as e:
@@ -655,10 +665,10 @@ class LoggingManagerSingleton:
     _initialization_errors: ClassVar[list[str]] = [] # New: To track errors during the singleton's init attempt
 
     @classmethod
-    def get_instance(cls, cli_log_level: int | None = None) -> LoggingManager:
+    def get_instance(cls, cli_log_level: int | None = None, enable_console_logging: bool = True) -> LoggingManager:
         if cls._instance is None:
             try:
-                cls._instance = LoggingManager(cli_log_level=cli_log_level)
+                cls._instance = LoggingManager(cli_log_level=cli_log_level, enable_console_logging=enable_console_logging)
                 # If LoggingManager.__init__ completes successfully,
                 # then transfer any errors it collected during its setup
                 # (e.g., if file handlers failed but console succeeded)
