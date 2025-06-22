@@ -6,7 +6,6 @@ from __future__ import annotations
 
 import logging
 import shutil
-import sys
 import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -18,113 +17,55 @@ from PySide6.QtWidgets import QApplication
 from typer.testing import CliRunner
 
 from checkconnect.config.appcontext import AppContext
-from checkconnect.config.logging_manager import LoggingManagerSingleton
-from checkconnect.config.settings_manager import (
-    SettingsManager,
-    SettingsManagerSingleton,
-)
-from checkconnect.config.translation_manager import TranslationManager
+from checkconnect.config.logging_manager import LoggingManager, LoggingManagerSingleton
+from checkconnect.config.settings_manager import SettingsManager, SettingsManagerSingleton
+from checkconnect.config.translation_manager import TranslationManager, TranslationManagerSingleton
 
 if TYPE_CHECKING:
     from collections.abc import Generator, Iterator
     from typing import Literal
 
     from pytest_mock import MockerFixture
-    from structlog.typing import EventDict, Processor
+    from structlog.typing import EventDict
 
-
-# Define SHARED_PROCESSORS for the test environment.
-TEST_SHARED_PROCESSORS: list[Processor] = [
-    structlog.stdlib.add_logger_name,
-    structlog.stdlib.add_log_level,
-    structlog.stdlib.PositionalArgumentsFormatter(),
-    structlog.processors.TimeStamper(fmt="iso", utc=True),
-    structlog.processors.StackInfoRenderer(),
-    structlog.processors.format_exc_info,
-    structlog.processors.UnicodeDecoder(),
-    # No renderers here, as they are applied by the formatters
-]
-
-
-@pytest.fixture(scope="session", autouse=True)
+@pytest.fixture(scope="function", autouse=True)
 def structlog_base_config() -> Generator[None, None, None]:
-    """
-    Configures structlog and standard Python logging for test purposes.
-
-    This fixture sets up a robust logging environment for the entire test session.
-    It ensures that logs are captured and formatted consistently, and cleans up
-    the logging configuration after all tests have run to prevent interference
-    with other test runs or subsequent processes.
-    """
     root_logger = logging.getLogger()
 
-    # Clear existing handlers to ensure consistent test environment
-    for hdlr in root_logger.handlers[:]:
-        root_logger.removeHandler(hdlr)
-        if isinstance(hdlr, logging.FileHandler):
-            hdlr.close()
-
-    root_logger.setLevel(logging.DEBUG)
-
-    # Configure console formatter for test output
-    console_formatter = structlog.stdlib.ProcessorFormatter(
-        processor=structlog.dev.ConsoleRenderer(
-            colors=True,
-            exception_formatter=structlog.dev.plain_traceback,
-        ),
-        foreign_pre_chain=TEST_SHARED_PROCESSORS,
-    )
-    console_handler = logging.StreamHandler(sys.stdout)
-    console_handler.setFormatter(console_formatter)
-    root_logger.addHandler(console_handler)
+    root_logger.setLevel(logging.DEBUG) # Important: set root logger level so structlog processes messages
 
     structlog.configure(
         processors=[
-            *TEST_SHARED_PROCESSORS,
+            structlog.stdlib.add_logger_name,
+            structlog.stdlib.add_log_level,
+            structlog.stdlib.PositionalArgumentsFormatter(),
+            structlog.processors.TimeStamper(fmt="iso", utc=True),
+            structlog.processors.StackInfoRenderer(),
+            structlog.processors.format_exc_info,
+            structlog.processors.UnicodeDecoder(),
             structlog.stdlib.ProcessorFormatter.wrap_for_formatter,
         ],
         logger_factory=structlog.stdlib.LoggerFactory(),
         wrapper_class=structlog.stdlib.BoundLogger,
         cache_logger_on_first_use=False,
     )
-
     yield
-
-    # Teardown: Reset structlog and standard logging to default states
     structlog.reset_defaults()
-    for hdlr in root_logger.handlers[:]:
-        if isinstance(hdlr, logging.FileHandler):
-            hdlr.close()
-        root_logger.removeHandler(hdlr)
     root_logger.setLevel(logging.NOTSET)
     logging.disable(logging.NOTSET)
+    root_logger.handlers.clear()
 
-
-@pytest.fixture(scope="session", autouse=True)
-def cleanup_logging_manager() -> Generator[None, None, None]:
-    """
-    Ensures the `LoggingManagerSingleton` is properly shut down at the end of the test session.
-
-    This fixture is crucial for preventing resource leaks, especially by closing
-    any open file handlers managed by the logging system, ensuring a clean state
-    after all tests have completed.
-    """
-    logging_manager_instance = LoggingManagerSingleton.get_instance()
-
+@pytest.fixture(scope="function", autouse=True)
+def cleanup_singletons() -> Generator[None, None, None]:
+    LoggingManagerSingleton._instance = None
+    LoggingManager._is_initialized = False
+    LoggingManager._instance = None
+    SettingsManagerSingleton._instance = None
+    TranslationManagerSingleton._instance = None
+    LoggingManagerSingleton._initialization_errors.clear()
     yield
-
-    if logging_manager_instance:
-        logging_manager_instance.shutdown()
-
-    # Additional cleanup for standard logging, in case it wasn't handled by `structlog_base_config`
-    root_logger = logging.getLogger()
-    for hdlr in root_logger.handlers[:]:
-        if isinstance(hdlr, logging.FileHandler):
-            hdlr.close()
-        root_logger.removeHandler(hdlr)
-    root_logger.setLevel(logging.NOTSET)
-    logging.disable(logging.NOTSET)
-
+    if LoggingManagerSingleton._instance:
+        LoggingManagerSingleton.reset()
 
 @pytest.fixture
 def caplog_structlog() -> list[EventDict]:
@@ -256,34 +197,6 @@ def temp_config_dir() -> Generator[Path, None, None]:
     shutil.rmtree(temp_dir, ignore_errors=True)
 
 
-@pytest.fixture
-def mock_settings_manager() -> MagicMock:
-    """
-    Creates a mock `SettingsManager` with a predefined test configuration.
-
-    This fixture provides a `MagicMock` that mimics the behavior of `SettingsManager`,
-    allowing tests to control the application's settings without loading actual
-    configuration files.
-
-    Returns:
-    -------
-        A `MagicMock` instance configured to simulate `SettingsManager`.
-    """
-    mock_settings = MagicMock(spec=SettingsManager)
-    mock_settings.config = {
-        "logger": {
-            "level": "INFO",
-            "format": "%(asctime)s - %(levelname)s - %(name)s - %(message)s",
-        },
-        "network": {
-            "ntp_servers": ["test.ntp.org"],
-            "urls": ["https://test.com"],
-            "timeout": 5,
-        },
-        "reports": {"directory": "test_reports"},
-    }
-    return mock_settings
-
 
 @pytest.fixture(autouse=True)
 def reset_settings_manager() -> None:
@@ -363,7 +276,8 @@ def app_context_fixture(
     request: pytest.FixtureRequest,
 ) -> AppContext:
     """
-    Returns either a simple or a full dummy `AppContext` depending on `request.param`.
+    Returns an `AppContext` mock, defaulting to 'full' configuration,
+    but can be set to 'simple' via parametrization.
 
     This fixture allows tests to easily obtain a mock `AppContext` configured
     either minimally ("simple") or with more detailed settings ("full"),
@@ -379,13 +293,21 @@ def app_context_fixture(
     -------
         A mocked `AppContext` instance.
     """
-    level: Literal["simple", "full"] = getattr(request, "param", "simple")
+    # Determine the desired level: 'simple' if explicitly requested via parametrize,
+    # 'full' by default if no parametrization is applied to the fixture request.
+    level: Literal["simple", "full"] = (
+        request.param if hasattr(request, "param") and request.param is not None else "full"
+    )
 
-    mock_logger_instance = mocker.Mock()
-    mock_logger_instance.info.return_value = None
-    mock_logger_instance.warning.return_value = None
-    mock_logger_instance.error.return_value = None
-    mocker.patch("structlog.get_logger", return_value=mock_logger_instance)
+    # --- Setup the mock logger instance for the AppContext ---
+    mock_logger_instance_for_context = mocker.Mock()
+    mock_logger_instance_for_context.info.return_value = None
+    mock_logger_instance_for_context.warning.return_value = None
+    mock_logger_instance_for_context.error.return_value = None
+    # Patch structlog.get_logger globally *if* your application code calls it directly
+    # and you want to control its return value within tests.
+    # If your app always gets loggers via context.get_module_logger, this global patch isn't strictly needed.
+    mocker.patch("structlog.get_logger", return_value=mock_logger_instance_for_context)
 
     mock_translator = mocker.Mock(spec=TranslationManager)
     mock_translator.gettext.side_effect = lambda text: f"[mocked] {text}"
@@ -394,17 +316,25 @@ def app_context_fixture(
     context = mocker.Mock(spec=AppContext)
     context.translator = mock_translator
     context.gettext = mock_translator.gettext
-    context.get_module_logger.side_effect = lambda name: structlog.get_logger(name)
+    # Ensure get_module_logger returns the mock logger instance
+    context.get_module_logger.side_effect = lambda name: mock_logger_instance_for_context
+
+    # Get a logger *from the context* for messages within the fixture itself
+    # This ensures consistency with how your application uses loggers.
+    # For fixture-specific internal logging, you might also use a dedicated logger or print statements.
+    fixture_logger = context.get_module_logger(__name__)  # Use the logger provided by the mock context
 
     if level == "simple":
-        mock_config = mocker.Mock()
+        mock_config = mocker.Mock(spec=SettingsManager)
         mock_config.get_section.return_value.get.return_value = None
-        mock_config.get.side_effect = (
-            lambda section, key, default=None: default if not (section == "reports" and key == "directory") else None
+        mock_config.get.side_effect = lambda section, key, default=None: (
+            default if not (section == "reports" and key == "directory") else None
         )
         context.config = mock_config
+        fixture_logger.debug("AppContext fixture providing 'simple' configuration.")
         return context
 
+    # If level is 'full' (either by default or explicitly requested)
     mock_config = mocker.Mock(spec=SettingsManager)
 
     mock_network_section = mocker.Mock()
@@ -433,7 +363,7 @@ def app_context_fixture(
     mock_config.get.side_effect = config_get_top_level
 
     context.config = mock_config
-
+    fixture_logger.debug("AppContext fixture providing 'full' configuration.")
     return context
 
 
@@ -471,23 +401,57 @@ def runner() -> CliRunner:
     return CliRunner()
 
 
-@pytest.fixture(scope="session", autouse=True)
+@pytest.fixture(scope="session")
 def q_app() -> Iterator[QApplication]:
     """
-    Ensures a `QApplication` instance is available for PySide6 tests.
+    Provides a fresh QApplication instance per test.
 
-    This fixture creates a `QApplication` instance if one doesn't already exist,
-    which is necessary for instantiating QWidgets. It has session scope
-    and runs automatically for all tests that require a QApplication.
+    Ensures no QApplication instance leaks across tests.
+    Use in GUI-related tests that need QApplication.
     """
     app = QApplication.instance()
-    created_app = False
+    created = False
     if not app:
         app = QApplication([])
-        created_app = True
+        created = True
+
     yield app
-    if created_app:
+
+    if created:
         app.quit()
+        # Ensure instance is deleted for the next test
+        del app
+
+
+@pytest.fixture
+def mock_qapplication_class(mocker: MockerFixture) -> MagicMock:
+    """
+    Patches QApplication in the startup module so that:
+     - QApplication.instance() returns None (forcing creation of a new app)
+     - QApplication(sys.argv) returns a MagicMock instance with sane defaults
+    Returns the patched constructor mock, so:
+        qapp = mock_qapplication_class
+        app_instance = qapp.return_value
+        app_instance.exec.return_value = <you choose>
+    """
+    # 1) Create the mocked QApplication *instance*
+    mock_app_instance = mocker.MagicMock(spec=QApplication)
+    mock_app_instance.exec.return_value = 0
+    mock_app_instance.quit.return_value = None
+
+    # 2) Patch the QApplication *class* in your startup module
+    mock_qapp_ctor = mocker.patch("checkconnect.gui.startup.QApplication", return_value=mock_app_instance)
+
+    # 3) Ensure .instance() always returns None (so run() will create a new app)
+    mock_qapp_ctor.instance.return_value = None
+
+    return mock_qapp_ctor
+
+
+@pytest.fixture(autouse=True)
+def _always_mock_qapp(mock_qapplication_class):
+    # this just ensures that every test in this file uses the mock
+    return
 
 
 @pytest.fixture

@@ -74,10 +74,10 @@ class AppContext:
     """
     Manages shared application context, providing access to configuration,
     logging, and translation services.
-    
+
     This class serves as a central hub for essential application components,
     ensuring consistent access to global resources across the application.
-    
+
     Attributes
     ----------
     translator : TranslationManager
@@ -92,12 +92,12 @@ class AppContext:
     def get_module_logger(self, name: str) -> BoundLogger:
         """
         Retrieves a `structlog` logger instance for a specific module.
-    
+
         Parameters
         ----------
         name : str
             The name of the module for which to retrieve the logger (e.g., `__name__`).
-    
+
         Returns
         -------
         structlog.stdlib.BoundLogger
@@ -108,12 +108,12 @@ class AppContext:
     def gettext(self, message: str) -> str:
         """
         Translates a given message string using the active translation manager.
-    
+
         Parameters
         ----------
         message : str
             The message string to be translated.
-    
+
         Returns
         -------
         str
@@ -129,11 +129,11 @@ class AppContext:
     ) -> AppContext:
         """
         Factory method to create and initialize an `AppContext` instance.
-    
+
         This method loads application settings, configures the global logging
         system, and initializes the translation manager based on provided
         or default configuration and language settings.
-    
+
         Parameters
         ----------
         config : SettingsManager | None, optional
@@ -143,7 +143,7 @@ class AppContext:
             An optional language code (e.g., 'en', 'de') for translations.
             If not provided, the default language configured by `TranslationManager`
             will be used.
-    
+
         Returns
         -------
         AppContext
@@ -172,11 +172,11 @@ def initialize_app_context(
 ) -> AppContext:
     """
     Initializes and returns a fully configured AppContext instance for the application.
-    
+
     This function orchestrates the setup of the application's core context
     by loading settings from a configuration file and setting up language
     translations.
-    
+
     Parameters
     ----------
     config_file : Path | None, optional
@@ -186,7 +186,7 @@ def initialize_app_context(
         The language code for translations (e.g., 'en', 'de').
         If `None`, the system's default language or the default language
         of `TranslationManager` will be used.
-    
+
     Returns
     -------
     AppContext

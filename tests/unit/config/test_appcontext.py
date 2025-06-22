@@ -29,9 +29,10 @@ if TYPE_CHECKING:
 
 # --- Tests for AppContext and initialize_app_context ---
 
+
 # These patches target where the objects are used within the appcontext.py file itself.
-@patch('checkconnect.config.appcontext.SettingsManager')
-@patch('checkconnect.config.appcontext.AppContext.create') # Patch AppContext.create directly
+@patch("checkconnect.config.appcontext.SettingsManager")
+@patch("checkconnect.config.appcontext.AppContext.create")  # Patch AppContext.create directly
 class TestAppContextInitialization:
     """
     Test suite for the `initialize_app_context` function, focusing on its
@@ -43,11 +44,12 @@ class TestAppContextInitialization:
     unit tests specifically for `AppContext.create` itself.
     """
 
+    @pytest.mark.unit
     def test_initialize_app_context_success(
         self,
-        mock_app_context_create: MagicMock, # This is the mock for AppContext.create
+        mock_app_context_create: MagicMock,  # This is the mock for AppContext.create
         mock_settings_manager: MagicMock,
-        config_file: Path
+        config_file: Path,
     ) -> None:
         """
         Tests the successful initialization of AppContext via `initialize_app_context`
@@ -68,9 +70,7 @@ class TestAppContextInitialization:
 
         # Act
         # Call the actual function under test: initialize_app_context
-        returned_app_context = initialize_app_context(
-            config_file=config_file, language=test_language
-        )
+        returned_app_context = initialize_app_context(config_file=config_file, language=test_language)
 
         # Assert
 
@@ -79,15 +79,12 @@ class TestAppContextInitialization:
 
         # 2. Verify that AppContext.create was called with the *mock instance* of SettingsManager
         #    and the correct language.
-        mock_app_context_create.assert_called_once_with(
-            config=mock_settings_instance,
-            language=test_language
-        )
+        mock_app_context_create.assert_called_once_with(config=mock_settings_instance, language=test_language)
 
         # 3. Verify that `initialize_app_context` returned what `AppContext.create` returned.
         assert returned_app_context == mock_app_context_instance
 
-
+    @pytest.mark.unit
     def test_initialize_app_context_no_config_file_no_language(
         self,
         mock_app_context_create: MagicMock,
@@ -116,24 +113,20 @@ class TestAppContextInitialization:
 
         # 1. Verify that SettingsManager was instantiated WITHOUT a config_file argument
         #    This means it was called like SettingsManager(), not SettingsManager(config_file=...)
-        mock_settings_manager.assert_called_once_with(config_file=None) # Or just assert_called_once_with() if config_file is the only optional param
+        mock_settings_manager.assert_called_once_with(
+            config_file=None
+        )  # Or just assert_called_once_with() if config_file is the only optional param
 
         # 2. Verify that AppContext.create was called with the mock SettingsManager instance
         #    and with language=None (the default).
-        mock_app_context_create.assert_called_once_with(
-            config=mock_settings_instance,
-            language=None
-        )
+        mock_app_context_create.assert_called_once_with(config=mock_settings_instance, language=None)
 
         # 3. Verify that `initialize_app_context` returned what `AppContext.create` returned.
         assert returned_app_context == mock_app_context_instance
 
-
+    @pytest.mark.unit
     def test_initialize_app_context_settings_manager_raises_exception(
-        self,
-        mock_app_context_create: MagicMock,
-        mock_settings_manager: MagicMock,
-        config_file: Path
+        self, mock_app_context_create: MagicMock, mock_settings_manager: MagicMock, config_file: Path
     ) -> None:
         """
         Tests that `initialize_app_context` correctly propagates exceptions
