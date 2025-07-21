@@ -69,7 +69,7 @@ def setup_translations(
     translations_dir: Path | None = None,
 ) -> None:
     """
-    Sets up and installs Qt translations for the application.
+    Set up and installs Qt translations for the application.
 
     This function attempts to load Qt translation files (`.qm` files) from
     several locations in a specific order:
@@ -126,7 +126,7 @@ def setup_translations(
 
 def run(context: AppContext, language: str | None = None) -> None:
     """
-    Initializes and runs the CheckConnect GUI application.
+    Initialize and runs the CheckConnect GUI application.
 
     This function manages the lifecycle of the Qt application. It checks if a
     QApplication instance already exists (e.g., in a test environment) and creates

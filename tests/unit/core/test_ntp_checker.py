@@ -22,14 +22,9 @@ from pydantic import ValidationError
 
 from checkconnect.core.ntp_checker import NTPChecker, NTPCheckerConfig
 
-
-
-
 if TYPE_CHECKING:
-    from unittest.mock import MagicMock
-
+    from pytest.logging import LogCaptureFixture
     from pytest_mock import MockerFixture
-    from pytest.logging import LogCaptureFixture  # Import LogCaptureFixture for caplog
 
     from checkconnect.config.appcontext import AppContext
 
@@ -96,25 +91,37 @@ class TestNTPCheckerConfig:
         Args:
             valid_ntp_config (NTPCheckerConfig): A pytest fixture providing a valid config.
         """
-        assert valid_ntp_config.ntp_servers == ["time.google.com", "8.8.8.8"]
-        assert valid_ntp_config.timeout == 5
-
-    @pytest.mark.unit
-    def test_ntp_checker_runs(self, valid_ntp_config: NTPCheckerConfig) -> None:
-        """
-        Test the initialization of `NTPChecker` with a valid configuration.
-
-        Verifies that an `NTPChecker` instance can be successfully created
-        with a valid `NTPCheckerConfig` and that its internal configuration
-        matches the input.
-
-        Args:
-            valid_ntp_config (NTPCheckerConfig): A pytest fixture providing a valid config.
-        """
         checker = NTPChecker(config=valid_ntp_config)
         assert isinstance(checker, NTPChecker)
+
         assert len(checker.config.ntp_servers) == 2
+        assert checker.config.ntp_servers == ["time.google.com", "8.8.8.8"]
         assert checker.config.timeout == 5
+
+    @pytest.mark.unit
+    @pytest.mark.parametrize("app_context_fixture", ["simple"], indirect=True)
+    def test_direct_config_initialization(
+        self,
+        app_context_fixture: AppContext,
+    ) -> None:
+        """
+        Test `NTPCheckerConfig` instantiation when parameters are provided directly.
+
+        Verifies that the configuration object is correctly created from explicit
+        `ntp_servers` and `timeout` arguments along with the context.
+
+        Args:
+            app_context_fixture (AppContext): A pytest fixture providing an `AppContext`.
+        """
+        config = NTPCheckerConfig(
+            ntp_servers=["time.cloudflare.com"],
+            timeout=10,
+            context=app_context_fixture,
+        )
+        assert isinstance(config, NTPCheckerConfig)
+        assert config.ntp_servers == ["time.cloudflare.com"]
+        assert config.timeout == 10
+        assert config.context == app_context_fixture
 
     @pytest.mark.unit
     @pytest.mark.parametrize("app_context_fixture", ["simple"], indirect=True)
@@ -184,30 +191,60 @@ class TestNTPCheckerConfig:
             )
         assert "ntp_servers" in str(exc_info.value)
 
+    @pytest.mark.parametrize(
+        ("test_input", "expected_error_substring"),
+        [
+            (
+                {"ntp_servers": "not-a-list", "timeout": 5},
+                "Input should be a valid list",
+            ),
+            (
+                {"ntp_servers": ["pool.ntp.org"], "timeout": "not-an-int"},
+                "Input should be a valid integer",
+            ),
+            (
+                {"ntp_servers": ["pool.ntp.org"], "timeout": 0},
+                "Timeout must be a positive integer",
+            ),
+            (
+                {"ntp_servers": ["not-a-url"], "timeout": 5},
+                "Invalid NTP servers:",
+            ),
+        ],
+    )
     @pytest.mark.unit
-    @pytest.mark.parametrize("app_context_fixture", ["simple"], indirect=True)
-    def test_direct_config_initialization(
+    def test_config_validation_errors(
         self,
-        app_context_fixture: AppContext,
+        test_input: dict[str, Any],
+        expected_error_substring: str,
+        app_context_fixture: AppContext,  # Included as it's typically needed for context-related features
     ) -> None:
         """
-        Test `NTPCheckerConfig` instantiation when parameters are provided directly.
+        Test various validation error scenarios for `NTPCheckerConfig`.
 
-        Verifies that the configuration object is correctly created from explicit
-        `ntp_servers` and `timeout` arguments along with the context.
+        This parameterized test ensures that `NTPCheckerConfig` correctly
+        raises `ValidationError` for invalid inputs, such as incorrect data types,
+        out-of-range values, or malformed NTP server addresses.
 
         Args:
+            test_input (dict[str, Any]): A dictionary containing parameters to
+                                        pass to `NTPCheckerConfig`.
+            expected_error_substring (str): A substring expected to be present
+                                            in the `ValidationError` message.
             app_context_fixture (AppContext): A pytest fixture providing an `AppContext`.
         """
-        config = NTPCheckerConfig(
-            ntp_servers=["time.cloudflare.com"],
-            timeout=10,
-            context=app_context_fixture,
-        )
-        assert isinstance(config, NTPCheckerConfig)
-        assert config.ntp_servers == ["time.cloudflare.com"]
-        assert config.timeout == 10
-        assert config.context == app_context_fixture
+        with pytest.raises(ValidationError) as exc_info:
+            # We need to include 'context' in test_input if it's a required field for NTPCheckerConfig
+            # or handle it separately if it's passed during instantiation, not validation.
+            # Based on the NTPCheckerConfig model, 'context' is a field, so it needs to be provided.
+            # However, for testing *validation* of other fields, we can provide a dummy context.
+            # The test_input dictionary usually covers the fields being tested for validation.
+            # So, we modify this part to always include a valid context.
+            NTPCheckerConfig(
+                **test_input,
+                context=app_context_fixture,
+            )
+        assert expected_error_substring in str(exc_info.value)
 
 
 class TestNTPChecker:
@@ -253,14 +290,19 @@ class TestNTPChecker:
         )
 
         results = checker.run_ntp_checks()
+
+        assert isinstance(results, list)
         assert len(results) == 1
+        assert all(isinstance(r, str) for r in results)
+
         assert "[mocked] Successfully retrieved time from pool.ntp.org - Time:" in results[0]
 
         # Check logger output for info messages with the '[mocked]' prefix
         assert any("[mocked] Checking NTP servers.." in record.message for record in caplog.records)
         assert any("[mocked] Checking NTP server: pool.ntp.org" in record.message for record in caplog.records)
-        assert any("[mocked] Successfully retrieved time from pool.ntp.org" in record.message for record in caplog.records)
-
+        assert any(
+            "[mocked] Successfully retrieved time from pool.ntp.org" in record.message for record in caplog.records
+        )
 
     @pytest.mark.unit
     @pytest.mark.parametrize("app_context_fixture", ["simple"], indirect=True)
@@ -275,6 +317,7 @@ class TestNTPChecker:
             valid_ntp_config (NTPCheckerConfig): A pytest fixture providing a valid config.
         """
         checker = NTPChecker(config=valid_ntp_config)
+
         assert isinstance(checker, NTPChecker)
         assert checker.config == valid_ntp_config
         assert checker.config.context == valid_ntp_config.context
@@ -337,14 +380,9 @@ class TestNTPChecker:
 
         # Check logger output
         assert any(
-            "[mocked] Successfully retrieved time from time.google.com" in record.message
-            for record in caplog.records
+            "[mocked] Successfully retrieved time from time.google.com" in record.message for record in caplog.records
         )
-        assert any(
-            "[mocked] Successfully retrieved time from 8.8.8.8" in record.message
-            for record in caplog.records
-        )
-
+        assert any("[mocked] Successfully retrieved time from 8.8.8.8" in record.message for record in caplog.records)
 
     @pytest.mark.unit
     @pytest.mark.parametrize("app_context_fixture", ["simple"], indirect=True)
@@ -394,7 +432,6 @@ class TestNTPChecker:
             for record in caplog.records
         )
 
-
     @pytest.mark.unit
     @pytest.mark.parametrize("app_context_fixture", ["simple"], indirect=True)
     def test_ntp_checker_with_context(
@@ -433,13 +470,7 @@ class TestNTPChecker:
         assert "[mocked] Successfully retrieved time from pool.ntp.org " in results[0]
 
         # Check logger output
-        assert any(
-            "[mocked] Checking NTP server: pool.ntp.org" in record.message for record in caplog.records
-        )
-        assert any(
-            "[mocked] Successfully retrieved time from pool.ntp.org" in record.message for record in caplog.records
-        )
-
+        assert any("[mocked] Checking NTP server: pool.ntp.org" in record.message for record in caplog.records)
 
     @pytest.mark.unit
     @pytest.mark.parametrize("app_context_fixture", ["simple"], indirect=True)
@@ -485,7 +516,6 @@ class TestNTPChecker:
             for record in caplog.records
         )
 
-
     @pytest.mark.unit
     @pytest.mark.parametrize("app_context_fixture", ["simple"], indirect=True)
     def test_multiple_ntp_servers(
@@ -529,7 +559,7 @@ class TestNTPChecker:
                 "8.8.8.8",
             ],
             timeout=5,
-            context=app_context_fixture
+            context=app_context_fixture,
         )
         checker = NTPChecker(config=config)
         results = checker.run_ntp_checks()
@@ -540,78 +570,15 @@ class TestNTPChecker:
         assert "[mocked] Successfully retrieved time from 8.8.8.8" in results[2]
 
         # Check logger output for mixed results
-        assert any(
-            "[mocked] Checking NTP server: pool.ntp.org" in record.message for record in caplog.records
-        )
+        assert any("[mocked] Checking NTP server: pool.ntp.org" in record.message for record in caplog.records)
         assert any(
             "[mocked] Successfully retrieved time from pool.ntp.org" in record.message for record in caplog.records
         )
-        assert any(
-            "[mocked] Checking NTP server: fake.ntp.org" in record.message for record in caplog.records
-        )
+        assert any("[mocked] Checking NTP server: fake.ntp.org" in record.message for record in caplog.records)
         assert any(
             "[mocked] Error retrieving time from NTP server fake.ntp.org: Failed to connect" in record.message
             and record.levelname == "ERROR"
             for record in caplog.records
         )
-        assert any(
-            "[mocked] Checking NTP server: 8.8.8.8" in record.message for record in caplog.records
-        )
-        assert any(
-            "[mocked] Successfully retrieved time from 8.8.8.8" in record.message for record in caplog.records
-        )
-
-
-@pytest.mark.parametrize(
-    ("test_input", "expected_error_substring"),
-    [
-        (
-            {"ntp_servers": "not-a-list", "timeout": 5},
-            "Input should be a valid list",
-        ),
-        (
-            {"ntp_servers": ["pool.ntp.org"], "timeout": "not-an-int"},
-            "Input should be a valid integer",
-        ),
-        (
-            {"ntp_servers": ["pool.ntp.org"], "timeout": 0},
-            "Timeout must be a positive integer",
-        ),
-        (
-            {"ntp_servers": ["not-a-url"], "timeout": 5},
-            "Invalid NTP servers:",
-        ),
-    ],
-)
-@pytest.mark.unit
-def test_config_validation_errors(
-    test_input: dict[str, Any],
-    expected_error_substring: str,
-    app_context_fixture: AppContext,  # Included as it's typically needed for context-related features
-) -> None:
-    """
-    Test various validation error scenarios for `NTPCheckerConfig`.
-
-    This parameterized test ensures that `NTPCheckerConfig` correctly
-    raises `ValidationError` for invalid inputs, such as incorrect data types,
-    out-of-range values, or malformed NTP server addresses.
-
-    Args:
-        test_input (dict[str, Any]): A dictionary containing parameters to
-                                     pass to `NTPCheckerConfig`.
-        expected_error_substring (str): A substring expected to be present
-                                        in the `ValidationError` message.
-        app_context_fixture (AppContext): A pytest fixture providing an `AppContext`.
-    """
-    with pytest.raises(ValidationError) as exc_info:
-        # We need to include 'context' in test_input if it's a required field for NTPCheckerConfig
-        # or handle it separately if it's passed during instantiation, not validation.
-        # Based on the NTPCheckerConfig model, 'context' is a field, so it needs to be provided.
-        # However, for testing *validation* of other fields, we can provide a dummy context.
-        # The test_input dictionary usually covers the fields being tested for validation.
-        # So, we modify this part to always include a valid context.
-        NTPCheckerConfig(
-            **test_input,
-            context=app_context_fixture,
-        )
-    assert expected_error_substring in str(exc_info.value)
+        assert any("[mocked] Checking NTP server: 8.8.8.8" in record.message for record in caplog.records)
+        assert any("[mocked] Successfully retrieved time from 8.8.8.8" in record.message for record in caplog.records)

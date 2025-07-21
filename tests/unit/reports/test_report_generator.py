@@ -11,9 +11,7 @@ from unittest.mock import patch
 import pytest
 from pydantic import ValidationError
 
-from checkconnect.exceptions import (
-    DirectoryCreationError,
-)
+from checkconnect.exceptions import DirectoryCreationError
 from checkconnect.reports.report_generator import (
     ReportGenerator,
     ReportInput,
@@ -47,7 +45,7 @@ def report_generator_from_params_instance(app_context_fixture: AppContext, tmp_p
     -------
         A `ReportGenerator` instance.
     """
-    return ReportGenerator.from_params(context=app_context_fixture, output_dir=tmp_path / "output_from_params")
+    return ReportGenerator.from_params(context=app_context_fixture, reports_dir=tmp_path / "output_from_params")
 
 
 @pytest.fixture
@@ -225,7 +223,7 @@ class TestReportGenerator:
 
     @pytest.mark.unit
     @pytest.mark.parametrize("app_context_fixture", ["simple"], indirect=True)
-    def test_from_params_uses_explicit_output_dir(
+    def test_from_params_uses_explicit_reports_dir(
         self, app_context_fixture: AppContext, mocker: MockerFixture, tmp_path: Path
     ) -> None:
         """
@@ -234,26 +232,26 @@ class TestReportGenerator:
         Ensures that if the `reports.directory` setting is missing from the config,
         the `ReportGenerator` falls back to its predefined default output path.
         """
-        mock_ensure_dir = mocker.patch.object(ReportGenerator, "_ensure_output_directory", return_value=None)
+        mock_ensure_dir = mocker.patch.object(ReportGenerator, "_ensure_reports_directory", return_value=None)
 
-        generator_output_dir = tmp_path / "another_test_output_dir"
+        generator_reports_dir = tmp_path / "another_test_reports_dir"
 
-        generator = ReportGenerator.from_params(context=app_context_fixture, output_dir=generator_output_dir)
-        # Assert _ensure_output_directory was called with the correct RELATIVE path
-        # The first argument is 'self', so the second is 'output_dir'
-        mock_ensure_dir.assert_called_once_with(generator_output_dir)
+        generator = ReportGenerator.from_params(context=app_context_fixture, reports_dir=generator_reports_dir)
+        # Assert _ensure_reports_directory was called with the correct RELATIVE path
+        # The first argument is 'self', so the second is 'reports_dir'
+        mock_ensure_dir.assert_called_once_with(generator_reports_dir)
 
-        assert generator.output_dir == generator_output_dir
+        assert generator.reports_dir == generator_reports_dir
 
     @pytest.mark.unit
     @pytest.mark.parametrize("app_context_fixture", ["full"], indirect=True)
-    def test_from_context_uses_configured_output_dir(
+    def test_from_context_uses_configured_reports_dir(
         self, report_generator_from_context_instance: ReportGenerator, mocker: MockerFixture, tmp_path: Path
     ) -> None:
         """
         Test that `ReportGenerator.from_context` uses the configured directory when the context is 'full'.
         """
-        mock_ensure_dir = mocker.patch.object(ReportGenerator, "_ensure_output_directory", return_value=None)
+        mock_ensure_dir = mocker.patch.object(ReportGenerator, "_ensure_reports_directory", return_value=None)
 
         app_context = report_generator_from_context_instance.context
 
@@ -262,18 +260,18 @@ class TestReportGenerator:
         expected_path_from_config = tmp_path / "test_reports_from_config"
 
         mock_ensure_dir.assert_called_once_with(expected_path_from_config)
-        assert generator.output_dir == expected_path_from_config
+        assert generator.reports_dir == expected_path_from_config
 
     @pytest.mark.unit
     @pytest.mark.parametrize("app_context_fixture", ["simple"], indirect=True)
-    def test_from_context_uses_default_output_dir_if_none_in_config(
+    def test_from_context_uses_default_reports_dir_if_none_in_config(
         self, report_generator_from_context_instance: ReportGenerator, mocker: MockerFixture
     ) -> None:
         """
         Test that `from_context` uses the fixed default value 'reports'
         when nothing is specified in the configuration.
         """
-        mock_ensure_dir = mocker.patch.object(ReportGenerator, "_ensure_output_directory", return_value=None)
+        mock_ensure_dir = mocker.patch.object(ReportGenerator, "_ensure_reports_directory", return_value=None)
 
         app_context = report_generator_from_context_instance.context
 
@@ -282,15 +280,15 @@ class TestReportGenerator:
 
         expected_default_path = Path("reports")  # The fixed default value in from_context
         mock_ensure_dir.assert_called_once_with(expected_default_path)
-        assert generator.output_dir == expected_default_path
+        assert generator.reports_dir == expected_default_path
 
     @pytest.mark.unit
     @pytest.mark.parametrize("app_context_fixture", ["simple"], indirect=True)
-    def test_ensure_output_directory_creates_dir(
+    def test_ensure_reports_directory_creates_dir(
         self, report_generator_from_context_instance: ReportGenerator, tmp_path: Path
     ) -> None:
         """
-        Test that `_ensure_output_directory` creates the directory if it doesn't exist.
+        Test that `_ensure_reports_directory` creates the directory if it doesn't exist.
 
         Ensures that the internal helper method correctly creates the target
         output directory and its parents, and returns the verified path.
@@ -299,19 +297,19 @@ class TestReportGenerator:
         test_dir = tmp_path / "new_reports"
         assert not test_dir.exists()
 
-        created_path = report_generator_from_context_instance._ensure_output_directory(test_dir)  # noqa: SLF001
+        created_path = report_generator_from_context_instance._ensure_reports_directory(test_dir)  # noqa: SLF001
         assert created_path == test_dir
         assert test_dir.is_dir()
         assert test_dir.exists()
 
     @pytest.mark.unit
     @pytest.mark.parametrize("app_context_fixture", ["simple"], indirect=True)
-    def test_ensure_output_directory_raises_error_on_failure(
+    def test_ensure_reports_directory_raises_error_on_failure(
         self,
         app_context_fixture: AppContext,
     ) -> None:
         """
-        Test that `_ensure_output_directory` raises `DirectoryCreationError` on failure.
+        Test that `_ensure_reports_directory` raises `DirectoryCreationError` on failure.
 
         Simulates an `OSError` during directory creation (e.g., permission issues)
         and asserts that the custom `DirectoryCreationError` is raised with
@@ -352,7 +350,7 @@ class TestReportGenerator:
         report_filename = "my_connectivity_report.txt"
         report_path = report_generator_from_context_instance.generate_report(report_input, report_filename)
 
-        expected_path = report_generator_from_context_instance.output_dir / report_filename
+        expected_path = report_generator_from_context_instance.reports_dir / report_filename
         assert report_path == expected_path
         assert report_path.exists()
         assert report_path.is_file()
@@ -391,7 +389,7 @@ class TestReportGenerator:
 
         report_path = report_generator_from_context_instance.generate_html_report(ntp_data, url_data)
 
-        expected_path = report_generator_from_context_instance.output_dir / ReportGenerator.HTML_FILENAME
+        expected_path = report_generator_from_context_instance.reports_dir / ReportGenerator.HTML_FILENAME
         assert report_path == expected_path
         # Assert ReportTemplate.render was called with the correct data
         mock_template_instance.render.assert_called_once_with("\n".join(ntp_data), "\n".join(url_data))
@@ -495,7 +493,7 @@ class TestReportGenerator:
 
         report_path = report_generator_from_context_instance.generate_pdf_report(ntp_data, url_data)
 
-        expected_path = report_generator_from_context_instance.output_dir / ReportGenerator.PDF_FILENAME
+        expected_path = report_generator_from_context_instance.reports_dir / ReportGenerator.PDF_FILENAME
         assert report_path == expected_path
 
         # Assert ReportTemplate.render was called correctly
@@ -591,7 +589,7 @@ class TestReportGenerator:
         )
 
         report_generator_from_context_instance.logger.info.assert_called_with(
-            "[mocked] Generating reports in %s", report_generator_from_context_instance.output_dir
+            "[mocked] Generating reports in %s", report_generator_from_context_instance.reports_dir
         )
 
     @pytest.mark.unit

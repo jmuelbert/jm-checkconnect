@@ -19,118 +19,27 @@ It supports configuration via a YAML file and provides a formatted report
 of any issues found.
 """
 
-import re
-import sys
-from dataclasses import dataclass, field
-from pathlib import Path
-from typing import Optional, Self  # Keep Self
+from __future__ import annotations
 
-import yaml
+import re
+from pathlib import Path
+from typing import Annotated, Final
+
+import typer
 from rich.console import Console
 from rich.panel import Panel
-from rich.style import Style
 from rich.table import Table
-from rich.theme import Theme
+
+from scripts.utils.doc_config import DocConfig, custom_theme
 
 # Constants
-LINE_LENGTH_LIMIT = 79  # Standard Python line length limit
-NUMBER_OF_PARTS_FILE_PATH_NUMBER: int = 2
-
+APP_NAME: Final[str] = "Documents Quality"
+APP_VERSION: Final[str] = "0.2.0"
+NUMBER_OF_PARTS_FILE_PATH_NUMBER: Final[int] = 2
 
 # Rich console setup
-custom_theme = Theme(
-    {
-        "info": Style(color="cyan", bold=True),
-        "success": Style(color="green", bold=True),
-        "warning": Style(color="yellow", bold=True),
-        "error": Style(color="red", bold=True),
-        "file": Style(color="magenta", bold=False),
-    },
-)
-custom_theme = Theme(
-    {
-        "info": Style(color="cyan", bold=True),
-        "success": Style(color="green", bold=True),
-        "warning": Style(color="yellow", bold=True),
-        "error": Style(color="red", bold=True),
-        "file": Style(color="magenta", bold=False),
-    },
-)
 console = Console(theme=custom_theme)
-
-
-def get_project_root() -> Path:
-    """Get the project root directory."""
-    return Path(__file__).resolve().parent.parent
-
-
-PROJECT_ROOT = get_project_root()
-DOCS_DIR = PROJECT_ROOT / "docs"
-
-
-@dataclass
-class DocConfig:
-    """
-    Configuration for Documentation Quality Checks.
-
-    Attributes
-    ----------
-        min_length (int): Minimum content length in characters.
-        required_sections (set[str]): Set of required section headers.
-        supported_languages (set[str]): Set of supported language codes.
-        code_example_required (bool): Whether code examples are required.
-        image_required (bool): Whether images are required.
-        config_path (Path): Path to the YAML configuration file.
-
-    """
-
-    min_length: int = 100
-    required_sections: set[str] = field(default_factory=set)
-    supported_languages: set[str] = field(default_factory=set)
-    code_example_required: bool = True
-    image_required: bool = False
-    config_path: Path = PROJECT_ROOT / "scripts" / "doc_quality.yml"
-
-    @classmethod
-    def from_yaml(cls, path: Path) -> Self:
-        """
-        Load configuration from a YAML file.
-
-        Args:
-        ----
-            path (Path): Path to the YAML configuration file.
-
-        Returns:
-        -------
-            DocConfig: A DocConfig instance with values from the YAML file.
-
-        """
-        try:
-            with path.open(encoding="utf-8") as f:
-                config_data = yaml.safe_load(f)
-        except FileNotFoundError:
-            console.print(f"[error]Config file not found: {path}[/error]")
-            sys.exit(1)
-        except yaml.YAMLError as e:
-            console.print(
-                f"[error]Error parsing config file: {path} - {e}[/error]",
-            )
-            sys.exit(1)
-
-        # Extract values from the loaded data, providing defaults
-        min_length = config_data.get("min_length", 100)
-        required_sections = set(config_data.get("required_sections", []))
-        supported_languages = set(config_data.get("supported_languages", []))
-        code_example_required = config_data.get("code_example_required", True)
-        image_required = config_data.get("image_required", False)
-
-        return cls(
-            min_length=min_length,
-            required_sections=required_sections,
-            supported_languages=supported_languages,
-            code_example_required=code_example_required,
-            image_required=image_required,
-        )
+app = typer.Typer()
 
 
 class DocChecker:
@@ -155,28 +64,7 @@ class DocChecker:
         self.console = console  # Use the global console object
         self.issues: dict[str, list[str]] = {}
 
-    def check_markdown(self, file_path: Path) -> None:
-        """
-        Check a Markdown file for quality issues.
-
-        Args:
-        ----
-            file_path (Path): Path to the Markdown file.
-
-        """
-        content = self._read_file(file_path)
-        if content is None:
-            return
-
-        file_issues = self._perform_checks(file_path, content)
-
-        if file_issues:
-            self.issues[str(file_path)] = file_issues
-            self.console.print(f"[file]{file_path}[/file]:")
-            for issue in file_issues:
-                self.console.print(f"  - {issue}")
-
-    def _read_file(self, file_path: Path) -> Optional[str]:
+    def _read_file(self, file_path: Path) -> str | None:
         """
         Read file content with error handling.
 
@@ -196,20 +84,31 @@ class DocChecker:
             self.console.print(f"[error]File not found: {file_path}[/error]")
             self.issues[str(file_path)] = ["File not found"]
             return None
-        except OSError as e:
+        except (OSError, PermissionError) as e:
             self.console.print(
                 f"[error]Error reading file: {file_path} - {e}[/error]",
             )
             self.issues[str(file_path)] = [f"Error reading file: {e}"]
-            return
+            return None
 
-        file_issues = []
+    def _perform_checks(self, file_path: Path, content: str) -> list[str]:
+        """
+        Perform various quality checks on the Markdown content.
+
+        Args:
+        ----
+            file_path (Path): Path to the Markdown file.
+            content (str): The content of the Markdown file.
+
+        Returns:
+        -------
+            list[str]: A list of issues found during the checks.
+
+        """
+        file_issues: list[str] = []
 
         # Basic checks
         if len(content) < self.config.min_length:
-            file_issues.append(
-                f"[warning]Content too short ({len(content)} chars)[/warning]",
-            )
             file_issues.append(
                 f"[warning]Content too short ({len(content)} chars)[/warning]",
             )
@@ -220,7 +119,7 @@ class DocChecker:
         # Code examples
         if (
             self.config.code_example_required
-            and file_path.stem not in ["changelog", "license"]
+            and file_path.stem not in {"changelog", "license"}
             and not re.search(r"```.*\n", content)
         ):
             file_issues.append("[warning]No code examples found[/warning]")
@@ -235,18 +134,14 @@ class DocChecker:
                 file_issues.append(
                     f"[error]Missing required sections: {', '.join(missing)}[/error]",
                 )
-                file_issues.append(
-                    f"[error]Missing required sections: {', '.join(missing)}[/error]",
-                )
 
         # Image checks
-        if self.config.image_required:
-            if not re.search(r"!\[.*\]\(.*\)", content):
-                file_issues.append("[warning]No images found[/warning]")
+        if self.config.image_required and not re.search(r"!$$.*$$$.*$", content):
+            file_issues.append("[warning]No images found[/warning]")
 
         # Links check
-        links: list[tuple[str, str]] = re.findall(r"\[([^\]]+)\]\(([^\)]+)\)", content)
-        for _, url in links:  # Remove Unused variable
+        links: list[tuple[str, str]] = re.findall(r"$$([^$$]+)\]$([^$]+)\)", content)
+        for _, url in links:
             if not url.startswith(("http", "#", "/", "..")):
                 file_issues.append(f"[error]Invalid link: {url}[/error]")
 
@@ -255,13 +150,9 @@ class DocChecker:
         if lang_code and lang_code not in self.config.supported_languages:
             file_issues.append(f"[error]Unsupported language: {lang_code}[/error]")
 
-        if file_issues:
-            self.issues[str(file_path)] = file_issues
-            self.console.print(f"[file]{file_path}[/file]:")
-            for issue in file_issues:
-                self.console.print(f"  - {issue}")
+        return file_issues
 
-    def _get_language_code(self, file_path: Path) -> Optional[str]:
+    def _get_language_code(self, file_path: Path) -> str | None:
         """
         Extract language code from file path (suffix method).
 
@@ -279,10 +170,7 @@ class DocChecker:
         if len(parts) > NUMBER_OF_PARTS_FILE_PATH_NUMBER:  # Check if there's a language suffix
             lang = parts[-2]  # Language code is the second to last part
             # Check if there's a language suffix AND if language in supported languages
-            if (
-                len(parts) > NUMBER_OF_PARTS_FILE_PATH_NUMBER
-                and lang in self.config.supported_languages
-            ):
+            if len(parts) > NUMBER_OF_PARTS_FILE_PATH_NUMBER and lang in self.config.supported_languages:
                 return lang
         return None
 
@@ -296,9 +184,7 @@ class DocChecker:
 
         """
         base_docs: set[str] = set()
-        translated_docs: dict[str, set[str]] = {
-            lang: set() for lang in self.config.supported_languages
-        }
+        translated_docs: dict[str, set[str]] = {lang: set() for lang in self.config.supported_languages}
 
         # Collect all documents
         for file in docs_dir.rglob("*.md"):
@@ -322,6 +208,27 @@ class DocChecker:
                 self.console.print(f"[warning]Missing {lang} translations:[/warning]")
                 for doc in missing:
                     self.console.print(f"  - {doc}")
+
+    def check_markdown(self, file_path: Path) -> None:
+        """
+        Check a Markdown file for quality issues.
+
+        Args:
+        ----
+            file_path (Path): Path to the Markdown file.
+
+        """
+        content = self._read_file(file_path)
+        if content is None:
+            return
+
+        file_issues = self._perform_checks(file_path, content)
+
+        if file_issues:
+            self.issues[str(file_path)] = file_issues
+            self.console.print(f"[file]{file_path}[/file]:")
+            for issue in file_issues:
+                self.console.print(f"  - {issue}")
 
     def generate_report(self) -> None:
         """Generate a formatted report of issues."""
@@ -352,79 +259,58 @@ class DocChecker:
             )
 
 
-def create_default_config(config_path: Path) -> DocConfig:
-    """
-    Create a default doc_quality.yml config file.
-
-    Args:
-    ----
-        config_path (Path): Path to the configuration file.
-
-    Returns:
-    -------
-        DocConfig: A DocConfig instance representing the default
-            configuration.
-
-    """
-    config = DocConfig(
-        min_length=100,
-        required_sections={"Installation", "Usage", "Configuration"},
-        supported_languages={"en", "de", "it", "es"},
-        code_example_required=True,
-        image_required=True,
-    )
-    config_path.parent.mkdir(parents=True, exist_ok=True)
-    try:
-        with config_path.open("w", encoding="utf-8") as f:
-            yaml.dump(
-                {
-                    "min_length": config.min_length,
-                    "required_sections": list(config.required_sections),
-                    "supported_languages": list(config.supported_languages),
-                    "code_example_required": config.code_example_required,
-                    "image_required": config.image_required,
-                },
-                f,
-                indent=2,  # Add indentation for readability
-                width=LINE_LENGTH_LIMIT,  # Respect line length limit
-            )
-        console.print(
-            f"[success]Created default configuration at {config_path}[/success]",
-        )
-    except Exception as e:
-        console.print(f"[error]Error creating config file: {e}[/error]")
-        sys.exit(1)
-    return config
+def version_callback(*, value: bool) -> None:
+    if value:
+        console.print(f"{APP_NAME} Version: {APP_VERSION}")
+        raise typer.Exit
 
 
-def main() -> int:
+@app.command()
+def doc_quality(
+    docs_dir: str = typer.Option(
+        "docs",
+        "--docs_dir",
+        "-d",
+        exists=True,
+        file_okay=False,
+        dir_okay=False,
+        readable=True,
+        help="Directory where reports will be saved (overrides config).",
+        rich_help_panel="Configuration",
+    ),
+    _version: Annotated[bool | None, typer.Option("--version", callback=version_callback)] = None,
+) -> None:
     """Run documentation quality checks."""
     config = DocConfig()  # Create a DocConfig object to access config_path
 
     # Load configuration or create default
     if not config.config_path.exists():
-        config = create_default_config(config.config_path)
+        config = config.create_default_config(config.config_path)
     else:
-        config = DocConfig.from_yaml(config.config_path)
+        config = DocConfig.from_toml(config.config_path)
 
     checker = DocChecker(config)
 
+    docs_path = Path(docs_dir)
     # Check all markdown files
-    for md_file in DOCS_DIR.rglob("*.md"):
+    for md_file in docs_path.rglob("*.md"):
         checker.check_markdown(md_file)
 
     # Check translations
-    checker.check_translations(DOCS_DIR)
+    checker.check_translations(docs_path)
 
     # Generate report
     checker.generate_report()
 
     if checker.issues:
         console.print("[error]Documentation quality check failed.[/error]")
-        return 1
+        typer.Exit(1)
 
-    return 0
+
+def main() -> None:
+    """Main entry point for CLI dispatch."""
+    app()
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    main()

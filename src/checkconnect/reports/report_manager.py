@@ -98,7 +98,9 @@ class ReportManager:
         self.translator = context.translator
         self._ = self.translator.gettext
         self.data_dir = data_dir
+        self._ensure_data_directory()  # Call it here after data_dir is set
 
+    # --- Factory-Methods ---
     @classmethod
     def from_context(cls, context: AppContext) -> ReportManager:
         """
@@ -115,21 +117,23 @@ class ReportManager:
         -------
             A configured ReportManager instance.
         """
-        data_dir_str: str | None = context.config.get("data", "directory")
-        data_dir: Path
+        # The default value for get should be the most robust and standard path
+        default_data_path = str(user_data_dir(__about__.__app_name__, __about__.__app_org_id__))
 
-        if data_dir_str is None:
-            log.error(
-                context.translator.translate("Data directory not found in config. Using default system data directory")
+        data_dir_str: str = context.settings.get("data", "directory", default_data_path)
+        data_dir: Path = Path(data_dir_str)  # Convert to Path immediately
+
+        # Log an info message if the default was used
+        if data_dir_str == default_data_path:
+            log.info(
+                context.translator.translate(
+                    f"Data directory not found in config or invalid. Using default: '{data_dir}'"
+                )
             )
-            data_dir = Path(user_data_dir(__about__.__app_name__, __about__.__app_org_id__))
-            msg = context.translator.translate(f"Data directory not found in config. Using default {data_dir}")
-            log.info(msg)
         else:
-            data_dir = Path(data_dir_str)
+            log.info(context.translator.translate(f"Using data directory from config: '{data_dir}'"))
 
         instance = cls(context=context, data_dir=data_dir)
-        instance._ensure_data_directory(data_dir)  # noqa: SLF001
         return instance
 
     @classmethod
@@ -149,17 +153,18 @@ class ReportManager:
         -------
             A configured ReportManager instance.
         """
+        # If data_dir can be None here, it should be handled:
+        # Assuming data_dir from parameters will always be a Path or None
+        if data_dir is None:
+            data_dir = Path(user_data_dir(__about__.__app_name__, __about__.__app_org_id__))
+            log.info(context.translator.translate(f"data_dir parameter was None. Using default: '{data_dir}'"))
+
         instance = cls(context=context, data_dir=data_dir)
-        instance._ensure_data_directory(data_dir)  # noqa: SLF001
         return instance
 
-    def _ensure_data_directory(self, data_dir: Path) -> Path:
+    def _ensure_data_directory(self) -> Path:
         """
         Ensure the specified data directory exists, creating it and parent directories if necessary.
-
-        Args:
-        ----
-            data_dir: The path to the directory to ensure.
 
         Returns:
         -------
@@ -170,16 +175,18 @@ class ReportManager:
             DirectoryCreationError: If the directory cannot be created due to an OS error.
         """
         try:
-            data_dir.mkdir(parents=True, exist_ok=True)
+            self.data_dir.mkdir(parents=True, exist_ok=True)
+            self.logger.info(self._(f"Ensured data directory exists: '{self.data_dir}'"))
         except OSError as e:
             translated_message = self._(f"Failed to create directory '{data_dir}'. Original error: {e}")
+            self.logger.error(translated_message)
             raise DirectoryCreationError(translated_message, original_exception=e) from e
         else:
-            return data_dir
+            return self.data_dir
 
     def _get_filepath(self, data_type: ReportDataType) -> Path:
         """
-        Determines the full file path for a given report data type.
+        Determine the full file path for a given report data type.
 
         Args:
         ----
@@ -255,7 +262,7 @@ class ReportManager:
 
     def save_ntp_results(self, data: list[str]) -> None:
         """
-        Saves the NTP test results to a JSON file.
+        Save the NTP test results to a JSON file.
 
         Args:
         ----
@@ -265,7 +272,7 @@ class ReportManager:
 
     def load_ntp_results(self) -> list[str]:
         """
-        Loads the NTP test results from a JSON file.
+        Load the NTP test results from a JSON file.
 
         Returns:
         -------
@@ -275,7 +282,7 @@ class ReportManager:
 
     def save_url_results(self, data: list[str]) -> None:
         """
-        Saves the URL test results to a JSON file.
+        Save the URL test results to a JSON file.
 
         Args:
         ----
@@ -285,7 +292,7 @@ class ReportManager:
 
     def load_url_results(self) -> list[str]:
         """
-        Loads the URL test results from a JSON file.
+        Load the URL test results from a JSON file.
 
         Returns:
         -------
@@ -309,7 +316,9 @@ class ReportManager:
             SummaryDataLoadError: If there's a problem loading the data from the files.
         """
         ntp_results: list[str] = self.load_ntp_results()
+        print("[DEBUG] Loaded NTP results from file:", ntp_results)
         url_results: list[str] = self.load_url_results()
+        print("[DEBUG] Loaded URL results from file:", url_results)
 
         self.logger.info(self._("Previous results loaded from disk."))
         return ntp_results, url_results
@@ -326,7 +335,7 @@ class ReportManager:
 
     def results_exists(self) -> bool:
         """
-        Checks if both NTP and URL result files exist in the data directory.
+        Check if both NTP and URL result files exist in the data directory.
 
         Returns:
         -------

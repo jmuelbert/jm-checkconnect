@@ -16,7 +16,7 @@ from checkconnect.gui.gui_main import CheckConnectGUIRunner
 from checkconnect.gui.startup import run, setup_translations
 
 if TYPE_CHECKING:
-    from pytest.logging import LogCaptureFixture  # noqa: PT013 from RUFF for this line
+    from pytest.logging import LogCaptureFixture
     from pytest_mock import MockerFixture
 
     from checkconnect.config.appcontext import AppContext
@@ -223,6 +223,8 @@ class TestSetupTranslations:
 class TestRunFunction:
     """Unit tests for the `run` function, the main GUI entry point."""
 
+    mock_window: MagicMock
+
     @pytest.fixture
     def setup_run_mocks(self, mocker: MockerFixture) -> CheckConnectGUIRunner:
         """
@@ -248,6 +250,7 @@ class TestRunFunction:
         self,
         app_context_fixture: AppContext,
         mock_qapplication_class: MagicMock,
+        setup_run_mocks: CheckConnectGUIRunner,
     ) -> None:
         """
         Test `run` function when a new QApplication instance is created.
@@ -352,6 +355,7 @@ class TestRunFunction:
         mocker: MockerFixture,
         app_context_fixture: AppContext,
         mock_qapplication_class: MagicMock,
+        setup_run_mocks: CheckConnectGUIRunner,
     ) -> None:
         """
         Test `run` function's error handling if `app.exec()` raises an exception.

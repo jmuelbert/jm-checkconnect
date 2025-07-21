@@ -89,10 +89,12 @@ class CheckConnect:
         self.context = context
         self.logger = log
         self.translator = context.translator
-        self.config = context.config
+        self.config = context.settings
         self._ = context.gettext
 
         self.report_dir = self.config.get("reports", "directory", "reports")
+
+        print("DEBUG: CheckConnect initialized with report directory:", self.report_dir)
 
         self.report_manager = ReportManager.from_context(context=self.context)
 
@@ -116,7 +118,7 @@ class CheckConnect:
         key: str,
     ) -> CheckerT:
         """
-        Helper method to set up and configure a checker instance.
+        Help to set up and configure a checker instance.
 
         This method retrieves network configuration details from the application context,
         constructs a configuration object using the provided `config_cls`, and then
@@ -138,12 +140,17 @@ class CheckConnect:
         ------
             Exception: If an error occurs during the configuration or instantiation
                        of the checker, typically due to invalid settings.
+
         """
         network_config = self.config.get_section("network")
+        print("DEBUG: Network Configuration", network_config)
 
         # Get values that will be passed to Pydantic config_cls
         ntp_or_url_list = network_config.get(key, [])
+        print("DEBUG: NTP or URL List", ntp_or_url_list)
+
         timeout_value = network_config.get("timeout", 5)
+        print("DEBUG: Timeout Value", timeout_value)
 
         try:
             config_dict = {
@@ -170,9 +177,12 @@ class CheckConnect:
         re-raising.
         """
         self.logger.info(self.context.gettext("Starting all checks..."))
-
-        self.run_url_checks()
-        self.run_ntp_checks()
+        try:
+            self.run_url_checks()
+            self.run_ntp_checks()
+        except Exception:
+            self.logger.exception("Error running all checks")
+            raise
 
         self.logger.info(self.context.gettext("All checks completed successfully."))
 

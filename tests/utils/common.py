@@ -1,4 +1,3 @@
-
 import pytest
 from unittest.mock import MagicMock
 import logging
@@ -10,7 +9,7 @@ def assert_common_initialization(
     logging_manager_instance: MagicMock,
     translation_manager_instance: MagicMock,
     expected_cli_log_level: int,
-    expected_language: str
+    expected_language: str,
 ) -> None:
     """Helper function to assert common application initialization steps."""
     # SettingsManager
@@ -19,9 +18,7 @@ def assert_common_initialization(
 
     # TranslationManager: Ensure configure was called
     translation_manager_instance.configure.assert_called_once_with(
-        language=expected_language,
-        translation_domain=None,
-        locale_dir=None
+        language=expected_language, translation_domain=None, locale_dir=None
     )
 
     # AppContext: Ensure AppContext.create was called with the correct manager instances
@@ -34,7 +31,7 @@ def assert_common_initialization(
     # Logging Manager: Ensure apply_configuration was called
     logging_manager_instance.apply_configuration.assert_called_once_with(
         cli_log_level=expected_cli_log_level,
-        enable_console_logging=False, # Based on your tests, always False
+        enable_console_logging=False,  # Based on your tests, always False
         log_config=settings_manager_instance.get_section("logger"),
-        translator=translation_manager_instance
+        translator=translation_manager_instance,
     )

@@ -22,12 +22,10 @@ import ntplib
 import structlog
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from checkconnect.config.appcontext import AppContext  # noqa: TCH001
+from checkconnect.config.appcontext import AppContext  # noqa: TC001
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
-
-
 
 log = structlog.get_logger(__name__)
 

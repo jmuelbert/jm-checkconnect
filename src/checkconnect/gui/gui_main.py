@@ -32,10 +32,7 @@ from PySide6.QtWidgets import (
 
 from checkconnect import __about__
 from checkconnect.core.checkconnect import CheckConnect
-from checkconnect.reports.report_generator import (
-    generate_html_report,
-    generate_pdf_report,
-)
+from checkconnect.reports.report_generator import generate_html_report, generate_pdf_report
 from checkconnect.reports.report_manager import OutputFormat, ReportManager
 
 if TYPE_CHECKING:

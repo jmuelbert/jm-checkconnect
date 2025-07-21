@@ -18,7 +18,7 @@ import requests
 import structlog
 from pydantic import BaseModel, ConfigDict, HttpUrl, field_validator, model_validator
 
-from checkconnect.config.appcontext import AppContext  # noqa: TCH001
+from checkconnect.config.appcontext import AppContext  # noqa: TC001
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -213,7 +213,6 @@ class URLChecker:
         Returns:
             URLChecker: A configured URLChecker instance.
         """
-
         config = URLCheckerConfig(context=context, urls=urls, timeout=timeout)
         return cls(config=config)
 

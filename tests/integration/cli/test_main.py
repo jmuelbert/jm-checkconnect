@@ -169,10 +169,7 @@ class TestCliMain:
 
     @pytest.mark.unit
     def test_main_callback_raises_on_config_load_failure(
-        self,
-        runner: CliRunner,
-        mocker: MockerFixture,
-        mock_dependencies: dict[str, Any]
+        self, runner: CliRunner, mocker: MockerFixture, mock_dependencies: dict[str, Any]
     ) -> None:
         """
         Simulate a config load failure and assert graceful typer.Exit(1).

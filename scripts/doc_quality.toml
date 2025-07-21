@@ -1,0 +1,26 @@
+code_example_required = true
+image_required = true
+min_length = 100
+
+required_sections = ["Installation", "Usage", "Configuration"]
+
+supported_languages = [
+"en",
+"es",
+"fr",
+"de",
+"it",
+"pt",
+"pt_BR",
+"ru",
+"zh_CN",
+"zh_TW",
+"ja",
+"ko",
+"hi",
+"tr",
+"vi",
+"pl",
+"nl",
+"sv"
+]

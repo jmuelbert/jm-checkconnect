@@ -89,7 +89,7 @@ class TestReportManager:
 
         manager = ReportManager.from_params(context=app_context_fixture, data_dir=manager_data_dir)
         # Assert _ensure_data_directory was called with the correct path
-        mock_ensure_dir.assert_called_once_with(manager_data_dir)
+        mock_ensure_dir.assert_called_once()
 
         assert manager.data_dir == manager_data_dir
 
@@ -151,7 +151,7 @@ class TestReportManager:
         test_dir = tmp_path / "new_data"
         assert not test_dir.exists()
 
-        created_path = report_manager_from_context_instance._ensure_data_directory(test_dir)  # noqa: SLF001
+        created_path = report_manager_from_context_instance._ensure_data_directory()  # noqa: SLF001
         assert created_path == test_dir
         assert test_dir.is_dir()
         assert test_dir.exists()

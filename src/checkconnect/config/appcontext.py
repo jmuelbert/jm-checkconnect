@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: EUPL-1.2
+# SPDX-FileCopyrightText: © 2025-present Jürgen Mülbert
+
 """
 CheckConnect Application Context Module.
 
@@ -12,58 +15,42 @@ The `AppContext` serves as the central point of access for:
 - **Translation Management**: Accessible via `gettext()`.
 - **Configuration Management**: Handled by the `config` attribute.
 
-Main Components:
-----------------
-1.  **AppContext**:
-    The primary class responsible for managing and providing access to shared
-    resources. It's initialized with the application's configuration and
-    language, providing methods to retrieve a logger and perform translations.
-
-2.  **initialize_app_context()**:
-    A helper function that streamlines the creation and initialization of
-    an `AppContext` instance. It handles loading configurations from a TOML file
-    and setting up language-specific translations.
-
 Responsibilities:
 -----------------
-- Initialize and store shared application resources: logger, translation manager,
-  and configuration settings.
-- Provide unified access methods for logging and translations.
-- Load configuration settings from external files (e.g., `config.toml`).
-- Support internationalization through language-specific translations.
+- Store references to pre-initialized application managers: settings, translation.
+- Provide unified access methods for getting module-specific loggers and translations.
+- Act as a facade for other application components to access core services.
 
-Usage Example:
---------------
+Usage Example (within a subcommand):
+-----------------------------------
 ```python
-# Initialize application context with a config file and language
-from pathlib import Path
-from checkconnect.config.appcontext import initialize_app_context
+# In a Typer subcommand, after AppContext is passed via ctx.obj:
+from checkconnect.config.appcontext import AppContext
+import typer
 
-# Assuming 'path/to/config.toml' exists
-context = initialize_app_context(config_file=Path('path/to/config.toml'), language='en')
 
-# Access logger and translator
-logger = context.get_module_logger(__name__)
-logger.info("Starting CheckConnect...")
+@typer_app.command(...)
+def my_command(ctx: typer.Context):
+    app_context: AppContext = ctx.obj["app_context"]  # Assuming you store it here
 
-translated_message = context.gettext("Hello, world!")
-print(f"Translated: {translated_message}")
-"""
+    logger = app_context.get_module_logger(__name__)
+    logger.info(app_context.gettext("Starting CheckConnect..."))
+
+    config_value = app_context.settings.get_setting("network", "timeout")
+    logger.debug(f"Network timeout: {config_value}")"""
 
 from __future__ import annotations
+
 
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import structlog
 
-from checkconnect.config.logging_manager import LoggingManager
 from checkconnect.config.settings_manager import SettingsManager
 from checkconnect.config.translation_manager import TranslationManager
 
 if TYPE_CHECKING:
-    from pathlib import Path
-
     from structlog.stdlib import BoundLogger
 
 log = structlog.get_logger(__name__)
@@ -72,26 +59,37 @@ log = structlog.get_logger(__name__)
 @dataclass
 class AppContext:
     """
-    Manages shared application context, providing access to configuration,
-    logging, and translation services.
+    Manages shared application context, providing access to pre-initialized
+    configuration and translation services.
 
     This class serves as a central hub for essential application components,
     ensuring consistent access to global resources across the application.
+    It receives already-initialized singleton instances from the application's
+    main startup logic.
 
     Attributes
     ----------
     translator : TranslationManager
-        Manages message translations for the UI and CLI.
-    config : SettingsManager
+        Manages message translations for the UI and CLI. This is an
+        already initialized instance.
+    settings : SettingsManager
         An instance of the settings manager for application configuration.
+        This is an already initialized instance.
     """
 
+    # These attributes directly hold the instances of your managers
+    settings: SettingsManager
     translator: TranslationManager
-    config: SettingsManager
+    # No need for a separate logging_manager attribute unless AppContext
+    # needs to specifically manage the *logging_manager instance itself* (e.g., for shutdown).
+    # For getting loggers, structlog.get_logger() is sufficient globally.
 
     def get_module_logger(self, name: str) -> BoundLogger:
         """
         Retrieves a `structlog` logger instance for a specific module.
+
+        This method leverages the globally configured `structlog` system,
+        which is set up by the `LoggingManagerSingleton` during application startup.
 
         Parameters
         ----------
@@ -103,6 +101,8 @@ class AppContext:
         structlog.stdlib.BoundLogger
             A bound logger instance for the specified module.
         """
+        # structlog.get_logger() will automatically use the global configuration
+        # applied by LoggingManagerSingleton.
         return structlog.get_logger(name)
 
     def gettext(self, message: str) -> str:
@@ -124,74 +124,26 @@ class AppContext:
     @classmethod
     def create(
         cls,
-        config: SettingsManager | None = None,
-        language: str | None = None,
+        settings_instance: SettingsManager,  # Changed to accept an instance
+        translator_instance: TranslationManager,  # Changed to accept an instance
     ) -> AppContext:
         """
-        Factory method to create and initialize an `AppContext` instance.
-
-        This method loads application settings, configures the global logging
-        system, and initializes the translation manager based on provided
-        or default configuration and language settings.
+        Factory method to create an `AppContext` instance from pre-initialized managers.
 
         Parameters
         ----------
-        config : SettingsManager | None, optional
-            An optional pre-existing `SettingsManager` instance. If not provided,
-            a new default `SettingsManager` will be created.
-        language : str | None, optional
-            An optional language code (e.g., 'en', 'de') for translations.
-            If not provided, the default language configured by `TranslationManager`
-            will be used.
+        settings_instance : SettingsManager
+            An already initialized `SettingsManager` instance.
+        translator_instance : TranslationManager
+            An already initialized `TranslationManager` instance.
 
         Returns
         -------
         AppContext
             A fully initialized `AppContext` instance.
         """
-        config = config or SettingsManager()
-
-        # The LoggingManager MUST be instantiated here to configure the global logging system
-        # (i.e., structlog.configure() and setting up Python logger handlers).
-        # However, the `logging_manager` instance doesn't strictly need to be stored in AppContext,
-        # as it has fulfilled its purpose of _global configuration_.
-        # If you intend to use the shutdown mechanism of the LoggingManager,
-        # you could store the instance in AppContext and call the shutdown method
-        # when the application exits (e.g., in an __exit__ method of AppContext).
-        # For this specific logger name fix, though, it's not critical.
-        _ = LoggingManager(config=config)  # The global logging is configured here
-
-        translator = TranslationManager(language=language)
-
-        return cls(translator=translator, config=config)
-
-
-def initialize_app_context(
-    config_file: Path | None = None,
-    language: str | None = None,
-) -> AppContext:
-    """
-    Initializes and returns a fully configured AppContext instance for the application.
-
-    This function orchestrates the setup of the application's core context
-    by loading settings from a configuration file and setting up language
-    translations.
-
-    Parameters
-    ----------
-    config_file : Path | None, optional
-        The path to the TOML configuration file (e.g., `config.toml`).
-        If `None`, default settings will be used.
-    language : str | None, optional
-        The language code for translations (e.g., 'en', 'de').
-        If `None`, the system's default language or the default language
-        of `TranslationManager` will be used.
-
-    Returns
-    -------
-    AppContext
-        A fully initialized `AppContext` instance, ready for use across the application.
-    """
-    config = SettingsManager(config_file=config_file)
-
-    return AppContext.create(config=config, language=language)
+        print(
+            f"DEBUG: Call create with settings_instance: {settings_instance} and translator_instance: {translator_instance}"
+        )
+        # No internal creation here, just passing them to the constructor
+        return cls(settings=settings_instance, translator=translator_instance)

@@ -25,7 +25,7 @@ from checkconnect.core.url_checker import URLChecker, URLCheckerConfig
 if TYPE_CHECKING:
     from unittest.mock import MagicMock
 
-    from pytest.logging import LogCaptureFixture  # Import LogCaptureFixture for caplog
+    from pytest.logging import LogCaptureFixture
     from pytest_mock import MockerFixture
 
     from checkconnect.config.appcontext import AppContext
@@ -231,14 +231,17 @@ class TestURLCheckerConfig:
 
 
 class TestURLChecker:
-    """
+    (
+        """
     Test cases for the `URLChecker` class.
 
     This class contains tests for the core functionality of `URLChecker`,
     including successful URL requests, handling network errors, and
     processing multiple servers. It leverages mocks to isolate network
     interactions.
-    """""
+    """
+        ""
+    )
 
     @pytest.mark.unit
     @pytest.mark.parametrize("app_context_fixture", ["simple"], indirect=True)
@@ -268,8 +271,8 @@ class TestURLChecker:
 
         url_checker = URLChecker.from_params(
             context=app_context_fixture,
-            urls = ["http://example.com"],
-            timeout = 5,
+            urls=["http://example.com"],
+            timeout=5,
         )
 
         results = url_checker.run_url_checks()
@@ -283,7 +286,10 @@ class TestURLChecker:
         # Check logger output for info messages with the '[mocked]' prefix
         assert any("[mocked] Checking URLs ..." in record.message for record in caplog.records)
         assert any("[mocked] Checking URL server: http://example.com/" in record.message for record in caplog.records)
-        assert any("[mocked] Successfully connected to http://example.com/ with Status: 200" in record.message for record in caplog.records)
+        assert any(
+            "[mocked] Successfully connected to http://example.com/ with Status: 200" in record.message
+            for record in caplog.records
+        )
 
     @pytest.mark.unit
     @pytest.mark.parametrize("app_context_fixture", ["simple"], indirect=True)
@@ -332,7 +338,7 @@ class TestURLChecker:
     @pytest.mark.parametrize("app_context_fixture", ["simple"], indirect=True)
     def test_run_url_checks_successful(
         self,
-        mocker: MockFixture,
+        mocker: MockerFixture,
         valid_url_config: URLCheckerConfig,
         caplog: LogCaptureFixture,
     ) -> None:
@@ -375,7 +381,7 @@ class TestURLChecker:
     @pytest.mark.parametrize("app_context_fixture", ["simple"], indirect=True)
     def test_run_url_checks_request_error(
         self,
-        mocker: MockFixture,
+        mocker: MockerFixture,
         valid_url_config: URLCheckerConfig,
         caplog: LogCaptureFixture,
     ) -> None:
@@ -422,10 +428,7 @@ class TestURLChecker:
     @pytest.mark.unit
     @pytest.mark.parametrize("app_context_fixture", ["simple"], indirect=True)
     def test_url_checker_with_context(
-        self,
-        mocker: MockerFixture,
-        app_context_fixture: AppContext,
-        caplog: LogCaptureFixture
+        self, mocker: MockerFixture, app_context_fixture: AppContext, caplog: LogCaptureFixture
     ) -> None:
         """
         Test `URLChecker` functionality with a specific server configured via `from_params`.
@@ -445,8 +448,8 @@ class TestURLChecker:
 
         url_checker = URLChecker.from_params(
             context=app_context_fixture,
-            urls = ["https://example.com"],
-            timeout = 5,
+            urls=["https://example.com"],
+            timeout=5,
         )
 
         results = url_checker.run_url_checks()
@@ -454,19 +457,16 @@ class TestURLChecker:
         assert len(results) == 1
         assert "[mocked] Successfully connected to https://example.com/ with Status: 200" in results[0]
 
-
         # Check logger output
         assert any(
-            "[mocked] Successfully connected to https://example.com/ with Status: 200"  in record.message for record in caplog.records
+            "[mocked] Successfully connected to https://example.com/ with Status: 200" in record.message
+            for record in caplog.records
         )
 
     @pytest.mark.unit
     @pytest.mark.parametrize("app_context_fixture", ["simple"], indirect=True)
     def test_url_checker_with_site_not_found(
-        self,
-        mocker: MockerFixture,
-        app_context_fixture: AppContext,
-        caplog: LogCaptureFixture
+        self, mocker: MockerFixture, app_context_fixture: AppContext, caplog: LogCaptureFixture
     ) -> None:
         """
         Test `URLChecker`'s error handling for a site not found exception during URL request.
@@ -503,7 +503,8 @@ class TestURLChecker:
         assert any(
             "[mocked] Error by connection to" in record.message
             and record.levelname == "ERROR"  # Or CRITICAL/EXCEPTION depending on structlog setup
-            and "Failed to establish a new connection" in record.exc_info[1].args[0]  # Check original exception message in exc_info
+            and "Failed to establish a new connection"
+            in record.exc_info[1].args[0]  # Check original exception message in exc_info
             for record in caplog.records
         )
 
@@ -558,23 +559,19 @@ class TestURLChecker:
         assert "Status: 200" in results[2]
 
         # Check logger output for mixed results
+        assert any("[mocked] Checking URL server: http://example1.com/" in record.message for record in caplog.records)
         assert any(
-            "[mocked] Checking URL server: http://example1.com/" in record.message for record in caplog.records
+            "[mocked] Successfully connected to http://example1.com/ with Status: 200" in record.message
+            for record in caplog.records
         )
-        assert any(
-            "[mocked] Successfully connected to http://example1.com/ with Status: 200" in record.message for record in caplog.records
-        )
-        assert any(
-            "[mocked] Checking URL server: http://example2.com/" in record.message for record in caplog.records
-        )
+        assert any("[mocked] Checking URL server: http://example2.com/" in record.message for record in caplog.records)
         assert any(
             "[mocked] Error by connection to http://example2.com/: Failed" in record.message
             and record.levelname == "ERROR"
             for record in caplog.records
         )
+        assert any("[mocked] Checking URL server: http://example3.com/" in record.message for record in caplog.records)
         assert any(
-            "[mocked] Checking URL server: http://example3.com/" in record.message for record in caplog.records
-        )
-        assert any(
-            "[mocked] Successfully connected to http://example3.com/ with Status: 200" in record.message for record in caplog.records
+            "[mocked] Successfully connected to http://example3.com/ with Status: 200" in record.message
+            for record in caplog.records
         )

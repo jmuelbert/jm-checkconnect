@@ -59,8 +59,6 @@ Methods
 
 Exceptions Raised:
 -----------------
-- ConfigFileNotFoundError: Raised if the specified configuration file is not found.
-- InvalidConfigFileError: Raised if the configuration file is invalid or cannot be parsed.
 - InvalidLogLevelError: Raised if an invalid log level is provided in the configuration.
 - LogDirectoryError: Raised if the log directory cannot be created.
 - LogHandlerError: Raised if a logging handler cannot be created for the file or console output.
@@ -71,20 +69,24 @@ Usage of this class enables better control over application logging, helping wit
 
 from __future__ import annotations
 
+import traceback
 import logging
+import logging.config
+import logging.handlers
 import sys
-from logging.handlers import RotatingFileHandler
+from collections.abc import Callable
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, ClassVar, Final, Self, Unpack
+from typing import TYPE_CHECKING, Optional, Any, ClassVar, Final, Self, Unpack
 
 import structlog
-from platformdirs import user_log_dir
 from rich.console import Console
+from structlog.stdlib import ProcessorFormatter
 
 from checkconnect.__about__ import __app_name__
-from checkconnect.config.settings_manager import SettingsManager, SettingsManagerSingleton
+from checkconnect.config.appcontext import AppContext
+from checkconnect.config.settings_manager import SettingsManager
 from checkconnect.config.translation_manager import TranslationManagerSingleton
-from checkconnect.exceptions import InvalidLogLevelError, LogDirectoryError, LogHandlerError
+from checkconnect.exceptions import LogHandlerError
 
 if TYPE_CHECKING:
     from types import TracebackType
@@ -92,16 +94,21 @@ if TYPE_CHECKING:
     from structlog.stdlib import BoundLogger
     from structlog.typing import Processor
 
-# Diese Typen einmalig sichern, bevor Tests patchen
-REAL_FILE_HANDLER_TYPE = logging.FileHandler
-REAL_ROTATING_FILE_HANDLER_TYPE = logging.handlers.RotatingFileHandler
 
-# Global logger for main.py (will be reconfigured by LoggingManagerSingleton)
-log: structlog.stdlib.BoundLogger
-log = structlog.get_logger(__name__)
-
+# Define a placeholder for the manager's logger until it's configured
+# This is typically done with a basicConfig or by configuring root logger early.
+# For demo, let's assume `logging` is available.
+# This ensures that even before the LoggingManager is fully set up,
+# basic logging messages can be emitted.
+logging.basicConfig(level=logging.INFO)  # Bootstrap basic logging
 
 error_console = Console(file=sys.stderr)
+
+VERBOSITY_LEVELS = {
+    0: logging.WARNING,
+    1: logging.INFO,
+    2: logging.DEBUG,
+}
 
 
 # --- Logging Manager ---
@@ -109,10 +116,9 @@ class LoggingManager:
     """
     A logging manager for cross-platform logging with structured.
 
-    This class provides a centralized way to configure and manage logging
-    in your application. It integrates Python's logging system with structlog
-    to support both structured logging and standard console/file-based logging
-    with log rotation.
+    Manages the full configuration of the application's logging.
+    This class is responsible for setting up various log handlers
+    (console, file, rotating file) based on provided settings.
 
     Features:
     - Console logging with colored output.
@@ -135,8 +141,7 @@ class LoggingManager:
 
     Attributes
     ----------
-    _instance:
-    _is_initialized: Boolean True or False
+
     config SettingsManager: Application configuration settings.
     log_dir : Path
         Directory where log files are stored.
@@ -175,8 +180,10 @@ class LoggingManager:
     application can handle logging requirements for both development and production.
 
     """
-    _instance = None
-    _is_initialized: bool = False # To prevent re-initialization
+
+    _logger: structlog.stdlib.BoundLogger
+    _internal_errors: list[str]
+    effective_log_level: int
 
     # Constants with improved typing
     APP_NAME: Final[str] = __app_name__
@@ -185,416 +192,88 @@ class LoggingManager:
     DEFAULT_MAX_BYTE: Final[int] = 1024 * 1024
     DEFAULT_BACKUP_COUNT: Final[int] = 3
 
-    # Shared structlog processors with proper typing
-    SHARED_PROCESSORS: Final[list[Processor]] = [
-        structlog.stdlib.add_logger_name,
-        structlog.stdlib.add_log_level,
-        structlog.processors.TimeStamper(fmt="iso", utc=True),  # UTC is good for logs
-        structlog.processors.StackInfoRenderer(),
-        structlog.processors.format_exc_info,
-        structlog.processors.UnicodeDecoder(),
-        # No renderers here! Renderers should be part of the formatter setup.
-    ]
+    # Setzen Sie den Typ für '_' hier
+    # Es ist eine Funktion, die einen String nimmt und einen String zurückgibt.
+    _: Callable[[str], str]
 
-    def __new__(cls, *args, **kwargs):
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-        return cls._instance
-
-    def __init__(
-        self,
-        config: SettingsManager | None = None,
-        cli_log_level: int | None = None,
-        enable_console_logging: bool = False
-    ) -> None:
+    def __init__(self) -> None:
         """
-        Initialize logger.
+        Initialize LoggingManager attributes with default/None values.
 
-        Args:
-            config: An optional SettingsManager instance.
-            cli_log_level: Optional. A logging module level (e.g., logging.DEBUG, logging.INFO)
-                           to override the level read from the config file.
+        Does NOT apply the full logging configuration yet.
+        Call .apply_configuration() to set up logging.
         """
-        if not self._is_initialized:
-            try:
-                self.config = config or SettingsManagerSingleton.get_instance()
-                self._ = TranslationManagerSingleton.get_instance().gettext
-                self.setup_errors = [] # <--- This is what we'll assert on
-                self.log_dir = self._ensure_log_dir()  # Can raise LogDirectoryError
-                self._active_handlers = []
-                self.setup_logging(cli_log_level, enable_console_logging)
-                self._is_initialized = True
-            except Exception as e:
-                msg = self._(f"[bold red]Failed to initialize LoggingManager: {e}[/bold red]")
-                error_console.print(msg)
-                self.setup_errors.append(msg)
-                raise
-        else:
-            # If already initialized (e.g., second call to __init__ which happens when
-            # the singleton holds a reference to a fully initialized object), do nothing.
-            # This is important if `get_instance` always calls `LoggingManager()`.
-            pass # Or log a debug message
+        print("[DEBUG] LoggingManager instance created (lightweight init)")
 
-    def __enter__(self) -> Self:
-        """Enter the context manager."""
-        return self
+        self._internal_errors = []
+        self._logger = None
 
-    def __exit__(
-        self,
-        exc_type: type[BaseException] | None,
-        exc_val: BaseException | None,
-        exc_tb: TracebackType | None,
-    ) -> None:
-        """
-        Exit the context manager and clean up resources.
+        # Attributes that will be set by apply_configuration
+        self.cli_log_level: int | None = None
+        self.enable_console_logging: bool = False
+        self.log_config: dict[str, Any] = {}
+        self.effective_log_level = 0
+        self.translator: Any = None  # Or use a dummy translator if needed immediately
+        self._ = lambda x: x
 
-        This method ensures proper cleanup of logging resources by:
-        1. Shutting down all logging handlers
-        2. Resetting structlog to its default state
-        """
-        self.shutdown()
-
-    def _ensure_log_dir(self) -> Path:
-        """
-        Ensure the log directory exists and return its path.
-
-        Returns
-        -------
-            The path to the log directory.
-
-        Raises
-        ------
-            LogDirectoryError: If creating the log directory fails.
-
-        """
-        try:
-            log_dir = Path(user_log_dir(self.APP_NAME))
-            log_dir.mkdir(parents=True, exist_ok=True)
-        except OSError as e:
-            msg = self._(f"Failed to create log directory {e}")
-            raise LogDirectoryError(msg) from e
-        else:
-            return log_dir
-
-    def _resolve_log_path(self, filename: str) -> Path:
-        """
-        Return full path to the log file in the OS-specific log directory.
-
-        Args:
-        ----
-            filename: The name of the log file.
-
-        Returns:
-        -------
-            A Path object representing the full path to the log file.
-
-        """
-        return self.log_dir / filename
-
-    def setup_logging(
-        self, 
-        cli_log_level: int = logging.INFO,
-        enable_console_logging: bool = False
-    ) -> structlog.stdlib.BoundLogger:
-        """
-        Configures structlog and Python logging handlers. This method can be called
-        publicly to reconfigure logging if necessary, e.g., to change the log level.
-
-        Args:
-            cli_log_level:  An optional logging module level (e.g., logging.DEBUG)
-                                that overrides the level from the config file.
-
-
-        Returns
-        -------
-            A structlog logger instance configured according to the loaded
-            configuration.
-
-        Raises
-        ------
-            InvalidLogLevelError: If the config contains an invalid log level.
-            LogHandlerError: If creating log file handlers fails.
-
-        """
-        logger_config = self.config.get_section("logger")
-        log_level_str = logger_config.get("level", "INFO").upper()
-        # Determine the final log level: CLI override takes precedence
-        if cli_log_level is not None:
-            log_level = cli_log_level
-        else:
-            # Validate log level from config
-            log_level = getattr(logging, log_level_str, None)
-            if log_level is None:
-                msg = self._(f"Invalid log level specified: {log_level_str}")
-                raise InvalidLogLevelError(msg)
-
-        # Configure root logger
-        root_logger = logging.getLogger()
-
-        # Remove existing handlers to prevent duplicates, especially important for re-configuration
-        # or in testing environments where the logger might be setup multiple times.
-        # This loop iterates over a copy of the handlers list because removing items
-        # while iterating the original can lead to unexpected behavior.
-        for handler in root_logger.handlers[:]:
-            root_logger.removeHandler(handler)
-        self._active_handlers.clear()  # Also clear the internal tracking list
-
-        root_logger.setLevel(log_level)  # Set the root logger's level
-
-        # Create formatters for standard logging handlers using structlog's ProcessorFormatter
-        # The `log_format` from your config.toml won't directly be used by logging.Formatter here.
-        # Instead, ProcessorFormatter renders the structlog event dictionary.
-        # You would pass a format string as an argument to the renderer (e.g., ConsoleRenderer)
-        # if the renderer supports it for custom text output.
-        console_formatter = structlog.stdlib.ProcessorFormatter(
-            processor=structlog.dev.ConsoleRenderer(
-                colors=True,
-                exception_formatter=structlog.dev.plain_traceback,
-                # Consider if you can pass `log_format` here as an argument to ConsoleRenderer
-                # if it allows customization to achieve your desired format.
-                # Many structlog renderers ignore the standard `logging.Formatter`'s format string;
-                # you control ConsoleRenderer's output through its own options.
-            ),
-            foreign_pre_chain=self.SHARED_PROCESSORS,
-        )
-
-        file_formatter = structlog.stdlib.ProcessorFormatter(
-            processor=structlog.processors.JSONRenderer(),  # JSON for file logging is a good choice
-            foreign_pre_chain=self.SHARED_PROCESSORS,
-        )
-
-        # Add handlers (now using the `ProcessorFormatter` instances)
-        # Add console handler if enabled
-        if enable_console_logging:
-            try:
-                self._add_console_handler(console_formatter, root_logger)
-            except LogHandlerError as e:
-                msg = self._(f"[bold red]CRITICAL ERROR: Failed to add console handler: {e}[/bold red]")
-                error_console.print(msg)
-                self.setup_errors.append(msg)
-                raise
-
-        try:
-            self._add_file_handlers(file_formatter, root_logger)
-        except LogHandlerError as e:
-            msg = self._(f"[bold blue]WARNING: File logging setup failed: {e}[/bold blue]")
-            error_console.print(msg)
-            self.setup_errors.append(msg)
-
-
-        # Configure structlog itself (only if not already configured).
-        # `structlog.is_configured()` checks if structlog.configure() has been called successfully.
-        if not structlog.is_configured():
-            structlog.configure(
-                processors=[
-                    *self.SHARED_PROCESSORS,
-                    structlog.stdlib.ProcessorFormatter.wrap_for_formatter,
-                ],
-                wrapper_class=structlog.make_filtering_bound_logger(log_level),
-                logger_factory=structlog.stdlib.LoggerFactory(),
-                cache_logger_on_first_use=True,  # Recommended for performance
-            )
-        else:
-            # If already configured (e.g., in tests), structlog.configure() might not
-            # re-apply all settings if `cache_logger_on_first_use` is True for existing loggers.
-            # However, for a one-time CLI setup, this path is usually less critical.
-            # You might log a warning here if this scenario is unexpected.
-            pass
-
-        return structlog.get_logger(self.APP_NAME)
-
-    def _add_console_handler(
-        self,
-        formatter: structlog.stdlib.ProcessorFormatter,
-        root_logger: logging.Logger,
-    ) -> None:
-        """
-        Add a console handler to the root logger.
-
-        Args:
-        ----
-            formatter: The formatter to use for log messages
-            root_logger: The root logger to add the handler to
-
-        Raises:
-        ------
-            LogHandlerError: If the console handler creation fails
-
-        """
-        console_handler_config = self.config.get_section("console_handler")
-        # Default disabled, add only if CLI is active
-        if console_handler_config.get("enabled", False):
-            try:
-                console_handler = logging.StreamHandler()
-                console_handler.setFormatter(formatter)
-                root_logger.addHandler(console_handler)
-                self._active_handlers.append(console_handler)
-            except (TypeError, AttributeError, MemoryError) as e:
-                msg = self._(f"Failed to set up console handler due to formatter or memory issues: {e}")
-                raise LogHandlerError(msg) from e
-            except Exception as e:  # Catch any other unexpected errors during handler setup
-                msg = self._(f"Failed to add console handler: {e}")
-                # Instead of `log.exception(msg)`, raise LogHandlerError directly
-                raise LogHandlerError(msg) from e
-
-    def _add_file_handlers(
-        self,
-        formatter: structlog.stdlib.ProcessorFormatter,
-        root_logger: logging.Logger,
-    ) -> None:
-        """
-        Add file and rotating file handlers to the root logger.
-
-        Raises
-        ------
-            LogHandlerError: If creating log file handlers fails.
-
-        """
-        file_handler_config = self.config.get_section("file_handler")
-        if file_handler_config.get("enabled", False):  # Default disabled
-            file_name = file_handler_config.get(
-                "file_name",
-                self.DEFAULT_LOG_FILENAME,
-            )
-            file_name = self._resolve_log_path(file_name)
-            try:
-                file_handler = logging.FileHandler(file_name)
-                file_handler.setFormatter(formatter)
-                root_logger.addHandler(file_handler)
-                self._active_handlers.append(file_handler)
-            except (OSError, ValueError) as e:
-                msg = self._(
-                    f"Failed to create file handler for {file_name}: {e}",
-                )
-                error_console.print(f"[bold blue]WARNING: File logging setup failed: {msg}[/bold blue]")
-                log.warning(msg, exc_info=e)
-                self.setup_errors.append(msg)
-
-        # Rotating file handler
-        rotating_handler_config = self.config.get_section("limited_file_handler")
-        if rotating_handler_config.get("enabled", True):  #  Default enabled
-            file_name = rotating_handler_config.get(
-                "file_name",
-                self.DEFAULT_LIMITED_LOG_FILENAME,
-            )
-            file_name = self._resolve_log_path(file_name)
-            try:
-                max_bytes = int(rotating_handler_config.get("max_bytes", 1024))
-                backup_count = int(rotating_handler_config.get("backup_count", 5))
-                rotating_handler = RotatingFileHandler(
-                    file_name,
-                    maxBytes=max_bytes,
-                    backupCount=backup_count,
-                )
-                rotating_handler.setFormatter(formatter)
-                root_logger.addHandler(rotating_handler)
-                self._active_handlers.append(rotating_handler)
-            except (OSError, ValueError) as e:
-                msg = self._(
-                    f"Failed to create rotating file handler for {file_name}: {e}",
-                )
-                error_console.print(f"[bold blue]WARNING: File logging setup failed: {msg}[/bold blue]")
-                log.warning(msg, exc_info=e)
-                self.setup_errors.append(msg)
-
-    def set_is_initialized(
+    def apply_configuration(
         self,
         *,
-        value: bool = False
+        cli_log_level: int | None = None,
+        enable_console_logging: bool,
+        log_config: dict[str, Any],
+        translator: Any,
     ) -> None:
-        self._is_initialized = value
+        """
+        Apply the full logging configuration to the manager.
+
+        This method should be called by the Singleton manager.
+        """
+        print("[DEBUG] LoggingManager.apply_configuration called.")
+
+        # Clear previous errors for a fresh configuration attempt
+        self._internal_errors.clear()
+
+        # Set instance attributes
+        self.cli_log_level = cli_log_level
+        self.enable_console_logging = enable_console_logging
+        self.log_config = log_config
+        self.translator = translator
+        self._ = self.translator.translate  # Convenient alias for translation
+
+        # Use a temporary logger for messages *during* configuration,
+        # before the full structlog setup is complete.
+        temp_logger = structlog.get_logger("LoggingManagerInit")
+        temp_logger.debug(self._("LoggingManager instance created. Applying configuration..."))
+
+        try:
+            # All the logic that was previously in your original __init__ goes here
+            # (e.g., setting up structlog, configuring handlers, etc.)
+            self._apply_full_configuration()  # This method would contain your actual logging setup logic
+
+            temp_logger.info(self._("Full logging configuration applied."))
+        except Exception as e:  # Catch specific LogHandlerError if possible
+            print(traceback.format_exc())  # TEMPORARY
+            error_msg = self._("Critical error applying logging configuration: ")
+            self._internal_errors.append(error_msg + str(e))
+            temp_logger.exception(error_msg)
+            # Re-raise for the singleton to catch and report as critical
+            raise
 
     def shutdown(self) -> None:
         """
-        Closes and removes all active handlers from the root logger,
-        and performs a comprehensive cleanup of the logging system and structlog.
+        Shut down logging handlers to ensure logs are flushed and resources released.
+
+        This should be called during application exit, especially in tests.
         """
         root_logger = logging.getLogger()
+        for handler in root_logger.handlers[:]:
+            handler.close()
+            root_logger.removeHandler(handler)
 
-        # Step 1: Explicitly close and remove all handlers managed by THIS LoggingManager instance
-        # It's safer to iterate over a copy of the list that `root_logger.handlers` provides
-        handlers_to_remove = []
-        for hdlr in root_logger.handlers:
-            # Check if this handler was added by *this* manager
-            # This is key for responsible cleanup in production, but in tests,
-            # you might decide to clear all if your tests don't leave other handlers.
-            if hdlr in self._active_handlers:
-                try:
-                    hdlr.close()
-                except (OSError, ValueError, Exception) as e:
-                    msg = self._(
-                        f"Warning: Failed to close handler {hdlr!r}: {e}"
-                    )
-                    error_console.print(msg)
-                    log.warning(msg, exc_info=e)
-                    self.setup_errors.append(msg)
-                handlers_to_remove.append(hdlr)
-
-        # Remove the identified handlers from the logger
-        for hdlr in handlers_to_remove:
-            root_logger.removeHandler(hdlr)
-
-        self._active_handlers.clear() # Clear the internal tracking list
-
-        # Step 2: Perform a broader shutdown of the standard logging module.
-        # This flushes buffers and sets internal flags to prevent new handlers
-        # from being added or loggers being used after shutdown.
-        logging.shutdown()
-
-        # Step 3: Reset structlog's configuration.
-        structlog.reset_defaults()
-
-        # Step 4: Ensure the root logger is reset to a clean state.
-        # logging.shutdown() usually handles some of this, but explicit resetting
-        # can help in complex test scenarios.
-        root_logger.setLevel(logging.NOTSET) # Reset level
-        # Explicitly clear all handlers from the root logger's list,
-        # in case logging.shutdown() or previous steps missed any.
-        # This handles handlers that might NOT have been in _active_handlers
-        # but were still on the root_logger.
-        for hdlr in root_logger.handlers[:]:
-            # Ensure any remaining handlers are also closed if they are FileHandlers
-            if isinstance(hdlr,  REAL_FILE_HANDLER_TYPE):
-                try:
-                    hdlr.close()
-                except (OSError, ValueError, Exception) as e:
-                    msg = self._(
-                        f"Warning: Failed to close remaining handler {hdlr!r}: {e}[/bold blue]",
-                    )
-                    error_console.print(msg)
-                    log.warning(msg, exc_info=e)
-                    self.setup_errors.append(msg)
-            root_logger.removeHandler(hdlr)
-        root_logger.handlers.clear() # Ensure the list is truly empty
-
-        # Step 5: Reset singleton flags.
-        # These are crucial for your singleton pattern to work correctly across tests.
-        LoggingManager._is_initialized = False
-        LoggingManager._instance = None # This resets the class-level singleton instance
-        # If LoggingManagerSingleton also has an _instance, it should be set to None as well.
-        # You're already doing this in cleanup_singletons, which is good.
-
-
-    def get_logger(self, name: str | None = None) -> BoundLogger:
-        """
-        Get a logger instance.
-
-        Args:
-        ----
-            name: The name of the logger. If None, uses APP_NAME.
-
-        Returns:
-        -------
-            A configured structlog logger instance.
-
-        Note:
-        ----
-            Configuration is cached after the first call to avoid
-            unnecessary reconfiguration of structlog.
-
-        """
-        return structlog.get_logger(name if name is not None else self.APP_NAME)
-
+    def get_logger(self, name: str | None = None) -> structlog.stdlib.BoundLogger:
+        """Return the main application logger instance."""
+        return structlog.get_logger(name) if name else structlog.get_logger()
 
     def info(self, msg: str, **kwargs: Unpack[dict[str, Any]]) -> None:
         """
@@ -611,9 +290,9 @@ class LoggingManager:
         # If get_logger is called directly before any logging, it ensures the logger is bound.
         structlog.get_logger(self.APP_NAME).info(msg, **kwargs)
 
-    def exception(self, msg: str, **kwargs: Unpack[dict[str, Any]]) -> None:
+    def debug(self, msg: str, **kwargs: Unpack[dict[str, Any]]) -> None:
         """
-        Shortcut for exception-level logging, automatically adding exc_info.
+        Shortcut for debug-level logging.
 
         Args:
         ----
@@ -621,19 +300,7 @@ class LoggingManager:
             **kwargs: Additional key-value pairs to include in the log record.
 
         """
-        structlog.get_logger(self.APP_NAME).exception(msg, **kwargs)  # structlog's exception handles exc_info
-
-    def error(self, msg: str, **kwargs: Unpack[dict[str, Any]]) -> None:
-        """
-        Shortcut for error-level logging.
-
-        Args:
-        ----
-            msg: The message to log.
-            **kwargs: Additional key-value pairs to include in the log record.
-
-        """
-        structlog.get_logger(self.APP_NAME).error(msg, **kwargs)
+        structlog.get_logger(self.APP_NAME).debug(msg, **kwargs)
 
     def warning(self, msg: str, **kwargs: Unpack[dict[str, Any]]) -> None:
         """
@@ -647,9 +314,9 @@ class LoggingManager:
         """
         structlog.get_logger(self.APP_NAME).warning(msg, **kwargs)
 
-    def debug(self, msg: str, **kwargs: Unpack[dict[str, Any]]) -> None:
+    def error(self, msg: str, **kwargs: Unpack[dict[str, Any]]) -> None:
         """
-        Shortcut for debug-level logging.
+        Shortcut for error-level logging.
 
         Args:
         ----
@@ -657,49 +324,366 @@ class LoggingManager:
             **kwargs: Additional key-value pairs to include in the log record.
 
         """
-        structlog.get_logger(self.APP_NAME).debug(msg, **kwargs)
+        structlog.get_logger(self.APP_NAME).error(msg, **kwargs)
+
+    def critical(self, msg: str, **kwargs: Unpack[dict[str, Any]]) -> None:
+        """
+        Shortcut for error-level logging.
+
+        Args:
+        ----
+            msg: The message to log.
+            **kwargs: Additional key-value pairs to include in the log record.
+
+        """
+        structlog.get_logger(self.APP_NAME).error(msg, **kwargs)
+
+    def exception(self, msg: str, **kwargs: Unpack[dict[str, Any]]) -> None:
+        """
+        Shortcut for exception-level logging, automatically adding exc_info.
+
+        Args:
+        ----
+            msg: The message to log.
+            **kwargs: Additional key-value pairs to include in the log record.
+
+        """
+        structlog.get_logger(self.APP_NAME).exception(msg, **kwargs)  # structlog's exception handles exc_info
+
+    def get_instance_errors(self) -> list[str]:
+        """Exposes internal errors encountered during configuration."""
+        return list(self._internal_errors)
+
+    # --- private methods ---
+    def _clear_existing_handlers(self, root_logger: logging.Logger) -> None:
+        """Clear all existing handlers from the root logger."""
+        for handler in root_logger.handlers[:]:
+            root_logger.removeHandler(handler)
+        self._logger.debug(self._("Cleared existing root logger handlers."))
+
+    def _get_effective_log_level(self, logger_main_settings: dict[str, Any]) -> int:
+        """Determine the effective log level based on settings and CLI override."""
+        # 1. Get level from settings (config.toml)
+        settings_level_str = logger_main_settings.get("level", "INFO").upper()
+        effective_level = getattr(logging, settings_level_str, None)
+        self._logger.debug(
+            self._("Effective log level from settings: "),
+            settings_level_str=settings_level_str,
+            effective_level=effective_level,
+        )
+
+        # Handle invalid settings level
+        if not isinstance(effective_level, int):
+            self._internal_errors.append(
+                self._(f"Invalid log level '{settings_level_str}' in config. Falling back to INFO.")
+            )
+            effective_level = logging.INFO
+            self._logger.warning(
+                self._("Invalid log level from settings. Falling back to INFO."), settings_level_str=settings_level_str
+            )
+        else:
+            self._logger.debug(self._("Config log level is valid."), config_level=logging.getLevelName(effective_level))
+
+        # 2. Apply CLI log level override
+        # The 'min' function here is crucial: a lower numerical value means higher verbosity.
+        # So, min(WARNING, INFO) = WARNING. min(INFO, DEBUG) = INFO.
+        # This implies that if CLI is more verbose (e.g., DEBUG), it will be a lower number than config (e.g., INFO).
+        # Your description "CLI log level applied, potentially increasing verbosity" confirms this.
+        # For example: if config is INFO (20) and CLI is DEBUG (10), min(20, 10) = 10 (DEBUG).
+        # If config is DEBUG (10) and CLI is WARNING (30), min(10, 30) = 10 (DEBUG).
+        # This correctly means CLI only "increases" verbosity (makes the level number smaller)
+        # if the CLI level itself is more verbose than the config.
+        if self.cli_log_level is not None:
+            # We assume self.cli_log_level is already a valid logging int level from VERBOSITY_LEVELS
+            original_effective_level = effective_level
+            effective_level = min(effective_level, self.cli_log_level)
+            self._logger.info(
+                self._("CLI log level applied, potentially increasing verbosity."),
+                cli_log_level=logging.getLevelName(self.cli_log_level),
+                original_effective_level=logging.getLevelName(original_effective_level),
+                final_effective_level=logging.getLevelName(effective_level),
+            )
+        else:
+            self._logger.debug(self._("No CLI log level provided, using config/default."))
+
+        self._logger.debug(
+            self._("Final effective log level calculated."), final_level=logging.getLevelName(effective_level)
+        )
+        return effective_level
+
+    def _get_primary_renderer(self, logger_main_settings: dict[str, Any]) -> Any:
+        """Determineand returns the primary structlog renderer."""
+        output_format = logger_main_settings.get("output_format", "console").lower()
+        if output_format == "json":
+            self._logger.debug(self._("Using JSONRenderer for output."))
+            return structlog.processors.JSONRenderer()
+        else:
+            self._logger.debug(self._("Using ConsoleRenderer for output."))
+            return structlog.dev.ConsoleRenderer()
+
+    def _get_shared_processors(self) -> list[Any]:
+        """Return the list of shared structlog processors."""
+        self._logger.debug(self._("Defining shared structlog processors."))
+        return [
+            structlog.stdlib.add_logger_name,
+            structlog.stdlib.add_log_level,
+            structlog.stdlib.PositionalArgumentsFormatter(),
+            structlog.processors.TimeStamper(fmt="iso", utc=True),
+            structlog.processors.StackInfoRenderer(),
+            structlog.processors.format_exc_info,
+            structlog.processors.UnicodeDecoder(),
+        ]
+
+    def _setup_console_handler(
+        self,
+        root_logger: logging.Logger,
+        primary_renderer: Any,
+        shared_processors: list[Any],
+        console_handler_settings: dict[str, Any],
+    ) -> None:
+        """Set up the console log handler if enabled."""
+        if self.enable_console_logging or console_handler_settings.get("enabled"):
+            try:
+                console_handler = logging.StreamHandler(sys.stdout)
+                console_formatter = ProcessorFormatter(
+                    processor=primary_renderer,
+                    foreign_pre_chain=shared_processors,
+                )
+                console_handler.setFormatter(console_formatter)
+                root_logger.addHandler(console_handler)
+                self._logger.debug(self._("Console handler added."))
+            except Exception as e:
+                msg = self._("Failed to set up console handler:")
+                self._internal_errors.append(msg + str(e))
+                self._logger.exception(msg)
+
+    def _setup_file_handler(
+        self,
+        root_logger: logging.Logger,
+        primary_renderer: Any,
+        shared_processors: list[Any],
+        file_handler_settings: dict[str, Any],
+        logger_main_settings: dict[str, Any],
+    ) -> None:
+        """Set up the main file log handler if enabled."""
+        if file_handler_settings.get("enabled"):
+            try:
+                file_name = file_handler_settings.get("file_name", "checkconnect.log")
+                log_dir_str = logger_main_settings.get("log_directory")
+                if not log_dir_str:
+                    msg = self._("Log directory not specified in settings for file handler.")
+                    raise ValueError(mesg)
+                log_dir = Path(log_dir_str)
+                log_file_path = log_dir / file_name
+                log_file_path.parent.mkdir(parents=True, exist_ok=True)
+
+                file_handler = logging.FileHandler(log_file_path, mode="a", encoding="utf-8")
+                file_formatter = ProcessorFormatter(
+                    processor=primary_renderer,
+                    foreign_pre_chain=shared_processors,
+                )
+                file_handler.setFormatter(file_formatter)
+                root_logger.addHandler(file_handler)
+                self._logger.debug(self._(f"File handler added {log_file_path}"))
+            except Exception as e:
+                msg = self._("Failed to set up file handler: ")
+                self._internal_errors.append(msg + str(e))
+                self._logger.exception(msg)
+
+    def _setup_limited_file_handler(
+        self,
+        root_logger: logging.Logger,
+        primary_renderer: Any,
+        shared_processors: list[Any],
+        limited_file_handler_settings: dict[str, Any],
+        logger_main_settings: dict[str, Any],
+    ) -> None:
+        """Set up the rotating file log handler if enabled."""
+        if limited_file_handler_settings.get("enabled"):
+            try:
+                file_name = limited_file_handler_settings.get("file_name", "limited_checkconnect.log")
+                max_bytes = limited_file_handler_settings.get("max_bytes", 1024 * 1024 * 5)  # Default 5MB
+                backup_count = limited_file_handler_settings.get("backup_count", 5)
+
+                log_dir_str = logger_main_settings.get("log_directory")
+                if not log_dir_str:
+                    msg = self._("Log directory not specified in settings for limited file handler.")
+                    raise ValueError(msg)
+                log_dir = Path(log_dir_str)
+                limited_log_file_path = log_dir / file_name
+                limited_log_file_path.parent.mkdir(parents=True, exist_ok=True)
+
+                rotating_handler = logging.handlers.RotatingFileHandler(
+                    limited_log_file_path, maxBytes=max_bytes, backupCount=backup_count, encoding="utf-8"
+                )
+                rotating_formatter = ProcessorFormatter(
+                    processor=primary_renderer,
+                    foreign_pre_chain=shared_processors,
+                )
+                rotating_handler.setFormatter(rotating_formatter)
+                root_logger.addHandler(rotating_handler)
+                self._logger.debug(self._(f"Limited file handler added. {limited_log_file_path}"))
+            except Exception as e:
+                msg = self._("Failed to set up limited file handler: ")
+                self._internal_errors.append(msg + str(e))
+                self._logger.exception(msg)
+
+    # The main _apply_full_configuration method, now much shorter
+    def _apply_full_configuration(self) -> None:
+        """Apply the full structlog and standard logging configuration."""
+        print("[DEBUG] _apply_configuration was called")
+        if self._logger is None:
+            # Use a simple structlog logger for setup messages
+            self._logger = structlog.get_logger("LoggingManagerInit")
+            self._logger.debug("LoggingManagerInit logger assigned for setup messages.")
+
+        root_logger = logging.getLogger()
+        self._clear_existing_handlers(root_logger)
+
+        if not self.log_config:
+            self._internal_errors.append("Logging configuration dictionary is empty.")
+            self._logger.warning("No logging configuration provided.")
+
+        logger_main_settings = self.log_config.get("logger", {})
+        console_handler_settings = self.log_config.get("console_handler", {})
+        file_handler_settings = self.log_config.get("file_handler", {})
+        limited_file_handler_settings = self.log_config.get("limited_file_handler", {})
+
+        self.effective_log_level = self._get_effective_log_level(logger_main_settings)
+        root_logger.setLevel(self.effective_log_level)
+        self._logger.debug(self._("Root logger level set level"), effective_level=self.effective_log_level)
+
+        primary_renderer = self._get_primary_renderer(logger_main_settings)
+        shared_processors = self._get_shared_processors()
+
+        self._setup_console_handler(root_logger, primary_renderer, shared_processors, console_handler_settings)
+        self._setup_file_handler(
+            root_logger, primary_renderer, shared_processors, file_handler_settings, logger_main_settings
+        )
+        self._setup_limited_file_handler(
+            root_logger, primary_renderer, shared_processors, limited_file_handler_settings, logger_main_settings
+        )
+
+        # ✅ Re-fetch the logger AFTER configuration
+        self._logger = structlog.get_logger("LoggingManagerInit")
+
+        self._logger.debug(self._("Structlog core configured."))
 
 
 class LoggingManagerSingleton:
+    """
+    Singleton class for LoggingManager.
+
+    Ensures a single instance manages application logging
+    and handles its controlled initialization.
+    """
+
     _instance: LoggingManager | None = None
-    _initialization_errors: ClassVar[list[str]] = [] # New: To track errors during the singleton's init attempt
+    _initialization_errors: ClassVar[list[str]] = []
+    _is_configured: ClassVar[bool] = False  # Track if the instance has been configured
 
     @classmethod
-    def get_instance(cls, cli_log_level: int | None = None, enable_console_logging: bool = True) -> LoggingManager:
+    def get_instance(cls) -> LoggingManager:
+        """
+        Return the single instance of LoggingManager.
+
+        Raises RuntimeError if not yet initialized.
+        """
+        if cls._instance is None:
+            raise RuntimeError("LoggingManager has not been initialized. Call initialize_from_context first.")
+        return cls._instance
+
+    @classmethod
+    def initialize_from_context(
+        cls, *, app_context: AppContext, cli_log_level: int | None = None, enable_console_logging: bool = True
+    ) -> None:
+        """
+        Initialize the LoggingManagerSingleton.
+
+        Using settings from the AppContext
+        and CLI-derived parameters.
+        """
+        print("[DEBUG] initialize_from_context was called")
+        print("[DEBUG] initialize_from_context was called. cls._is_configured: ", cls._is_configured)
+        if cls._is_configured:
+            # Use the already configured logger if available, otherwise bootstrap
+            current_logger = cls._instance.get_logger() if cls._instance else logging.getLogger(__name__)
+            current_logger.warning("Attempted to re-initialize LoggingManagerSingleton, but it's already configured.")
+            cls._initialization_errors.append("LoggingManagerSingleton already configured. Cannot re-configure.")
+            return  # Prevent re-initialization
+
+        # Create the lightweight instance if it doesn't exist yet
+        print("[DEBUG] initialize_from_context was called. cls._instance: ", cls._instance)
         if cls._instance is None:
             try:
-                cls._instance = LoggingManager(cli_log_level=cli_log_level, enable_console_logging=enable_console_logging)
-                # If LoggingManager.__init__ completes successfully,
-                # then transfer any errors it collected during its setup
-                # (e.g., if file handlers failed but console succeeded)
-                if cls._instance.setup_errors:
-                    cls._initialization_errors.extend(cls._instance.setup_errors)
-            except LogHandlerError as e:
-                # If LoggingManager.__init__ fails with a critical error,
-                # record it here and re-raise. The instance remains None.
-                cls._initialization_errors.append(str(e))
-                cls._instance = None # Ensure it's explicitly None if init failed
-                raise # Re-raise the original exception
+                cls._instance = LoggingManager()  # Lightweight creation
             except Exception as e:
-                # Catch any other unexpected errors during LoggingManager init
-                cls._initialization_errors.append(f"Unexpected error during LoggingManager init: {e}")
+                cls._initialization_errors.append(f"Error creating LoggingManager instance: {e}")
                 cls._instance = None
-                raise # Re-raise
-        return cls._instance
+                raise  # Re-raise critical creation error
+
+        cls._initialization_errors.clear()  # Clear errors for a fresh initialization attempt
+
+        try:
+            print("[DEBUG by INIT] configure_logging from context: ", app_context.settings)
+            print("[DEBUG by INIT] configure_logging from context: ", app_context.settings.get_section("logger"))
+            print(
+                "[DEBUG by INIT] configure_logging from context: ", app_context.settings.get_section("console_handler")
+            )
+            print("[DEBUG by INIT] configure_logging from context: ", app_context.settings.get_section("file_handler"))
+            print(
+                "[DEBUG by INIT] configure_logging from context: ",
+                app_context.settings.get_section("limited_file_handler"),
+            )
+            # Extract logging config specific sections from AppContext settings
+
+            logging_config_for_manager = {
+                "logger": app_context.settings.get_section("logger"),
+                "console_handler": app_context.settings.get_section("console_handler"),
+                "file_handler": app_context.settings.get_section("file_handler"),
+                "limited_file_handler": app_context.settings.get_section("limited_file_handler"),
+            }
+
+            # Call the instance's new apply_configuration method
+            print("[DEBUG] call apply_configuration")
+            cls._instance.apply_configuration(
+                cli_log_level=cli_log_level or logging.INFO,  # Provide a default if None
+                enable_console_logging=enable_console_logging,
+                log_config=logging_config_for_manager,
+                translator=app_context.translator,  # Pass translator to manager if it translates log messages
+            )
+
+            # Collect any non-critical setup errors from the instance
+            cls._initialization_errors.extend(cls._instance.get_instance_errors())
+            cls._is_configured = True  # Mark as configured only on success
+
+        except LogHandlerError as e:
+            cls._initialization_errors.append(str(e))
+            # No need to set _instance to None here, as it was already created.
+            # The instance is there, but its configuration failed.
+            raise  # Re-raise critical errors
+        except Exception as e:
+            cls._initialization_errors.append(f"Unexpected error during LoggingManager configuration: {e}")
+            raise  # Re-raise unexpected errors
 
     @classmethod
     def get_initialization_errors(cls) -> list[str]:
         """Exposes initialization errors for testing/debugging."""
-        return cls._initialization_errors
+        errors = list(cls._initialization_errors)
+        if cls._instance:
+            errors.extend(cls._instance.get_instance_errors())  # Now calling public method
+        return list(set(errors))  # Return unique errors
 
     @classmethod
-    def reset(cls) -> None: # Or rename to cleanup_instance or similar
+    def reset(cls) -> None:  # Or rename to cleanup_instance or similar
         """
-        Resets the singleton instance and its associated state,
-        including clearing any initialization errors.
+        Reset the singleton instance.
+
+        Including clearing any initialization errors.
         This is primarily for testing to ensure a clean state.
         """
         if cls._instance:
-            cls._instance.shutdown() # Call the instance's shutdown method (e.g., to close file handlers)
+            cls._instance.shutdown()  # Call the instance's shutdown method (e.g., to close file handlers)
         cls._instance = None
-        cls._initialization_errors.clear() # Clear any accumulated errors
+        cls._initialization_errors.clear()  # Clear any accumulated errors
+        cls._is_configured = False  # Reset configured flag

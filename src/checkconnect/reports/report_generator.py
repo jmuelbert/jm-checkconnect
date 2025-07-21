@@ -18,8 +18,12 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Final
 
 import structlog
+from platformdirs import user_data_dir
+
 from pydantic import BaseModel, ValidationError, ValidationInfo, field_validator
 from weasyprint import HTML
+
+from checkconnect import __about__
 
 from checkconnect.exceptions import DirectoryCreationError, ReportsMissingDataError
 
@@ -234,13 +238,13 @@ class ReportGenerator:
     context: AppContext
     logger: BoundLogger
     translator: TranslationManager
-    output_dir: Path
+    reports_dir: Path
     _: Any  # Placeholder for gettext function
 
     def __init__(
         self,
         context: AppContext,
-        output_dir: Path,
+        reports_dir: Path,
     ) -> None:
         """
         Initialize the ReportGenerator with the application context and output directory.
@@ -248,13 +252,14 @@ class ReportGenerator:
         Args:
         ----
             context: The application context containing configuration, logger, and translator.
-            output_dir: The directory to store the generated reports.
+            reports_dir: The directory to store the generated reports.
         """
         self.context = context
         self.logger = log
         self.translator = context.translator
         self._ = self.translator.gettext
-        self.output_dir = output_dir
+        self.reports_dir = reports_dir
+        self._ensure_reports_directory
 
     # --- Factory-Methods ---
     @classmethod
@@ -274,47 +279,49 @@ class ReportGenerator:
         ------
             ValueError: If the report directory is not found in the configuration.
         """
-        output_dir: Path
-        output_dir_str: str | None = context.config.get("reports", "directory", "reports")
-        if output_dir_str is None:
-            log.error(
+        # The default value for get should be the most robust and standard path
+        default_reports_path = str(user_data_dir(__about__.__app_name__, __about__.__app_org_id__))
+
+        reports_dir_str: str = context.settings.get("reports", "directory", default_reports_path)
+        reports_dir = Path(reports_dir_str)
+
+        # Log an info message if the default was used
+        if reports_dir_str == default_reports_path:
+            log.info(
                 context.translator.translate(
-                    "Report directory not found in config. Using default reports directory as default"
+                    f"Reports directory not found in config or invalid. Using default: '{reports_dir}'"
                 )
             )
-            output_dir_str = "reports"
+        else:
+            log.info(context.translator.translate(f"Using data directory from config: '{reports_dir}'"))
 
-        output_dir = Path(output_dir_str)
-
-        instance = cls(context=context, output_dir=output_dir)
-        instance._ensure_output_directory(output_dir)  # noqa: SLF001
-        return instance
+        return cls(context=context, reports_dir=reports_dir)
 
     @classmethod
-    def from_params(cls, context: AppContext, output_dir: Path) -> ReportGenerator:
+    def from_params(cls, context: AppContext, reports_dir: Path) -> ReportGenerator:
         """
         Create a ReportGenerator from an application context and a specified output directory.
 
         Args:
         ----
             context: The application context containing config, logger, and translator.
-            output_dir: The directory to store the generated reports.
+            reports_dir: The directory to store the generated reports.
 
         Returns:
         -------
             A configured ReportGenerator instance.
         """
-        instance = cls(context=context, output_dir=output_dir)
-        instance._ensure_output_directory(output_dir)  # noqa: SLF001
-        return instance
+        # If data_dir can be None here, it should be handled:
+        # Assuming data_dir from parameters will always be a Path or None
+        if reports_dir is None:
+            reports_dir = Path(user_data_dir(__about__.__app_name__, __about__.__app_org_id__))
+            log.info(context.translator.translate(f"reports_dir parameter was None. Using default: '{reports_dir}'"))
 
-    def _ensure_output_directory(self, output_dir: Path) -> Path:
+        return cls(context=context, reports_dir=reports_dir)
+
+    def _ensure_reports_directory(self) -> Path:
         """
         Ensure the output directory exists, creating it if necessary.
-
-        Args:
-        ----
-            output_dir: The path to the directory to ensure.
 
         Returns:
         -------
@@ -325,12 +332,14 @@ class ReportGenerator:
             DirectoryCreationError: If the directory cannot be created.
         """
         try:
-            output_dir.mkdir(parents=True, exist_ok=True)
+            self.reports_dir.mkdir(parents=True, exist_ok=True)
+            self.logger.info(self._(f"Ensured reports directory exists: '{self.reports_dir}'"))
         except OSError as e:
-            msg = self._(f"Failed to create report directory {output_dir}: {e}")
-            raise DirectoryCreationError(msg, original_exception=e) from e
+            translated_message = self._(f"Failed to create directory '{self.reports_dir}'. Original error: {e}")
+            self.logger.error(translated_message)
+            raise DirectoryCreationError(translated_message, original_exception=e) from e
         else:
-            return output_dir
+            return self.reports_dir
 
     def _validate_results(self, ntp_results: list[str], url_results: list[str]) -> None:
         """
@@ -374,7 +383,7 @@ class ReportGenerator:
         -------
             The path to the created report file.
         """
-        report_path = self.output_dir / report_filename
+        report_path = self.reports_dir / report_filename
         with open(report_path, "w", encoding="utf-8") as f:
             f.write(self._("Connectivity Report\n\n"))
             f.write(self._("NTP Results:\n"))
@@ -406,7 +415,7 @@ class ReportGenerator:
             ntp_results: A list of NTP check results.
             url_results: A list of URL check results.
         """
-        self.logger.info(self._("Generating reports in %s"), self.output_dir)
+        self.logger.info(self._("Generating reports in %s"), self.reports_dir)
 
         self.generate_html_report(
             ntp_results=ntp_results,
@@ -441,7 +450,7 @@ class ReportGenerator:
             OSError: If there is an error writing the HTML file.
             Exception: For any other unexpected errors during report generation.
         """
-        self.logger.info(self._("Creating HTML report with NTP servers and URLs from config in %s"), self.output_dir)
+        self.logger.info(self._("Creating HTML report with NTP servers and URLs from config in %s"), self.reports_dir)
 
         try:
             ReportInput(ntp_results=ntp_results, url_results=url_results)
@@ -459,7 +468,7 @@ class ReportGenerator:
             html_content = report_template.render(ntp_content, url_content)
 
             # Ensure output directory exists and write the HTML content
-            output_path = self.output_dir / self.HTML_FILENAME
+            output_path = self.reports_dir / self.HTML_FILENAME
             output_path.write_text(html_content, encoding="utf-8")
 
             self.logger.info(self._("HTML report generated at %s"), str(output_path))
@@ -492,7 +501,7 @@ class ReportGenerator:
             ValidationError: If the input data fails Pydantic validation.
             Exception: For any errors during PDF generation via WeasyPrint.
         """
-        self.logger.info(self._("Creating PDF report with NTP servers and URLs from config in %s"), self.output_dir)
+        self.logger.info(self._("Creating PDF report with NTP servers and URLs from config in %s"), self.reports_dir)
 
         try:
             ReportInput(ntp_results=ntp_results, url_results=url_results)
@@ -509,7 +518,7 @@ class ReportGenerator:
             report_template = ReportTemplate()
             html_content = report_template.render(ntp_content, url_content)
 
-            output_path = self.output_dir / self.PDF_FILENAME
+            output_path = self.reports_dir / self.PDF_FILENAME
 
             # Generate the PDF
             HTML(string=html_content).write_pdf(str(output_path))

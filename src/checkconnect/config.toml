@@ -1,0 +1,36 @@
+[logger]
+level = "INFO"
+format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+log_directory = "/Users/juergen/Library/Logs/checkconnect"
+output_format = "console"
+
+[console_handler]
+enabled = false
+
+[file_handler]
+enabled = true
+file_name = "checkconnect.log"
+
+[limited_file_handler]
+enabled = true
+file_name = "limited_checkconnect.log"
+max_bytes = 1024
+backup_count = 5
+
+[gui]
+enabled = true
+
+[reports]
+directory = "/Users/juergen/Library/Application Support/checkconnect"
+
+[data]
+directory = "/Users/juergen/Library/Application Support/checkconnect"
+
+[network]
+timeout = 5
+ntp_servers = [
+    "pool.ntp.org",
+]
+urls = [
+    "https://example.com",
+]
