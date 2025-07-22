@@ -78,7 +78,7 @@ def gui(ctx: typer.Context) -> None:
         raise typer.Exit(1)
     except Exception as e:
         # Catch any other unexpected errors during GUI startup or lifecycle
-        console.print(f"[bold red]Critical Error:[/bold red] Cannot start GUI due to application error:{e}")
+        console.print(f"[bold red]Critical Error:[/bold red] An unexpected error occurred during GUI startup: ({e})")
         log.exception(app_context.gettext(f"An unexpected error occurred during GUI startup: {e}"))
         raise typer.Exit(1)
 

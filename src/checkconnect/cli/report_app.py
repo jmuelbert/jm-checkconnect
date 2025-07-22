@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import Annotated
-
+from rich.console import Console
 import structlog
 import typer
 
@@ -23,6 +23,8 @@ from checkconnect.config.appcontext import AppContext
 from checkconnect.core.checkconnect import CheckConnect
 from checkconnect.reports.report_generator import ReportGenerator
 from checkconnect.reports.report_manager import ReportManager
+
+console = Console()
 
 report_app = typer.Typer(pretty_exceptions_show_locals=False)
 
@@ -63,7 +65,7 @@ def reports(
     app_context: AppContext = ctx.obj["app_context"]
 
     # Now, use the AppContext to access services
-    log.info(app_context.gettext("Starting CLI in tests mode"))
+    log.info(app_context.gettext("Starting Checkconnect in generate-reports mode."))
     # The 'verbose' setting's effect on logging level is already handled by main_callback
     # so no need for specific "Verbose logging enabled" messages unless you want more nuance.
     log.debug(app_context.gettext("Debug logging is active based on verbosity setting."))
@@ -77,6 +79,7 @@ def reports(
         if report_manager.results_exists():
             ntp_results, url_results = report_manager.load_previous_results()
         else:
+            print("[DEBUG Report-App] Generating reports...")
             checker = CheckConnect(context=app_context)
             checker.run_all_checks()
             ntp_results = checker.ntp_results
@@ -88,12 +91,12 @@ def reports(
             url_results=url_results,
         )
 
-    except ExitExceptionError:
-        log.exception(context.gettext("Error in generate-reports mode"))
-        log.error(app_context.gettext(f"Exiting due to: {e}"))
+    except ExitExceptionError as e:
+        console.print(f"[bold red]Critical Error:[/bold red] Cannot start generate reports for checkconnect. ({e})")
+        log.exception(context.gettext(f"Cannot start generate reports for checkconnect error: {e}"))
         raise typer.Exit(1)
 
     except Exception as e:
-        log.exception(app_context.gettext("An unexpected error occurred during tests."))
-        log.error(app_context.gettext(f"Exiting due to unexpected error: {e}"))
+        console.print(f"[bold red]Critical Error:[/bold red]An unexpected error occurred generate reports. ({e})")
+        log.exception(app_context.gettext(f"An unexpected error occurred generate reports error:{e}"))
         raise typer.Exit(1)

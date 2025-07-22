@@ -17,9 +17,10 @@ from checkconnect.config import logging_manager
 from checkconnect.config.logging_manager import LoggingManagerSingleton
 from checkconnect.config.appcontext import AppContext
 
+from tests.utils.common import assert_common_cli_logs
 
 class TestCliMain:
-    @pytest.mark.unit
+    @pytest.mark.integration
     def test_main_callback_with_all_options(
         self,
         mock_dependencies: dict[str, Any],
@@ -81,36 +82,81 @@ class TestCliMain:
         # Checkconnect called?
         check_connect_instance.run_all_checks.assert_called_once()
 
-        # --- Asserting on Log Entries using caplog_structlog ---
-        print("Asserting on Log Entries using caplog_structlog:")
-        for log_entry in caplog_structlog:
-            print(log_entry)
-        print("------------------------------------------------")
+        # --- Asserting on Specific Log Entries from Your Output ---
 
+        # 1. Assert initial CLI startup (DEBUG)
         assert any(
-            "Main callback: is starting" in log_entry["event"] and log_entry["log_level"] == "debug"
-            for log_entry in caplog_structlog
+            e.get("event") == "Main callback: is starting!" and e.get("log_level") == "debug" for e in caplog_structlog
         )
+        assert any(
+            e.get("event") == "CLI Args"
+            and e.get("log_level") == "debug"
+            and e.get("verbose") == 1
+            and e.get("language") == "en"
+            and e.get("config_file") == str(config_file)
+            for e in caplog_structlog
+        )
+
+        # 2. Assert key INFO level success messages
+        assert any(
+            e.get("event") == "Main callback: SettingsManager initialized and configuration loaded."
+            and e.get("log_level") == "info"
+            for e in caplog_structlog
+        )
+        assert any(
+            e.get("event") == "Main callback: TranslationManager initialized." and e.get("log_level") == "info"
+            for e in caplog_structlog
+        )
+        assert any(
+            e.get("event") == "Main callback: Full logging configured based on application settings and CLI options."
+            and e.get("log_level") == "info"
+            for e in caplog_structlog
+        )
+
+
+        # 4. Assert CLI-Verbose and Logging Level determination (DEBUG)
+        assert any(
+            e.get("event") == "Main callback: Determined CLI-Verbose and Logging Level to pass to LoggingManager."
+            and e.get("log_level") == "debug"
+            and e.get("verbose_input") == 1
+            and e.get("derived_cli_log_level") == "INFO"
+            for e in caplog_structlog
+        )
+
+        # 5. Assert "Debug logging is active" (DEBUG)
+        # This one is tricky if it *always* appears when `caplog_structlog` captures at DEBUG.
+        # If it specifically means the *application* is running in debug, then assert.
+        # If it's just reflecting your test setup's debug level, it's less of a functional assertion.
+        assert any(
+            e.get("event") == "Debug logging is active based on verbosity setting." and e.get("log_level") == "debug"
+            for e in caplog_structlog
+        )
+
+        # Optional: Assert no ERROR/CRITICAL logs in a successful run
+        assert not any(e.get("log_level") in ["error", "critical"] for e in caplog_structlog)
+
 
         # Check config file was passed and assigned
         loaded_config_file = settings_manager_instance.loaded_config_file
         assert loaded_config_file == config_file
 
-    @pytest.mark.unit
+    @pytest.mark.integration
     @pytest.mark.parametrize(
-        ("cli_arg", "expected_log_level"),
+        ("cli_arg", "expected_log_level", "expected_level", "expected_verbose"),
         [
-            ("--verbose", logging.INFO),
-            ("-vv", logging.DEBUG),
+            ("--verbose", logging.INFO, "INFO", 1),
+            ("-vv", logging.DEBUG, "DEBUG", 2),
         ],
     )
     def test_verbose_flag_levels(
         self,
         cli_arg: str,
         expected_log_level: int,
-        mocker: MockerFixture,
+        expected_level: str,
+        expected_verbose: int,
         mock_dependencies: dict[str, Any],
         runner: CliRunner,
+        caplog_structlog: list[EventDict],
     ) -> None:
         """
         Test that verbosity level maps correctly to log level.
@@ -133,7 +179,61 @@ class TestCliMain:
             translator=translation_manager_instance,  # Pass the translation manager mock
         )
 
-    @pytest.mark.unit
+        # --- Asserting on Specific Log Entries from Your Output ---
+
+        # 1. Assert initial CLI startup (DEBUG)
+        assert any(
+            e.get("event") == "Main callback: is starting!" and e.get("log_level") == "debug" for e in caplog_structlog
+        )
+        assert any(
+            e.get("event") == "CLI Args"
+            and e.get("log_level") == "debug"
+            and e.get("verbose") == expected_verbose
+            and e.get("language") is None
+            and e.get("config_file") is None
+            for e in caplog_structlog
+        )
+
+        # 2. Assert key INFO level success messages
+        assert any(
+            e.get("event") == "Main callback: SettingsManager initialized and configuration loaded."
+            and e.get("log_level") == "info"
+            for e in caplog_structlog
+        )
+        assert any(
+            e.get("event") == "Main callback: TranslationManager initialized." and e.get("log_level") == "info"
+            for e in caplog_structlog
+        )
+        assert any(
+            e.get("event") == "Main callback: Full logging configured based on application settings and CLI options."
+            and e.get("log_level") == "info"
+            for e in caplog_structlog
+        )
+
+
+        # 4. Assert CLI-Verbose and Logging Level determination (DEBUG)
+        assert any(
+            e.get("event") == "Main callback: Determined CLI-Verbose and Logging Level to pass to LoggingManager."
+            and e.get("log_level") == "debug"
+            and e.get("verbose_input") == expected_verbose
+            and e.get("derived_cli_log_level") == expected_level
+            for e in caplog_structlog
+        )
+
+        # 5. Assert "Debug logging is active" (DEBUG)
+        # This one is tricky if it *always* appears when `caplog_structlog` captures at DEBUG.
+        # If it specifically means the *application* is running in debug, then assert.
+        # If it's just reflecting your test setup's debug level, it's less of a functional assertion.
+        assert any(
+            e.get("event") == "Debug logging is active based on verbosity setting." and e.get("log_level") == "debug"
+            for e in caplog_structlog
+        )
+
+        # Optional: Assert no ERROR/CRITICAL logs in a successful run
+        assert not any(e.get("log_level") in ["error", "critical"] for e in caplog_structlog)
+
+
+    @pytest.mark.integration
     @pytest.mark.parametrize(
         ("cli_arg", "language"),
         [("--language", "en"), ("-l", "de"), ("--language", "xx")],
@@ -142,9 +242,9 @@ class TestCliMain:
         self,
         cli_arg: str,
         language: str,
-        mocker: MockerFixture,
         mock_dependencies: dict[str, Any],
         runner: CliRunner,
+        caplog_structlog: list[EventDict],
     ) -> None:
         """
         Test that verbosity level maps correctly to log level.
@@ -157,7 +257,6 @@ class TestCliMain:
         # Runner
         result = runner.invoke(main_app, [cli_arg, language, "run"])
 
-        print(result.stdout)
         assert result.exit_code == 0, f"Unexpected failure: {result.output}"
 
         # Translation Manager
@@ -167,9 +266,30 @@ class TestCliMain:
             locale_dir=None,
         )
 
-    @pytest.mark.unit
+        # --- Asserting on Specific Log Entries from Your Output ---
+        assert_common_cli_logs(caplog_structlog)
+
+        # Assert CLI Args
+        assert any(
+            e.get("event") == "CLI Args"
+            and e.get("log_level") == "debug"
+            and e.get("verbose") == 0
+            and e.get("language") == language
+            and e.get("config_file") is None
+            for e in caplog_structlog
+        )
+
+        # At the end of the assert block for successful tests:
+        assert not any(e.get("log_level") == "error" or e.get("log_level") == "critical" for e in caplog_structlog), (
+            "Unexpected ERROR or CRITICAL logs found in a successful test run."
+        )
+
+    @pytest.mark.integration
     def test_main_callback_raises_on_config_load_failure(
-        self, runner: CliRunner, mocker: MockerFixture, mock_dependencies: dict[str, Any]
+        self,
+        mocker: MockerFixture, mock_dependencies: dict[str, Any],
+        runner: CliRunner,
+        caplog_structlog: list[EventDict],
     ) -> None:
         """
         Simulate a config load failure and assert graceful typer.Exit(1).
@@ -191,7 +311,39 @@ class TestCliMain:
         assert "Critical Error" in result.output
         assert "Failed to load application configuration" in result.output
 
-    @pytest.mark.unit
+        # --- Asserting on Specific Log Entries from Your Output ---
+        # 1. Assert initial CLI startup (DEBUG)
+        assert any(
+            e.get("event") == "Main callback: is starting!" and e.get("log_level") == "debug" for e in caplog_structlog
+        )
+
+        # Assert CLI Args
+        assert any(
+            e.get("event") == "CLI Args"
+            and e.get("log_level") == "debug"
+            and e.get("verbose") == 0
+            and e.get("language") is None
+            and e.get("config_file") is None
+            for e in caplog_structlog
+        )
+
+        # 2. Assert key INFO level success messages
+        assert any(
+            e.get("event") == "Main callback: Initializing SettingsManager..."
+            and e.get("log_level") == "debug"
+            for e in caplog_structlog
+        )
+
+        # At the end of the assert block for successful tests:
+        assert any(
+            e.get("log_level") == "error" or e.get("log_level") == "critical" and
+            e.get("event") == "Main callback: Failed to initialize SettingsManager or load configuration!" and
+            e.get("error_details") == "Boom"
+            for e in caplog_structlog
+        )
+
+
+    @pytest.mark.integration
     def test_main_callback_with_invalid_config_file(
         self,
         mock_dependencies: dict[str, Any],
@@ -213,9 +365,9 @@ class TestCliMain:
         assert result.exit_code != 0, f"Unexpected failure: {result.output}"
         assert "Invalid value for '--config'" in result.output
 
+
     def test_main_with_help_option(
         self,
-        mocker: Any,
         runner: CliRunner,
     ) -> None:
         """
@@ -267,7 +419,7 @@ class TestCliMain:
         assert "summary   Generate a summary of the most recent connectivity test results." in result.output
         assert "gui       Run CheckConnect in graphical user interface (GUI) mode." in result.output
 
-    @pytest.mark.unit
+    @pytest.mark.integration
     def test_main_with_version_option(self, runner: CliRunner) -> None:
         """
         Ensure the --version flag prints version and exits early.

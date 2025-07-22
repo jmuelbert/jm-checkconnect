@@ -14,6 +14,7 @@ import logging
 
 from typing import TYPE_CHECKING, Any
 
+from pydantic_core.core_schema import ErrorType
 import pytest
 from pytest_mock import MockerFixture
 from unittest.mock import MagicMock
@@ -24,7 +25,7 @@ import checkconnect.gui.startup as gui_startup  # For patching
 from checkconnect.exceptions import ExitExceptionError
 from checkconnect.config.appcontext import AppContext
 
-from tests.utils.common import assert_common_initialization
+from tests.utils.common import assert_common_initialization, assert_common_cli_logs
 
 if TYPE_CHECKING:
     # If EventDict is a specific type alias in structlog
@@ -86,6 +87,7 @@ class TestCliGUI:
             translation_manager_instance,
             expected_cli_log_level=logging.WARNING,  # Default from verbose=0 in cli_main
             expected_language="en",
+            expected_console_logging=False
         )
 
         # Specific assertion for the GUI command
@@ -95,11 +97,9 @@ class TestCliGUI:
         )
 
         # --- Asserting on Specific Log Entries from Your Output ---
+        assert_common_cli_logs(caplog_structlog)
 
-        # 1. Assert initial CLI startup (DEBUG)
-        assert any(
-            e.get("event") == "Main callback: is starting!" and e.get("log_level") == "debug" for e in caplog_structlog
-        )
+        # Assert CLI Args
         assert any(
             e.get("event") == "CLI Args"
             and e.get("log_level") == "debug"
@@ -109,43 +109,9 @@ class TestCliGUI:
             for e in caplog_structlog
         )
 
-        # 2. Assert key INFO level success messages
-        assert any(
-            e.get("event") == "Main callback: SettingsManager initialized and configuration loaded."
-            and e.get("log_level") == "info"
-            for e in caplog_structlog
-        )
-        assert any(
-            e.get("event") == "Main callback: TranslationManager initialized." and e.get("log_level") == "info"
-            for e in caplog_structlog
-        )
-        assert any(
-            e.get("event") == "Main callback: Full logging configured based on application settings and CLI options."
-            and e.get("log_level") == "info"
-            for e in caplog_structlog
-        )
-
-        # 3. Assert GUI specific startup INFO log
+        # Assert GUI specific startup INFO log
         assert any(
             e.get("event") == "Starting CheckConnect GUI..." and e.get("log_level") == "info" for e in caplog_structlog
-        )
-
-        # 4. Assert CLI-Verbose and Logging Level determination (DEBUG)
-        assert any(
-            e.get("event") == "Main callback: Determined CLI-Verbose and Logging Level to pass to LoggingManager."
-            and e.get("log_level") == "debug"
-            and e.get("verbose_input") == 0
-            and e.get("derived_cli_log_level") == "WARNING"
-            for e in caplog_structlog
-        )
-
-        # 5. Assert "Debug logging is active" (DEBUG)
-        # This one is tricky if it *always* appears when `caplog_structlog` captures at DEBUG.
-        # If it specifically means the *application* is running in debug, then assert.
-        # If it's just reflecting your test setup's debug level, it's less of a functional assertion.
-        assert any(
-            e.get("event") == "Debug logging is active based on verbosity setting." and e.get("log_level") == "debug"
-            for e in caplog_structlog
         )
 
         # At the end of the assert block for successful tests:
@@ -216,7 +182,8 @@ class TestCliGUI:
             translation_manager_instance,
             expected_cli_log_level=logging.WARNING,
             expected_language=expected_language_for_translation,  # Use the specific expected language
-        )
+            expected_console_logging=False)
+
 
         # Specific assertion for the GUI command
         mock_gui_startup_run.assert_called_once_with(
@@ -225,11 +192,9 @@ class TestCliGUI:
         )
 
         # --- Asserting on Specific Log Entries from Your Output ---
+        assert_common_cli_logs(caplog_structlog)
 
-        # 1. Assert initial CLI startup (DEBUG)
-        assert any(
-            e.get("event") == "Main callback: is starting!" and e.get("log_level") == "debug" for e in caplog_structlog
-        )
+        # Assert CLI Args
         assert any(
             e.get("event") == "CLI Args"
             and e.get("log_level") == "debug"
@@ -239,43 +204,9 @@ class TestCliGUI:
             for e in caplog_structlog
         )
 
-        # 2. Assert key INFO level success messages
-        assert any(
-            e.get("event") == "Main callback: SettingsManager initialized and configuration loaded."
-            and e.get("log_level") == "info"
-            for e in caplog_structlog
-        )
-        assert any(
-            e.get("event") == "Main callback: TranslationManager initialized." and e.get("log_level") == "info"
-            for e in caplog_structlog
-        )
-        assert any(
-            e.get("event") == "Main callback: Full logging configured based on application settings and CLI options."
-            and e.get("log_level") == "info"
-            for e in caplog_structlog
-        )
-
         # 3. Assert GUI specific startup INFO log
         assert any(
             e.get("event") == "Starting CheckConnect GUI..." and e.get("log_level") == "info" for e in caplog_structlog
-        )
-
-        # 4. Assert CLI-Verbose and Logging Level determination (DEBUG)
-        assert any(
-            e.get("event") == "Main callback: Determined CLI-Verbose and Logging Level to pass to LoggingManager."
-            and e.get("log_level") == "debug"
-            and e.get("verbose_input") == 0
-            and e.get("derived_cli_log_level") == "WARNING"
-            for e in caplog_structlog
-        )
-
-        # 5. Assert "Debug logging is active" (DEBUG)
-        # This one is tricky if it *always* appears when `caplog_structlog` captures at DEBUG.
-        # If it specifically means the *application* is running in debug, then assert.
-        # If it's just reflecting your test setup's debug level, it's less of a functional assertion.
-        assert any(
-            e.get("event") == "Debug logging is active based on verbosity setting." and e.get("log_level") == "debug"
-            for e in caplog_structlog
         )
 
         # At the end of the assert block for successful tests:
@@ -316,16 +247,17 @@ class TestCliGUI:
             translation_manager_instance,
             expected_cli_log_level=logging.WARNING,  # Default from verbose=0 in cli_main
             expected_language="en",
+            expected_console_logging=False
         )
 
-        assert "GUI failure" in result.stdout
+        # Assert GUI failure message in stdout
+        assert "Cannot start GUI due to application error:" in result.stdout, "Expected 'Cannot start GUI due to application error:' in stdout"
+        assert "GUI failure" in result.stdout, "Expected 'GUI failure' in stdout"
 
         # --- Asserting on Specific Log Entries from Your Output ---
+        assert_common_cli_logs(caplog_structlog)
 
-        # 1. Assert initial CLI startup (DEBUG)
-        assert any(
-            e.get("event") == "Main callback: is starting!" and e.get("log_level") == "debug" for e in caplog_structlog
-        )
+        # Assert CLI Args
         assert any(
             e.get("event") == "CLI Args"
             and e.get("log_level") == "debug"
@@ -335,43 +267,9 @@ class TestCliGUI:
             for e in caplog_structlog
         )
 
-        # 2. Assert key INFO level success messages
-        assert any(
-            e.get("event") == "Main callback: SettingsManager initialized and configuration loaded."
-            and e.get("log_level") == "info"
-            for e in caplog_structlog
-        )
-        assert any(
-            e.get("event") == "Main callback: TranslationManager initialized." and e.get("log_level") == "info"
-            for e in caplog_structlog
-        )
-        assert any(
-            e.get("event") == "Main callback: Full logging configured based on application settings and CLI options."
-            and e.get("log_level") == "info"
-            for e in caplog_structlog
-        )
-
         # 3. Assert GUI specific startup INFO log
         assert any(
             e.get("event") == "Starting CheckConnect GUI..." and e.get("log_level") == "info" for e in caplog_structlog
-        )
-
-        # 4. Assert CLI-Verbose and Logging Level determination (DEBUG)
-        assert any(
-            e.get("event") == "Main callback: Determined CLI-Verbose and Logging Level to pass to LoggingManager."
-            and e.get("log_level") == "debug"
-            and e.get("verbose_input") == 0
-            and e.get("derived_cli_log_level") == "WARNING"
-            for e in caplog_structlog
-        )
-
-        # 5. Assert "Debug logging is active" (DEBUG)
-        # This one is tricky if it *always* appears when `caplog_structlog` captures at DEBUG.
-        # If it specifically means the *application* is running in debug, then assert.
-        # If it's just reflecting your test setup's debug level, it's less of a functional assertion.
-        assert any(
-            e.get("event") == "Debug logging is active based on verbosity setting." and e.get("log_level") == "debug"
-            for e in caplog_structlog
         )
 
         # Optional: Assert no ERROR/CRITICAL logs in a successful run
@@ -406,6 +304,8 @@ class TestCliGUI:
         result = runner.invoke(cli_main.main_app, ["gui"])
 
         assert result.exit_code == 1, f"Missing exception: {result.output}"
+        assert "An unexpected error occurred during GUI startup:" in result.stdout, "Expected 'An unexpected error occurred during GUI startup:'"
+        assert "Crash" in result.stdout, "Expected 'Crash'"
 
         # Common initialization assertions
         assert_common_initialization(
@@ -414,16 +314,14 @@ class TestCliGUI:
             translation_manager_instance,
             expected_cli_log_level=logging.WARNING,  # Default from verbose=0 in cli_main
             expected_language="en",
+            expected_console_logging=False
         )
 
-        assert "Crash" in result.stdout
 
         # --- Asserting on Specific Log Entries from Your Output ---
+        assert_common_cli_logs(caplog_structlog)
 
-        # 1. Assert initial CLI startup (DEBUG)
-        assert any(
-            e.get("event") == "Main callback: is starting!" and e.get("log_level") == "debug" for e in caplog_structlog
-        )
+        # Assert CLI Args
         assert any(
             e.get("event") == "CLI Args"
             and e.get("log_level") == "debug"
@@ -433,43 +331,10 @@ class TestCliGUI:
             for e in caplog_structlog
         )
 
-        # 2. Assert key INFO level success messages
-        assert any(
-            e.get("event") == "Main callback: SettingsManager initialized and configuration loaded."
-            and e.get("log_level") == "info"
-            for e in caplog_structlog
-        )
-        assert any(
-            e.get("event") == "Main callback: TranslationManager initialized." and e.get("log_level") == "info"
-            for e in caplog_structlog
-        )
-        assert any(
-            e.get("event") == "Main callback: Full logging configured based on application settings and CLI options."
-            and e.get("log_level") == "info"
-            for e in caplog_structlog
-        )
 
         # 3. Assert GUI specific startup INFO log
         assert any(
             e.get("event") == "Starting CheckConnect GUI..." and e.get("log_level") == "info" for e in caplog_structlog
-        )
-
-        # 4. Assert CLI-Verbose and Logging Level determination (DEBUG)
-        assert any(
-            e.get("event") == "Main callback: Determined CLI-Verbose and Logging Level to pass to LoggingManager."
-            and e.get("log_level") == "debug"
-            and e.get("verbose_input") == 0
-            and e.get("derived_cli_log_level") == "WARNING"
-            for e in caplog_structlog
-        )
-
-        # 5. Assert "Debug logging is active" (DEBUG)
-        # This one is tricky if it *always* appears when `caplog_structlog` captures at DEBUG.
-        # If it specifically means the *application* is running in debug, then assert.
-        # If it's just reflecting your test setup's debug level, it's less of a functional assertion.
-        assert any(
-            e.get("event") == "Debug logging is active based on verbosity setting." and e.get("log_level") == "debug"
-            for e in caplog_structlog
         )
 
         # Optional: Assert no ERROR/CRITICAL logs in a successful run
