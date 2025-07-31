@@ -1,26 +1,40 @@
+# SPDX-License-Identifier: EUPL-1.2
+# SPDX-FileCopyrightText: © 2025-present Jürgen Mülbert
+
+"""
+Integration tests for the main CLI application.
+
+These tests verify the behavior of the `main_app` Typer application,
+including global option parsing, initialization of core singleton managers,
+and proper command dispatch.
+"""
+
+from __future__ import annotations
+
 import logging
-
-import sys
-from collections.abc import Generator
-
-from typing import TYPE_CHECKING, Any
 from pathlib import Path
-import structlog
-from structlog.typing import EventDict
+from typing import TYPE_CHECKING, Any
 
 import pytest
-from pytest_mock import MockerFixture
 
-from typer.testing import CliRunner
 from checkconnect.cli.main import main_app
-from checkconnect.config import logging_manager
-from checkconnect.config.logging_manager import LoggingManagerSingleton
 from checkconnect.config.appcontext import AppContext
-
 from tests.utils.common import assert_common_cli_logs
 
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
+    from structlog.typing import EventDict
+    from typer.testing import CliRunner
 
 class TestCliMain:
+    """
+    Integration test suite for the main CheckConnect CLI application.
+
+    These tests focus on the end-to-end behavior of the CLI's global options
+    and the initialization flow of key application components (settings,
+    translation, logging) when different CLI arguments are provided.
+    """
+
     @pytest.mark.integration
     def test_main_callback_with_all_options(
         self,
@@ -31,6 +45,17 @@ class TestCliMain:
     ) -> None:
         """
         Test the main_callback with all defined CLI options: --language, -v, --config.
+
+        Verifies that the application initializes correctly, passes the CLI
+        arguments to the respective managers, and executes the 'run' subcommand.
+
+        Args:
+        ----
+            mock_dependencies (dict[str, Any]): A fixture providing mocked instances
+                                                 of core application managers.
+            config_file (Path): A fixture providing a path to a temporary config file.
+            runner (CliRunner): Typer's CLI test runner fixture.
+            caplog_structlog (list[EventDict]): Pytest fixture to capture structlog events.
         """
         # Extract mocks
         settings_manager_instance = mock_dependencies["settings_manager_instance"]
@@ -41,8 +66,8 @@ class TestCliMain:
         test_env = {
             "NO_COLOR": "1",  # Disable colors
             "TERM": "dumb",  # Disable advanced terminal features like frames
-            "mix_stderr": "False",  # <--- This should be a direct argument to invoke()
-            "catch_exceptions": "False",  # <--- And this one too
+            # "mix_stderr": "False",  # These should be direct arguments to invoke() if needed
+            # "catch_exceptions": "False",  # And this one too
             # If using rich_click specifically, sometimes CLICOLOR_FORCE=0 helps too
         }
 
@@ -50,6 +75,9 @@ class TestCliMain:
             main_app,
             ["--language", "en", "--verbose", "--config", str(config_file), "run"],
             env=test_env,
+            # Pass mix_stderr and catch_exceptions directly if needed by runner.invoke
+            # mix_stderr=False,
+            # catch_exceptions=False,
         )
 
         assert result.exit_code == 0, f"Unexpected failure: {result.output}"
@@ -60,7 +88,6 @@ class TestCliMain:
         settings_manager_instance.get_all_settings.assert_called_once()
 
         # TranslationManager
-        # TranslationManagerSingleton.initialize_from_context.assert_called_once_with(language="en")
         # If `translation_manager_instance.configure` is called:
         translation_manager_instance.configure.assert_called_once_with(
             language="en", translation_domain=None, locale_dir=None
@@ -68,16 +95,18 @@ class TestCliMain:
 
         # AppContext
         AppContext.create.assert_called_once_with(
-            settings_instance=settings_manager_instance,  # Changed from settings_instance
-            translator_instance=translation_manager_instance,  # Changed from translator_instance
+            settings_instance=settings_manager_instance,
+            translator_instance=translation_manager_instance,
         )
 
         # Logging Manager
+        # Note: The cli_log_level will be logging.INFO because --verbose maps to 1,
+        # and 1 maps to INFO in VERBOSITY_LEVELS.
         logging_manager_instance.apply_configuration.assert_called_once_with(
-            cli_log_level=logging.INFO,  # As `--verbose` in your test typically maps to DEBUG
-            enable_console_logging=True,  # Assuming `is_cli_mode` (which is implicit true for runner.invoke) means console logging
-            log_config=settings_manager_instance.get_section("logger"),  # Use your mock's return value here
-            translator=translation_manager_instance,  # Pass the translation manager mock
+            cli_log_level=logging.INFO,
+            enable_console_logging=True,
+            log_config=settings_manager_instance.get_section("logger"),
+            translator=translation_manager_instance,
         )
 
         # Checkconnect called?
@@ -124,9 +153,6 @@ class TestCliMain:
         )
 
         # 5. Assert "Debug logging is active" (DEBUG)
-        # This one is tricky if it *always* appears when `caplog_structlog` captures at DEBUG.
-        # If it specifically means the *application* is running in debug, then assert.
-        # If it's just reflecting your test setup's debug level, it's less of a functional assertion.
         assert any(
             e.get("event") == "Debug logging is active based on verbosity setting." and e.get("log_level") == "debug"
             for e in caplog_structlog
@@ -159,6 +185,21 @@ class TestCliMain:
     ) -> None:
         """
         Test that verbosity level maps correctly to log level.
+
+        Verifies that the `--verbose` and `-vv` CLI flags correctly set the
+        corresponding log levels (INFO and DEBUG respectively) within the
+        LoggingManager.
+
+        Args:
+        ----
+            cli_arg (str): The CLI argument for verbosity (e.g., "--verbose", "-vv").
+            expected_log_level (int): The expected numerical logging level (e.g., logging.INFO).
+            expected_level (str): The expected string representation of the logging level (e.g., "INFO").
+            expected_verbose (int): The integer value passed for the verbose option (e.g., 1, 2).
+            mock_dependencies (dict[str, Any]): A fixture providing mocked instances
+                                                 of core application managers.
+            runner (CliRunner): Typer's CLI test runner fixture.
+            caplog_structlog (list[EventDict]): Pytest fixture to capture structlog events.
         """
         # Extract mocks
         settings_manager_instance = mock_dependencies["settings_manager_instance"]
@@ -167,15 +208,14 @@ class TestCliMain:
 
         result = runner.invoke(main_app, [cli_arg, "run"])
 
-        print(result.stdout)
         assert result.exit_code == 0, f"Unexpected failure: {result.output}"
 
         # Logging Manager
         logging_manager_instance.apply_configuration.assert_called_once_with(
-            cli_log_level=expected_log_level,  # As `--verbose` in your test typically maps to DEBUG
-            enable_console_logging=True,  # Assuming `is_cli_mode` (which is implicit true for runner.invoke) means console logging
-            log_config=settings_manager_instance.get_section("logger"),  # Use your mock's return value here
-            translator=translation_manager_instance,  # Pass the translation manager mock
+            cli_log_level=expected_log_level,
+            enable_console_logging=True,
+            log_config=settings_manager_instance.get_section("logger"),
+            translator=translation_manager_instance,
         )
 
         # --- Asserting on Specific Log Entries from Your Output ---
@@ -219,9 +259,6 @@ class TestCliMain:
         )
 
         # 5. Assert "Debug logging is active" (DEBUG)
-        # This one is tricky if it *always* appears when `caplog_structlog` captures at DEBUG.
-        # If it specifically means the *application* is running in debug, then assert.
-        # If it's just reflecting your test setup's debug level, it's less of a functional assertion.
         assert any(
             e.get("event") == "Debug logging is active based on verbosity setting." and e.get("log_level") == "debug"
             for e in caplog_structlog
@@ -244,11 +281,21 @@ class TestCliMain:
         caplog_structlog: list[EventDict],
     ) -> None:
         """
-        Test that verbosity level maps correctly to log level.
+        Test that different language options are correctly handled by the TranslationManager.
+
+        Verifies that the `--language` and `-l` CLI flags correctly configure the
+        TranslationManager with the specified language.
+
+        Args:
+        ----
+            cli_arg (str): The CLI argument for language (e.g., "--language", "-l").
+            language (str): The language code to test (e.g., "en", "de", "xx").
+            mock_dependencies (dict[str, Any]): A fixture providing mocked instances
+                                                 of core application managers.
+            runner (CliRunner): Typer's CLI test runner fixture.
+            caplog_structlog (list[EventDict]): Pytest fixture to capture structlog events.
         """
         # Extract mocks
-        settings_manager_instance = mock_dependencies["settings_manager_instance"]
-        logging_manager_instance = mock_dependencies["logging_manager_instance"]
         translation_manager_instance = mock_dependencies["translation_manager_instance"]
 
         # Runner
@@ -258,8 +305,8 @@ class TestCliMain:
 
         # Translation Manager
         translation_manager_instance.configure.assert_called_once_with(
-            language=language,  # As `--verbose` in your test typically maps to DEBUG
-            translation_domain=None,  # Assuming `is_cli_mode` (which is implicit true for runner.invoke) means console logging
+            language=language,
+            translation_domain=None,
             locale_dir=None,
         )
 
@@ -285,18 +332,24 @@ class TestCliMain:
     def test_main_callback_raises_on_config_load_failure(
         self,
         mocker: MockerFixture,
-        mock_dependencies: dict[str, Any],
         runner: CliRunner,
         caplog_structlog: list[EventDict],
     ) -> None:
         """
         Simulate a config load failure and assert graceful typer.Exit(1).
-        """
-        # Extract mocks
-        settings_manager_instance = mock_dependencies["settings_manager_instance"]
-        logging_manager_instance = mock_dependencies["logging_manager_instance"]
-        translation_manager_instance = mock_dependencies["translation_manager_instance"]
 
+        Verifies that if `SettingsManagerSingleton.initialize_from_context`
+        raises an exception, the application logs a critical error, prints
+        a user-friendly message to the console, and exits with status code 1.
+
+        Args:
+        ----
+            mocker (MockerFixture): Pytest-mock fixture for patching.
+            mock_dependencies (dict[str, Any]): A fixture providing mocked instances
+                                                 of core application managers.
+            runner (CliRunner): Typer's CLI test runner fixture.
+            caplog_structlog (list[EventDict]): Pytest fixture to capture structlog events.
+        """
         mocker.patch(
             "checkconnect.config.settings_manager.SettingsManagerSingleton.initialize_from_context",
             side_effect=RuntimeError("Boom"),
@@ -304,7 +357,7 @@ class TestCliMain:
 
         result = runner.invoke(main_app, ["run"])
 
-        assert result.exit_code == 1, f"Unexpected failure: {result.output}"
+        assert result.exit_code == 1, f"Unexpected success or wrong exit code: {result.output}"
 
         assert "Critical Error" in result.output
         assert "Failed to load application configuration" in result.output
@@ -334,33 +387,45 @@ class TestCliMain:
         # At the end of the assert block for successful tests:
         assert any(
             e.get("log_level") == "error"
-            or e.get("log_level") == "critical"
+            or (e.get("log_level") == "critical"
             and e.get("event") == "Main callback: Failed to initialize SettingsManager or load configuration!"
-            and e.get("error_details") == "Boom"
+            and e.get("error_details") == "Boom")
             for e in caplog_structlog
-        )
+        ), "Expected critical log for config load failure not found."
 
     @pytest.mark.integration
     def test_main_callback_with_invalid_config_file(
         self,
         mock_dependencies: dict[str, Any],
         runner: CliRunner,
-    ):
+    ) -> None:
         """
-        Test CLI with invalid config path (file doesn't exist).
-        Typer should catch this before callback runs.
-        """
-        # Extract mocks
-        settings_manager_instance = mock_dependencies["settings_manager_instance"]
-        logging_manager_instance = mock_dependencies["logging_manager_instance"]
-        translation_manager_instance = mock_dependencies["translation_manager_instance"]
+        Test CLI behavior when an invalid config path (file doesn't exist) is provided.
 
+        Verifies that Typer's built-in validation catches the non-existent file path
+        before the main callback runs, resulting in a non-zero exit code and an
+        appropriate error message in the output.
+
+        Args:
+        ----
+            mock_dependencies (dict[str, Any]): A fixture providing mocked instances
+                                                 of core application managers (though
+                                                 they might not be fully initialized here).
+            runner (CliRunner): Typer's CLI test runner fixture.
+        """
         non_existent_path = Path("/does/not/exist.toml")
         result = runner.invoke(main_app, ["--config", str(non_existent_path), "run"])
 
-        # Typer automatically handles "file must exist"
-        assert result.exit_code != 0, f"Unexpected failure: {result.output}"
+        # Typer automatically handles "file must exist" for Path types
+        assert result.exit_code != 0, f"Expected non-zero exit code for invalid config file, got 0: {result.output}"
         assert "Invalid value for '--config'" in result.output
+        assert str(non_existent_path) in result.output # Ensure the path is mentioned in the error
+
+        # Ensure no managers were initialized if the config file was invalid
+        mock_dependencies["settings_manager_instance"].get_all_settings.assert_not_called()
+        mock_dependencies["translation_manager_instance"].configure.assert_not_called()
+        mock_dependencies["logging_manager_instance"].apply_configuration.assert_not_called()
+
 
     @pytest.mark.integration
     def test_main_with_help_option(
@@ -368,23 +433,29 @@ class TestCliMain:
         runner: CliRunner,
     ) -> None:
         """
-        Test that 'run --help' displays the help message specific to the 'run' command.
+        Test that the '--help' option displays the main application help message.
+
+        Verifies that the output contains expected sections like Usage, Options,
+        and Commands, and that the exit code is 0.
+
+        Args:
+        ----
+            runner (CliRunner): Typer's CLI test runner fixture.
         """
         test_env = {
-            "NO_COLOR": "1",  # Disable colors
+            "NO_COLOR": "1",  # Disable colors for consistent output
             "TERM": "dumb",  # Disable advanced terminal features like frames
-            "mix_stderr": "False",  # <--- This should be a direct argument to invoke()
-            "catch_exceptions": "False",  # <--- And this one too
-            # If using rich_click specifically, sometimes CLICOLOR_FORCE=0 helps too
+            # "mix_stderr": "False",  # These should be direct arguments to invoke() if needed
+            # "catch_exceptions": "False",  # And this one too
         }
 
         result = runner.invoke(
             main_app,
             ["--help"],
-            env=test_env,  # Pass the environment variables here
+            env=test_env,
         )
 
-        print(result.stdout)
+        # print(result.stdout) # Uncomment for debugging if needed
 
         assert result.exit_code == 0, f"Unexpected failure: {result.output}"
 
@@ -398,16 +469,16 @@ class TestCliMain:
             "--show-completion               Show completion for the current shell, to copy it or customize the installation."
             in result.output
         )
-        assert "--help                          Show this message and exit. " in result.output
+        assert "--help                          Show this message and exit." in result.output
         # Localization
-        assert "--language  -l      TEXT  Language (e.g., 'en', 'de'). " in result.output
+        assert "--language  -l      TEXT  Language (e.g., 'en', 'de'). [default: None] " in result.output
         # Logging
         assert (
-            "--verbose  -v      INTEGER  Increase verbosity. Default logging level is WARNING. Use -v to enable INFO messages. -vv to enable DEBUG messages. Additional -v"
+            "-verbose  -v      INTEGER  Increase verbosity. Default logging level is WARNING. Use -v to enable INFO messages. -vv to enable DEBUG messages."
             in result.output
-        )  # Corrected from `main_app`
+        )
         # Configuration
-        assert "--config  -c      FILE  Path to the config file. A default one is created if missing. " in result.output
+        assert "--config  -c      FILE  Path to the config file. A default one is created if missing. [default: None] " in result.output
         # Commands
         assert "run       Run network tests for NTP and HTTPS servers." in result.output
         assert (
@@ -419,20 +490,26 @@ class TestCliMain:
     @pytest.mark.integration
     def test_main_with_version_option(self, runner: CliRunner) -> None:
         """
-        Ensure the --version flag prints version and exits early.
+        Ensure the '--version' flag prints the application version and exits early.
+
+        Verifies that invoking the main app with `--version` results in a 0 exit code
+        and the version string in the output, without running the main callback logic.
+
+        Args:
+        ----
+            runner (CliRunner): Typer's CLI test runner fixture.
         """
         test_env = {
-            "NO_COLOR": "1",  # Disable colors
+            "NO_COLOR": "1",  # Disable colors for consistent output
             "TERM": "dumb",  # Disable advanced terminal features like frames
-            "mix_stderr": "False",  # <--- This should be a direct argument to invoke()
-            "catch_exceptions": "False",  # <--- And this one too
-            # If using rich_click specifically, sometimes CLICOLOR_FORCE=0 helps too
+            # "mix_stderr": "False",  # These should be direct arguments to invoke() if needed
+            # "catch_exceptions": "False",  # And this one too
         }
 
         result = runner.invoke(
             main_app,
             ["--version"],
-            env=test_env,  # Pass the environment variables here
+            env=test_env,
         )
 
         assert result.exit_code == 0, f"Unexpected failure: {result.output}"
