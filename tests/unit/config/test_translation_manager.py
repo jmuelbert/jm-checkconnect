@@ -12,6 +12,10 @@ like gettext, locale, and importlib.resources.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+import os
+
 import gettext
 import locale
 from collections.abc import Generator
@@ -29,6 +33,10 @@ from checkconnect import __about__
 # Assuming TranslationManager and __about__ are in the correct paths
 # Adjust imports if your file structure is different.
 from checkconnect.config.translation_manager import TranslationManager, TranslationManagerSingleton
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
+    from structlog.typing import EventDict
 
 # --- Fixtures ---
 
@@ -72,7 +80,7 @@ def mock_gettext_translation(mocker: Any) -> Generator[Any, Any, Any]:
     mocker.patch("pathlib.Path.exists", return_value=True)
 
     # Yield all the mocks you need to access in your test
-    return mock_trans_func, mock_translations_obj, mock_gettext_method, mock_ngettext_method
+    yield mock_trans_func, mock_translations_obj, mock_gettext_method, mock_ngettext_method
 
 
 @pytest.fixture
@@ -117,29 +125,60 @@ def assert_translation_called_with():
         actual_fallback = kwargs.get("fallback")
         assert actual_fallback == fallback, f"Expected fallback '{fallback}', got '{actual_fallback}'"
 
-    return _assert
+    yield _assert
 
 
 @pytest.fixture
-def mock_locale_functions(mocker: Any) -> Generator[tuple[MagicMock, MagicMock], None, None]:
+def mock_locale_functions(mocker: MockerFixture) -> None:
     """
-    Mocks locale.setlocale and locale.getlocale (replacement for getdefaultlocale).
+    Mocks locale.setlocale, locale.getlocale, and relevant os.getenv calls
+    to provide a controlled environment for locale-dependent tests.
     """
-    mock_set_locale = mocker.patch("locale.setlocale")
-    mock_locale_getlocale = mocker.patch("locale.getlocale")
+    # 1. Mock locale.setlocale: Usually just need it to not error.
+    mock_set_locale = mocker.patch("locale.setlocale", return_value="C")
 
-    # Crucially, mock os.getenv to ensure environment variables don't interfere
-    # We want os.getenv to return None for these, so our locale.getlocale mock is hit.
-    # We can patch it to return a side effect that checks the variable name.
-    def mock_getenv_side_effect(var_name: str) -> str | None:
-        if var_name in ["LANGUAGE", "LC_ALL", "LC_MESSAGES", "LANG"]:
-            print(f"DEBUG: os.getenv('{var_name}') called, returning None (mocked).")
-            return None  # Simulate no relevant env vars set
-        return os.environ.get(var_name)  # Allow other env vars to pass through if needed
+    # 2. Mock locale.getlocale: Set a predictable return value.
+    # This is what functions relying on locale.getlocale will receive.
+    mock_get_locale = mocker.patch("locale.getlocale", return_value=("en_US", "UTF-8"))
 
-    mocker.patch("os.getenv", side_effect=mock_getenv_side_effect)
+    # 3. Mock os.getenv to prevent environment variables from interfering
+    # For a unit test, it's often best to mock specific calls or entirely control it.
+    # We create a dictionary of expected environment variables for locale,
+    # and provide a side effect that looks them up.
+    # Any other os.getenv calls will return None (or raise, depending on strictness).
+    locale_env_vars = {
+        "LANGUAGE": None,
+        "LC_ALL": None,
+        "LC_MESSAGES": None,
+        "LANG": None,
+        # Add any other specific env vars your code checks related to locale if needed
+    }
 
-    return mock_set_locale, mock_locale_getlocale
+    def controlled_getenv_side_effect(var_name: str, default: str | None = None) -> str | None:
+        """
+        Custom side effect for os.getenv to control locale-related variables.
+        """
+        if var_name in locale_env_vars:
+            return locale_env_vars[var_name]
+        # For any other environment variable, return None unless a default is given.
+        # This provides strong isolation for unit tests.
+        return default
+
+    mocker.patch("os.getenv", side_effect=controlled_getenv_side_effect)
+
+    # If your code uses os.environ directly to get locale variables (less common but possible)
+    # mocker.patch.dict(os.environ, {"LANGUAGE": "", "LC_ALL": "", "LC_MESSAGES": "", "LANG": ""}, clear=True)
+    # Be careful with clear=True, as it clears ALL env vars for the duration of the test.
+    # A safer approach for os.environ is to modify specific keys without clearing.
+    # Example for direct os.environ manipulation if needed:
+    # mocker.patch.dict(os.environ, {
+    #     "LANGUAGE": "", "LC_ALL": "", "LC_MESSAGES": "", "LANG": ""
+    # })
+
+    # Yielding the mocks allows tests to make assertions on them if needed
+    yield mock_set_locale, mock_get_locale
+
+    # No cleanup specifically needed for mocks as mocker handles it.
 
 
 @pytest.fixture
@@ -258,7 +297,8 @@ class TestTranslationManager:
                 # Simulate no env vars available → must fall back to locale.getlocale()
                 mocker.patch("os.getenv", return_value=None)
 
-        manager = TranslationManager(language=input_language, translation_domain="mock_app_name")
+        manager = TranslationManager()
+        manager.configure(language=input_language, translation_domain="mock_app_name")
 
         # Assert initial attributes
         assert manager.translation_domain == "mock_app_name"
@@ -332,7 +372,8 @@ class TestTranslationManager:
         mock_path_obj.parent.__truediv__.return_value = mock_path_obj
         mocker.patch("pathlib.Path", return_value=mock_path_obj)
 
-        manager = TranslationManager(
+        manager = TranslationManager()
+        manager.configure(
             language=expected_language,
             translation_domain="custom_domain",
             locale_dir=custom_locale_dir,
@@ -393,7 +434,8 @@ class TestTranslationManager:
         mock_final_path.__str__.return_value = mock_final_path_str
 
         # WHEN
-        manager = TranslationManager(language="en")
+        manager = TranslationManager()
+        manager.configure(language="en")
         result = manager._package_locale_dir()
 
         # THEN
@@ -408,7 +450,7 @@ class TestTranslationManager:
         mock_locale_functions: Generator[Any, Any, Any],
         mocker: Any,
         assert_translation_called_with,
-        caplog: Caplog,
+        caplog: pytest.LogCaptureFixture,
     ) -> None:
         """
         Test _set_language falls back to system language if specified translation is not found.
@@ -430,9 +472,8 @@ class TestTranslationManager:
         ]
 
         language: str = "fr"
-        manager = TranslationManager(
-            language=language, translation_domain="mock_app_name"
-        )  # Request French, but it will fail
+        manager = TranslationManager()
+        manager.configure(language=language, translation_domain="mock_app_name")  # Request French, but it will fail
 
         # Nutze Helper zum Prüfen der Aufrufe
         assert_translation_called_with(
@@ -443,11 +484,13 @@ class TestTranslationManager:
             fallback=True,
         )
 
-        assert f"Translation for '{language}' failed: Translation file not found" in caplog.text
+        assert f"Translation for '{language}' failed to load from" in caplog.text
+        assert "Translation file not found" in caplog.text
 
         assert (
             manager.current_language == "fr"
         )  # current_language is still the requested one, but the actual translation object is for fallback.
+
         assert manager._("Hello") == "Fallback: Hello"  # noqa: SLF001 Test the private _
 
     @pytest.mark.unit
@@ -461,7 +504,8 @@ class TestTranslationManager:
         """
         mock_set_locale, mock_locale_getlocale = mock_locale_functions
 
-        manager = TranslationManager(language="en")  # Minimal init
+        manager = TranslationManager()
+        manager.configure(language="en")  # Minimal init
 
         mock_locale_getlocale.return_value = ("de_DE.UTF-8", "UTF-8")
         assert manager._get_system_language() == "de"  # noqa: SLF001 Test the private _get_system_language
@@ -490,7 +534,8 @@ class TestTranslationManager:
         mock_set_locale, mock_locale_getlocale = mock_locale_functions
 
         mock_locale_getlocale.side_effect = locale.Error("Bad locale setting")
-        manager = TranslationManager(language="en")  # Minimal init
+        manager = TranslationManager()
+        manager.configure(language="en")  # Minimal init
         assert manager._get_system_language() == "en"  # noqa: SLF001 Test the private _get_system_language
 
     @pytest.mark.unit
@@ -507,7 +552,8 @@ class TestTranslationManager:
 
         mock_locale_getlocale.return_value = (None, None)
 
-        manager = TranslationManager(language="en")  # Minimal init
+        manager = TranslationManager()
+        manager.configure(language="en")  # Minimal init
         assert manager._get_system_language() == "en"  # noqa: SLF001 Test the private _get_system_language
 
     @pytest.mark.unit
@@ -521,7 +567,8 @@ class TestTranslationManager:
         # Unpack the yielded mocks
         mock_trans_func, mock_translations_obj, mock_gettext_method, mock_ngettext_method = mock_gettext_translation
 
-        manager = TranslationManager(language="en")  # Language doesn't matter for this test
+        manager = TranslationManager()
+        manager.configure(language="en")  # Language doesn't matter for this test
 
         test_message = "Hello, world!"
         translated_message = manager.gettext(test_message)
@@ -542,7 +589,8 @@ class TestTranslationManager:
         # Unpack the yielded mocks
         mock_trans_func, mock_translations_obj, mock_gettext_method, mock_ngettext_method = mock_gettext_translation
 
-        manager = TranslationManager(language="en")
+        manager = TranslationManager()
+        manager.configure(language="en")
         text: str = "Hello"
         translated_text = manager.gettext(text)
         assert translated_text == "Translated text"
@@ -560,7 +608,8 @@ class TestTranslationManager:
         # Unpack the yielded mocks
         mock_trans_func, mock_translations_obj, mock_gettext_method, mock_ngettext_method = mock_gettext_translation
 
-        manager = TranslationManager(language="en")
+        manager = TranslationManager()
+        manager.configure(language="en")
         text: str = "World"
         translated_text = manager.translate(text)
 
@@ -600,7 +649,8 @@ class TestTranslationManager:
         mock_translations_obj.ngettext.return_value = expected_ngettext_return
 
         # 3. Instantiate TranslationManager *after* patching Path
-        manager = TranslationManager(language="en")
+        manager = TranslationManager()
+        manager.configure(language="en")
         # Crucially, you need to set the mocked translation object on the manager
         # This assumes your TranslationManager's __init__ or some other method
         # would normally assign the result of gettext.translation() to self.translation
@@ -631,7 +681,8 @@ class TestTranslationManager:
         # Unpack the yielded mocks
         mock_trans_func, mock_translations_obj, mock_gettext_method, mock_ngettext_method = mock_gettext_translation
 
-        manager = TranslationManager(language="en")
+        manager = TranslationManager()
+        manager.configure(language="en")
         context = "button"
         text = "Open"
         translated_text = manager.translate_context(context, text)
@@ -651,7 +702,8 @@ class TestTranslationManager:
         # Unpack the yielded mocks
         mock_trans_func, mock_translations_obj, mock_gettext_method, mock_ngettext_method = mock_gettext_translation
 
-        manager = TranslationManager(language="en", translation_domain="mock_app_name")
+        manager = TranslationManager()
+        manager.configure(language="en", translation_domain="mock_app_name")
 
         mock_trans_func.reset_mock()
 
@@ -679,7 +731,8 @@ class TestTranslationManager:
         """
         Test get_current_language returns the active language.
         """
-        manager = TranslationManager(language="fr")
+        manager = TranslationManager()
+        manager.configure(language="fr")
         assert manager.get_current_language() == "fr"
 
         manager.set_language("es")
@@ -704,10 +757,11 @@ class TestTranslationManager:
         explicit_domain = "my_custom_domain"
         explicit_locale_dir = "/custom/path/to/locales"
 
-        manager = TranslationManager(language="fr", translation_domain=explicit_domain, locale_dir=explicit_locale_dir)
+        manager = TranslationManager()
+        manager.configure(language="fr", translation_domain=explicit_domain, locale_dir=explicit_locale_dir)
 
         assert manager.translation_domain == explicit_domain
-        assert manager.locale_dir == explicit_locale_dir
+        assert manager.locale_dir == Path(explicit_locale_dir)
         assert manager.current_language == "fr"
 
         # Verify that gettext.translation and gettext.install use the explicit values
@@ -733,16 +787,18 @@ class TestTranslationManagerLocaleDir:
         mock_initial_path, expected_locale_dir = mock_pathlib_path
         mock_initial_path.assert_not_called()
 
-        manager = TranslationManager(language="en", translation_domain="checkconnect", locale_dir=None)
+        manager = TranslationManager()
+        manager.configure(language="en", translation_domain="checkconnect", locale_dir=None)
 
         assert manager.locale_dir == expected_locale_dir
 
     def test_given_locale_dir_is_used_directly(self) -> None:
         """Test that provided locale_dir argument is used directly."""
         custom_path = "/custom/locale/dir"
-        manager = TranslationManager(language="en", translation_domain="checkconnect", locale_dir=custom_path)
+        manager = TranslationManager()
+        manager.configure(language="en", translation_domain="checkconnect", locale_dir=custom_path)
 
-        assert manager.locale_dir == custom_path
+        assert manager.locale_dir == Path(custom_path)
 
     @patch("checkconnect.config.translation_manager.importlib.resources.files")
     def test_given_non_existing_locale_dir_falls_back_to_package(self, mock_files: MagicMock) -> None:
@@ -751,9 +807,10 @@ class TestTranslationManagerLocaleDir:
         mock_files.return_value.__truediv__.return_value = fallback_path
 
         custom_path = "/nonexistent/path/to/locales"
-        manager = TranslationManager(language="en", translation_domain="checkconnect", locale_dir=custom_path)
+        manager = TranslationManager()
+        manager.configure(language="en", translation_domain="checkconnect", locale_dir=custom_path)
 
-        assert manager.locale_dir == custom_path  # still uses given path
+        assert manager.locale_dir == Path(custom_path)  # still uses given path
 
 
 class TestTranslationManagerSingleton:

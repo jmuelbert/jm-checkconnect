@@ -113,10 +113,10 @@ class CheckConnectGUIRunner(QWidget):
         self.logger = log
         self.translator = context.translator
         self._ = context.gettext
-        self.config = context.config  # For translations of UI text, if necessary
+        self.config = context.settings  # For translations of UI text, if necessary
         self.settings = QSettings("JM", "CheckConnect")
         self.language = language
-        self.checkconnect = CheckConnect(context)
+        self.checkconnect = CheckConnect(context=context)
 
         # Initialize result lists to avoid AttributeError if tests haven't run yet
         self.ntp_results: list[str] = []
@@ -228,9 +228,10 @@ class CheckConnectGUIRunner(QWidget):
         self.log_output(self.tr("Running NTP tests…"))
         try:
             self.checkconnect.run_ntp_checks()
-            for line in self.checkconnect.ntp_results or []:
+            ntp_results = self.checkconnect.get_ntp_results()
+            for line in ntp_results or []:
                 self.log_output(line)
-            self.ntp_results = self.checkconnect.ntp_results or []
+            self.ntp_results = self.checkconnect.get_ntp_results() or []
         except Exception as e:
             self.logger.exception(self._("Error in test_ntp"))
             self.show_error(self.tr(f"NTP test failed: {e}"))
@@ -248,9 +249,10 @@ class CheckConnectGUIRunner(QWidget):
         self.log_output(self.tr("Running URL tests…"))
         try:
             self.checkconnect.run_url_checks()
-            for line in self.checkconnect.url_results or []:
+            url_results = self.checkconnect.get_url_results()
+            for line in url_results or []:
                 self.log_output(line)
-            self.url_results = self.checkconnect.url_results or []
+            self.url_results = self.checkconnect.get_url_results() or []
         except Exception as e:
             self.logger.exception(self._("Error in test_urls"))
             self.show_error(self.tr(f"URL test failed: {e}"))
@@ -268,14 +270,14 @@ class CheckConnectGUIRunner(QWidget):
         try:
             generate_html_report(
                 context=self.context,
-                ntp_results=self.checkconnect.ntp_results,
-                url_results=self.checkconnect.url_results,
+                ntp_results=self.checkconnect.get_ntp_results(),
+                url_results=self.checkconnect.get_url_results(),
             )
 
             generate_pdf_report(
                 context=self.context,
-                ntp_results=self.checkconnect.ntp_results,
-                url_results=self.checkconnect.url_results,
+                ntp_results=self.checkconnect.get_ntp_results(),
+                url_results=self.checkconnect.get_url_results(),
             )
 
         except Exception as e:
@@ -298,7 +300,7 @@ class CheckConnectGUIRunner(QWidget):
 
     def show_summary(self) -> None:
         """
-        Displays a formatted summary of connectivity check results in the GUI.
+        Display a formatted summary of connectivity check results in the GUI.
 
         This method retrieves previous NTP and URL results using `ReportManager`.
         It then generates a summary in the user-selected format (plain text,
@@ -323,9 +325,11 @@ class CheckConnectGUIRunner(QWidget):
 
             if format_text == "html":
                 self.summary_view.setHtml(summary)
+                self.log_output(self.tr("HTML summary generated"))
                 self.logger.debug(self._("HTML summary generated"))
             else:
                 self.summary_view.setPlainText(summary)
+                self.log_output(self.tr("Text summary generated"))
                 self.logger.debug(self._("Text summary generated"))
         except Exception as e:
             msg: str = self._(f"Can't create the summary: {e}")

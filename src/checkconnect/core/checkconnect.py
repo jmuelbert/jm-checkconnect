@@ -108,8 +108,8 @@ class CheckConnect:
         self.url_checker = self._setup_checker(URLChecker, URLCheckerConfig, "urls")
 
         # Initialize result storage; these will be populated after `run_all_checks()`
-        self.ntp_results: list[str] = []
-        self.url_results: list[str] = []
+        self._ntp_results: list[str] = []
+        self._url_results: list[str] = []
 
     def _setup_checker(
         self,
@@ -167,6 +167,22 @@ class CheckConnect:
             self.logger.exception(msg)
             raise
 
+    def get_ntp_results(self) -> list[str]:
+        """Get the results of the NTP checks."""
+        return self._ntp_results
+
+    def set_ntp_results(self, ntp_data: list[str]) -> None:
+        """Set the results of the NTP checks."""
+        self._ntp_results = ntp_data
+
+    def get_url_results(self) -> list[str]:
+        """Get the results of the URL checks."""
+        return self._url_results
+
+    def set_url_results(self, url_data: list[str]) -> None:
+        """Set the results of the NTP checks."""
+        self._url_results = url_data
+
     def run_all_checks(self) -> None:
         """
         Execute all configured network connectivity tests (NTP and URLs).
@@ -202,8 +218,8 @@ class CheckConnect:
         msg = self.context.gettext(f"Starting URL checks with {urls_text}")
         self.logger.info(msg)
         try:
-            self.url_results = self.url_checker.run_url_checks()
-            self.report_manager.save_url_results(self.url_results)
+            self._url_results = self.url_checker.run_url_checks()
+            self.report_manager.save_url_results(self._url_results)
             self.logger.info(self.context.gettext("URL checks completed successfully."))
         except Exception:
             self.logger.exception(self.context.gettext("Error url checks."))
@@ -224,8 +240,8 @@ class CheckConnect:
         self.logger.info(self.context.gettext("Starting NTP checks..."))
 
         try:
-            self.ntp_results = self.ntp_checker.run_ntp_checks()
-            self.report_manager.save_ntp_results(self.ntp_results)
+            self._ntp_results = self.ntp_checker.run_ntp_checks()
+            self.report_manager.save_ntp_results(self._ntp_results)
             self.logger.info(self.context.gettext("NTP checks completed successfully."))
         except Exception:
             self.logger.exception(self.context.gettext("Error during NTP checks."))

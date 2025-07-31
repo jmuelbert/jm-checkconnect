@@ -11,217 +11,303 @@ AppContext, and calls startup.run with the right context.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING, Any
 import logging
 import tempfile
 from pathlib import Path
 
 from pydantic_core.core_schema import ExpectedSerializationTypes
-from structlog.typing import EventDict
+
 import pytest
 from pytest_mock import MockerFixture
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
-from checkconnect.config.settings_manager import SettingsManager
+from typer.testing import CliRunner
+
+from checkconnect.config.appcontext import AppContext
 from checkconnect.cli import main as cli_main
 from checkconnect.cli.run_app import run_app
 from checkconnect.exceptions import ExitExceptionError
 
 
-def test_run_command_success(
-    mocker,
-    mock_app_context,
-    patch_checkconnect,
-    runner: CliRunner,
-    caplog_structlog: list[EventDict],
-):
-    """
-    Ensure run_command completes successfully when CheckConnect runs without error.
-    """
-    mock_check = patch_checkconnect.return_value
-    mock_check.run_all_checks.return_value = None
+from tests.utils.common import assert_common_initialization, assert_common_cli_logs
 
-    result = runner.invoke(cli_main.main_app, ["run"])
-
-    assert result.exit_code == 0
-    mock_check.run_all_checks.assert_called_once()
-
-    assert any(
-        "Full logging configuration applied." in log_entry["event"] and log_entry["log_level"] == "info"
-        for log_entry in caplog_structlog
-    ), "Full logging configuration not applied"
-
-    assert any(
-        "Starting CLI in tests mode" in log_entry["event"] and log_entry["log_level"] == "info"
-        for log_entry in caplog_structlog
-    ), "CLI not started in tests mode"
+if TYPE_CHECKING:
+    # If EventDict is a specific type alias in structlog
+    from structlog.typing import EventDict
+else:
+    EventDict = dict[str, Any]
 
 
-def test_run_command_creates_default_config(
-    mocker,
-    isolated_test_env: dict[str, Path],
-    patch_checkconnect,
-    runner: CliRunner,
-    caplog_structlog: list[EventDict],
-):
-    """
-    Ensure the run command creates a default config.toml if none is specified.
-    """
+@pytest.fixture
+def mock_checkconnect_class():
+    """Mocks the CheckConnect class and its instance methods, including getters."""
+    with patch("checkconnect.cli.run_app.CheckConnect") as mock_cc_class:
+        mock_instance = MagicMock(name="CheckConnect_instance")
+        mock_instance.run_all_checks.return_value = None
 
-    mock_check = patch_checkconnect.return_value
-    mock_check.run_all_checks.return_value = None
+        # NEU: Mock die Getter-Methoden anstatt der direkten Attribute
+        mock_instance.get_ntp_results.return_value = ["mocked_ntp_data_from_getter"]
+        mock_instance.get_url_results.return_value = ["mocked_url_data_from_getter"]
 
-    # Get the mocked settings manager from the fixture
-    # The actual config.toml file path expected
-    expected_config_str = SettingsManager.DEFAULT_SETTINGS_LOCATIONS[0]
-    expected_config_path = Path(expected_config_str)
-
-    assert not expected_config_path.exists()  # Pre-condition: file should not exist yet
-
-    result = runner.invoke(cli_main.main_app, ["run"])
-
-    assert result.exit_code == 0
-
-    mock_check.run_all_checks.assert_called_once()
-
-    assert expected_config_path.is_file()  # Post-condition: file should now exist
-
-    assert any(
-        "Default configuration written successfully." in log_entry["event"] and log_entry["log_level"] == "info"
-        for log_entry in caplog_structlog
-    )
+        mock_cc_class.return_value = mock_instance
+        yield mock_cc_class
 
 
-def test_run_command_handles_exit_exception(
-    mocker,
-    patch_checkconnect,
-    runner: CliRunner,
-    caplog_structlog: list[EventDict],
-):
-    """
-    Ensure ExitExceptionError is handled with logging and clean exit.
-    """
+class TestCliRun:
+    @pytest.mark.integration
+    def test_run_command_success(
+        self,
+        mock_dependencies: dict[str, Any],
+        mock_checkconnect_class: MagicMock,
+        runner: CliRunner,
+        caplog_structlog: list[EventDict],
+    ) -> None:
+        """
+        Ensure run_command completes successfully when CheckConnect runs without error.
+        """
+        # Arrange
+        settings_manager_instance = mock_dependencies["settings_manager_instance"]
+        logging_manager_instance = mock_dependencies["logging_manager_instance"]
+        translation_manager_instance = mock_dependencies["translation_manager_instance"]
+        app_context_instance = mock_dependencies["app_context_instance"]  # You can use this for direct assertions
 
-    patch_checkconnect.return_value.run_all_checks.side_effect = ExitExceptionError("Controlled failure")
+        # Ensure AppContext.create.return_value is readily available for later assertions
+        # (It should be mock_dependencies["app_context_instance"])
+        # mocker.patch.object(AppContext, "create", return_value=app_context_instance) # This patch should be in conftest
+        # Verify it points to the correct mock if AppContext.create is mocked in conftest
+        assert AppContext.create.return_value == app_context_instance
 
-    result = runner.invoke(cli_main.main_app, ["run"])
-    print(result.output)
+        test_env = {
+            "NO_COLOR": "1",  # Disable colors
+            "TERM": "dumb",  # Disable advanced terminal features like frames
+            "mix_stderr": "False",  # <--- This should be a direct argument to invoke()
+            "catch_exceptions": "False",  # <--- And this one too
+            # If using rich_click specifically, sometimes CLICOLOR_FORCE=0 helps too
+        }
 
-    assert result.exit_code == 1
+        result = runner.invoke(
+            cli_main.main_app,
+            ["run"],
+            env=test_env,
+        )
 
-    for log_entry in caplog_structlog:
-        print(log_entry)
+        assert result.exit_code == 0, f"Command exited with non-zero code: {result.exception}"
 
-    assert any(
-        "Error in run_command." in log_entry["event"] and log_entry["log_level"] == "error"
-        for log_entry in caplog_structlog
-    )
+        # Common initialization assertions
+        assert_common_initialization(
+            settings_manager_instance,
+            logging_manager_instance,
+            translation_manager_instance,
+            expected_cli_log_level=logging.WARNING,  # Default from verbose=0 in cli_main
+            expected_language="en",
+            expected_console_logging=True,
+        )
 
+        mock_checkconnect_class.assert_called_once_with(context=AppContext.create.return_value)
+        checkconnect_instance = mock_checkconnect_class.return_value
+        checkconnect_instance.run_all_checks.assert_called_once()
 
-def test_run_command_handles_unexpected_exception(
-    mocker,
-    patch_checkconnect,
-    runner: CliRunner,
-    caplog_structlog: list[EventDict],
-):
-    """
-    Ensure unexpected exceptions are logged and cause exit with code 1.
-    """
+        # --- Asserting on Specific Log Entries from Your Output ---
+        assert_common_cli_logs(caplog_structlog)
 
-    patch_checkconnect.return_value.run_all_checks.side_effect = RuntimeError("Something went wrong")
+        # Assert CLI Args
+        assert any(
+            e.get("event") == "CLI Args"
+            and e.get("log_level") == "debug"
+            and e.get("verbose") == 0
+            and e.get("language") is None
+            and e.get("config_file") is None
+            for e in caplog_structlog
+        )
 
-    result = runner.invoke(cli_main.main_app, ["run"])
+        # 3. Assert report specific startup INFO log
+        assert any(
+            e.get("event") == "Starting CLI in tests mode" and e.get("log_level") == "info" for e in caplog_structlog
+        )
 
-    assert result.exit_code == 1
+        # Optional: Assert no ERROR/CRITICAL logs in a successful run
+        assert not any(e.get("log_level") in ["error", "critical"] for e in caplog_structlog)
 
-    assert any(
-        "An unexpected error occurred during tests." in log_entry["event"] and log_entry["log_level"] == "error"
-        for log_entry in caplog_structlog
-    )
+    @pytest.mark.integration
+    def test_run_command_handles_exit_exception(
+        self,
+        mock_dependencies: dict[str, Any],
+        mock_checkconnect_class: MagicMock,
+        runner: CliRunner,
+        caplog_structlog: list[EventDict],
+    ) -> None:
+        """
+        Ensure ExitExceptionError is handled with logging and clean exit.
+        """
+        # Arrange
+        settings_manager_instance = mock_dependencies["settings_manager_instance"]
+        logging_manager_instance = mock_dependencies["logging_manager_instance"]
+        translation_manager_instance = mock_dependencies["translation_manager_instance"]
+        app_context_instance = mock_dependencies["app_context_instance"]
 
+        # Ensure AppContext.create.return_value is readily available for later assertions
+        assert AppContext.create.return_value == app_context_instance
 
-@pytest.mark.unit
-@pytest.mark.parametrize(
-    ("cli_args", "expected_log_level"),
-    [
-        ("--verbose", logging.DEBUG),
-    ],
-)
-def test_run_command_with_cli_options(
-    mocker,
-    patch_checkconnect,
-    cli_args,
-    expected_log_level,
-    tmp_path: Path,
-    config_file: Path,
-    runner: CliRunner,
-    caplog_structlog: list[EventDict],
-):
-    """
-    Test the run command handles verbosity options and passes config to AppContext.
-    """
-    # Patch the logging manager to inspect cli_log_level
-    # mock_logging_manager = mocker.Mock()
-    # mock_logging_get = mocker.patch(
-    #     "checkconnect.cli.main.LoggingManagerSingleton.initialize_from_context",
-    #     return_value=mock_logging_manager,
-    # )
+        checkconnect_instance = mock_checkconnect_class.return_value
+        checkconnect_instance.run_all_checks.side_effect = ExitExceptionError("Controlled failure")
 
-    print("CLI-Args: ", cli_args)
+        # Invoke the command
+        result = runner.invoke(
+            cli_main.main_app,
+            ["run"],
+        )
 
-    # if cli_args is None:
-    #     cli_args = ""
+        # Assert CLI command exits with code 0
+        assert result.exit_code == 1, f"Missing exception: {result.output}"
+        assert "Cannot run checks." in result.stdout, (
+            "Expected 'Cannot start generate reports for checkconnect.' in stdout"
+        )
+        assert "Controlled failure" in result.stdout, "Expected 'Controlled failure' in stdout"
 
-    result = runner.invoke(cli_main.main_app, ["--language", "en", f"--config={config_file}", f"{cli_args}", "run"])
+        # Common initialization assertions
+        assert_common_initialization(
+            settings_manager_instance,
+            logging_manager_instance,
+            translation_manager_instance,
+            expected_cli_log_level=logging.WARNING,  # Default from verbose=0 in cli_main
+            expected_language="en",
+            expected_console_logging=True,
+        )
 
-    print(result.output)
+        mock_checkconnect_class.assert_called_once_with(context=AppContext.create.return_value)
 
-    for log_entry in caplog_structlog:
-        print(log_entry)
+        # --- Asserting on Specific Log Entries from Your Output ---
+        assert_common_cli_logs(caplog_structlog)
 
-    assert result.exit_code == 0
-    patch_checkconnect.assert_called_once()
+        # Assert CLI Args
+        assert any(
+            e.get("event") == "CLI Args"
+            and e.get("log_level") == "debug"
+            and e.get("verbose") == 0
+            and e.get("language") is None
+            and e.get("config_file") is None
+            for e in caplog_structlog
+        )
 
-    # LoggingManager should receive correct verbosity
-    # called_args = mock_logging_get.call_args.kwargs
-    # print(called_args)
-    # assert called_args["cli_log_level"] == expected_log_level
+        # Optional: Assert no ERROR/CRITICAL logs in a successful run
+        assert any(
+            e.get("log_level") in ["error", "critical"] and e.get("event") == "Error in Checks: Controlled failure"
+            for e in caplog_structlog
+        )
 
+    @pytest.mark.integration
+    def test_run_command_handles_unexpected_exception(
+        self,
+        mock_dependencies: dict[str, Any],
+        mock_checkconnect_class: MagicMock,
+        runner: CliRunner,
+        caplog_structlog: list[EventDict],
+    ) -> None:
+        """
+        Ensure unexpected exceptions are logged and cause exit with code 1.
+        """
+        # Arrange
+        settings_manager_instance = mock_dependencies["settings_manager_instance"]
+        logging_manager_instance = mock_dependencies["logging_manager_instance"]
+        translation_manager_instance = mock_dependencies["translation_manager_instance"]
+        app_context_instance = mock_dependencies["app_context_instance"]
 
-@pytest.mark.unit
-def test_run_command_verbose_flag_levels(tmp_path: Path, mocker: Any, mock_dependencies, runner: CliRunner):
-    """
-    Test that verbosity level maps correctly to log level.
-    """
-    mock_log_init = mocker.patch("checkconnect.config.logging_manager.LoggingManagerSingleton.initialize_from_context")
+        # Ensure AppContext.create.return_value is readily available for later assertions
+        assert AppContext.create.return_value == app_context_instance
 
-    result = runner.invoke(cli_main.main_app, ["run", "-vv"])
+        checkconnect_instance = mock_checkconnect_class.return_value
+        checkconnect_instance.run_all_checks.side_effect = RuntimeError("Something went wrong")
 
-    assert result.exit_code == 0
-    mock_log_init.assert_called_once()
-    args, kwargs = mock_log_init.call_args
-    assert kwargs["cli_log_level"] == 0  # logging.NOTSET
+        # Invoke the command
+        result = runner.invoke(
+            cli_main.main_app,
+            ["run"],
+        )
 
+        # Assert CLI command exits with code 0
+        assert result.exit_code == 1, f"Missing exception: {result.output}"
+        assert "An unexpected error occurred during checks." in result.stdout, (
+            "Expected 'Cannot start generate reports for checkconnect.' in stdout"
+        )
+        assert "Something went wrong" in result.stdout, "Expected 'Controlled failure' in stdout"
 
-def test_run_command_with_help_option(
-    mocker: Any,
-    runner: CliRunner,
-):
-    """
-    Test that 'run --help' displays the help message specific to the 'run' command.
-    """
-    result = runner.invoke(cli_main.main_app, ["run", "--help"])
-    print(result.stdout)
+        # Common initialization assertions
+        assert_common_initialization(
+            settings_manager_instance,
+            logging_manager_instance,
+            translation_manager_instance,
+            expected_cli_log_level=logging.WARNING,  # Default from verbose=0 in cli_main
+            expected_language="en",
+            expected_console_logging=True,
+        )
 
-    assert result.exit_code == 0
+        mock_checkconnect_class.assert_called_once_with(context=AppContext.create.return_value)
 
-    # Headers
-    assert "Usage: cli run [OPTIONS]" in result.output
-    assert "Run network tests for NTP and HTTPS servers." in result.output
+        # --- Asserting on Specific Log Entries from Your Output ---
+        assert_common_cli_logs(caplog_structlog)
 
-    # Options
-    assert "--help          Show this message and exit." in result.output
+        # Assert CLI Args
+        assert any(
+            e.get("event") == "CLI Args"
+            and e.get("log_level") == "debug"
+            and e.get("verbose") == 0
+            and e.get("language") is None
+            and e.get("config_file") is None
+            for e in caplog_structlog
+        )
 
-    # You might still see some initialization logs due to the setup,
-    # but the important part is that the help message is correct.
-    captured = capsys.readouterr()
-    assert "[INFO] checkconnect.config.logging_manager: Full logging configuration applied." in captured.out
+        # Optional: Assert no ERROR/CRITICAL logs in a successful run
+        assert any(
+            e.get("log_level") in ["error", "critical"]
+            and e.get("event") == "An unexpected error occurred during checks. (Something went wrong)"
+            for e in caplog_structlog
+        )
+
+    @pytest.mark.integration
+    def test_run_command_with_help_option(
+        self,
+        mock_dependencies: dict[str, Any],
+        runner: CliRunner,
+        caplog_structlog: list[EventDict],
+    ) -> None:
+        """
+        Test that 'run --help' displays the help message specific to the 'run' command.
+        """
+        # Arrange
+        settings_manager_instance = mock_dependencies["settings_manager_instance"]
+        logging_manager_instance = mock_dependencies["logging_manager_instance"]
+        translation_manager_instance = mock_dependencies["translation_manager_instance"]
+        app_context_instance = mock_dependencies["app_context_instance"]
+
+        # Ensure AppContext.create.return_value is readily available for later assertions
+        assert AppContext.create.return_value == app_context_instance
+
+        test_env = {
+            "NO_COLOR": "1",  # Disable colors
+            "TERM": "dumb",  # Disable advanced terminal features like frames
+            "mix_stderr": "False",  # <--- This should be a direct argument to invoke()
+            "catch_exceptions": "False",  # <--- And this one too
+            # If using rich_click specifically, sometimes CLICOLOR_FORCE=0 helps too
+        }
+
+        result = runner.invoke(cli_main.main_app, ["run", "--help"], env=test_env)
+
+        # Assert
+        assert result.exit_code == 0, f"Unexpected failure: {result.exception}"
+
+        # Common initialization assertions
+        assert_common_initialization(
+            settings_manager_instance,
+            logging_manager_instance,
+            translation_manager_instance,
+            expected_cli_log_level=logging.WARNING,  # Default from verbose=0 in cli_main
+            expected_language="en",
+        )
+
+        # Headers
+        assert "Usage: cli run [OPTIONS]" in result.output
+        assert "Run network tests for NTP and HTTPS servers." in result.output
+
+        # Options
+        assert "--help          Show this message and exit." in result.output

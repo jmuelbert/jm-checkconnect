@@ -59,7 +59,7 @@ log = structlog.get_logger(__name__)
 @dataclass
 class AppContext:
     """
-    Manages shared application context, providing access to pre-initialized
+    Manage shared application context, providing access to pre-initialized
     configuration and translation services.
 
     This class serves as a central hub for essential application components,

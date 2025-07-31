@@ -74,7 +74,7 @@ class TestGuiMain:
             mocker: The pytest-mock fixture for patching objects.
         """
         mock_run_ntp = mocker.patch.object(gui.checkconnect, "run_ntp_checks")
-        gui.checkconnect.ntp_results = ["NTP server 1 OK", "NTP server 2 OK"]
+        gui.checkconnect.set_ntp_results(["NTP server 1 OK", "NTP server 2 OK"])
 
         gui.test_ntp()
 
@@ -95,7 +95,7 @@ class TestGuiMain:
             mocker: The pytest-mock fixture for patching objects.
         """
         mock_run_url = mocker.patch.object(gui.checkconnect, "run_url_checks")
-        gui.checkconnect.url_results = ["https://example.com OK"]
+        gui.checkconnect.set_url_results(["https://example.com OK"])
 
         gui.test_urls()
 
@@ -116,8 +116,8 @@ class TestGuiMain:
         mock_html = mocker.patch("checkconnect.gui.gui_main.generate_html_report")
         mock_pdf = mocker.patch("checkconnect.gui.gui_main.generate_pdf_report")
 
-        gui.checkconnect.ntp_results = ["NTP OK"]
-        gui.checkconnect.url_results = ["URL OK"]
+        gui.checkconnect.set_ntp_results(["NTP OK"])
+        gui.checkconnect.set_url_results(["URL OK"])
         gui.generate_reports()
 
         mock_html.assert_called_once()

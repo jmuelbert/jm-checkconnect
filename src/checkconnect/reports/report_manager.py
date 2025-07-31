@@ -94,11 +94,20 @@ class ReportManager:
             data_dir: Directory to store the summary data.
         """
         self.context = context
-        self.logger = log
         self.translator = context.translator
         self._ = self.translator.gettext
         self.data_dir = data_dir
-        self._ensure_data_directory()  # Call it here after data_dir is set
+
+        # Ensure the directory exists
+        try:
+            self.data_dir.mkdir(parents=True, exist_ok=True)
+            log.info(self._("Ensured data directory exists: '{data_dir}'"), data_dir=self.data_dir)
+        except OSError as e:
+            log.exception(self._("Failed to create data directory: '{data_dir}'"), data_dir=self.data_dir, error=str(e))
+            # Depending on severity, you might want to raise an exception or handle gracefully
+            raise DirectoryCreationError(
+                self._("Failed to create data directory: '{data_dir}': {error}").format(data_dir=data_dir, error=str(e))
+            ) from e
 
     # --- Factory-Methods ---
     @classmethod
@@ -118,26 +127,28 @@ class ReportManager:
             A configured ReportManager instance.
         """
         # The default value for get should be the most robust and standard path
-        default_data_path = str(user_data_dir(__about__.__app_name__, __about__.__app_org_id__))
+        app_name = (__about__.__app_name__).lower()
+        app_org_id = (__about__.__app_org_id__).lower()
+        default_data_path = Path(user_data_dir(app_name, app_org_id))
 
-        data_dir_str: str = context.settings.get("data", "directory", default_data_path)
-        data_dir: Path = Path(data_dir_str)  # Convert to Path immediately
+        data_dir_from_config_str: str | None = context.settings.get("data", "directory")
 
-        # Log an info message if the default was used
-        if data_dir_str == default_data_path:
-            log.info(
-                context.translator.translate(
-                    f"Data directory not found in config or invalid. Using default: '{data_dir}'"
-                )
-            )
+        if data_dir_from_config_str:
+            data_dir = Path(data_dir_from_config_str)
+            log.info(context.translator.translate("Using data directory from config: '{data_dir}'"), data_dir=data_dir)
         else:
-            log.info(context.translator.translate(f"Using data directory from config: '{data_dir}'"))
+            data_dir = default_data_path
+            log.warning(
+                context.translator.translate(
+                    "Data directory not found in config or invalid. Using default: '{data_dir}'"
+                ),
+                data_dir=data_dir,
+            )
 
-        instance = cls(context=context, data_dir=data_dir)
-        return instance
+        return cls(context=context, data_dir=data_dir)
 
     @classmethod
-    def from_params(cls, context: AppContext, data_dir: Path) -> ReportManager:
+    def from_params(cls, context: AppContext, arg_data_dir: Path) -> ReportManager:
         """
         Create a ReportManager instance with the specified data directory.
 
@@ -147,7 +158,7 @@ class ReportManager:
         Args:
         ----
             context: The application context containing config, logger, and translator.
-            data_dir: The directory to store the data.
+            arg_data_dir: The directory to store the data.
 
         Returns:
         -------
@@ -155,34 +166,19 @@ class ReportManager:
         """
         # If data_dir can be None here, it should be handled:
         # Assuming data_dir from parameters will always be a Path or None
-        if data_dir is None:
-            data_dir = Path(user_data_dir(__about__.__app_name__, __about__.__app_org_id__))
-            log.info(context.translator.translate(f"data_dir parameter was None. Using default: '{data_dir}'"))
-
-        instance = cls(context=context, data_dir=data_dir)
-        return instance
-
-    def _ensure_data_directory(self) -> Path:
-        """
-        Ensure the specified data directory exists, creating it and parent directories if necessary.
-
-        Returns:
-        -------
-            The path to the ensured data directory.
-
-        Raises:
-        ------
-            DirectoryCreationError: If the directory cannot be created due to an OS error.
-        """
-        try:
-            self.data_dir.mkdir(parents=True, exist_ok=True)
-            self.logger.info(self._(f"Ensured data directory exists: '{self.data_dir}'"))
-        except OSError as e:
-            translated_message = self._(f"Failed to create directory '{data_dir}'. Original error: {e}")
-            self.logger.error(translated_message)
-            raise DirectoryCreationError(translated_message, original_exception=e) from e
+        if arg_data_dir is not None:
+            # An argument was provided, always use it.
+            log.info(
+                context.translator.translate("Using data directory from CLI argument: '{data_dir}'"),
+                data_dir=arg_data_dir,
+            )
+            return cls(context=context, data_dir=arg_data_dir)
         else:
-            return self.data_dir
+            # No argument provided, fall back to logic in from_context
+            log.debug(
+                context.translator.translate("No data directory argument provided. Falling back to config/default.")
+            )
+            return cls.from_context(context)
 
     def _get_filepath(self, data_type: ReportDataType) -> Path:
         """
@@ -224,10 +220,16 @@ class ReportManager:
         try:
             with output_path.open("w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2)
-            msg = self._(f"Results for {data_type.value} saved to disk: {output_path}")
-            self.logger.info(msg)
+            log.debug(
+                self._("Results for '{data_type.value}' saved to disk: '{output_path}'"),
+                data_type_value=data_type.value,
+                file_path=output_path,
+            )
         except (OSError, TypeError, ValueError) as e:
-            self.logger.exception(self._(f"Could not save {data_type.value} results due to an unexpected error."))
+            log.exception(
+                self._("Could not save '{data_type.value}' results due to an unexpected error."),
+                data_type_value=data_type.value,
+            )
             translated_message = self._(f"Could not save {data_type.value} results to: {output_path}")
             raise SummaryDataSaveError(translated_message, original_exception=e) from e
 
@@ -254,8 +256,17 @@ class ReportManager:
             if file_path.exists():
                 with file_path.open("r", encoding="utf-8") as f:
                     results = json.load(f)
+                log.debug(
+                    self._("Loaded {data_type.value} results from: {file_path}"),
+                    data_type_value=data_type.value,
+                    file_path=file_path,
+                )
         except (OSError, json.JSONDecodeError) as e:
-            self.logger.exception(self._(f"Failed to load {data_type.value} results."))
+            log.exception(
+                self._("Failed to load '{data_type.value}' results."),
+                data_type_value=data_type.value,
+                file_path=file_path,
+            )
             translated_message = self._(f"Failed to load {data_type.value} results from: {file_path}")
             raise SummaryDataLoadError(translated_message, original_exception=e) from e
         return results
@@ -320,7 +331,7 @@ class ReportManager:
         url_results: list[str] = self.load_url_results()
         print("[DEBUG] Loaded URL results from file:", url_results)
 
-        self.logger.info(self._("Previous results loaded from disk."))
+        log.info(self._("Previous results loaded from disk."))
         return ntp_results, url_results
 
     def get_data_dir(self) -> Path:

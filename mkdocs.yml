@@ -12,11 +12,13 @@ repo_name: jmuelbert/checkconnect
 repo_url: https://github.com/jmuelbert/checkconnect/
 edit_uri: blob/main/docs/
 # Copyright
-copyright: Copyright &copy; 2023 - 2024 Jürgen Mülbert
+copyright: Copyright &copy; 2023 - now Jürgen Mülbert
 # Configuration
 docs_dir: docs
 site_dir: site
 theme:
+  logo: assets/images/logo.svg
+  favicon: assets/images/favicon.ico
   name: material
   custom_dir: docs/.overrides
   # Static files
@@ -26,15 +28,25 @@ theme:
   language: en
   direction: ltr
   features:
+    - content.code.copy
+    - content.code.annotate
+    - content.code.select
+    - content.tabs.link
+    - header.autohide
+    - navigation.expand
+    - navigation.top
     - navigation.tabs
     - navigation.tabs.sticky
     - navigation.sections
     - navigation.instant
-    - navigation.indexes
+    # - navigation.indexes
+    - navigation.instant.progress
+    - navigation.tracking
+    - navigation.footer
+    - search.suggest
+    - toc.follow
     - toc.integrate
-    - content.code.copy
-    - content.code.annotate
-    - content.code.select
+
   palette:
     # Palette toggle for light mode
     - media: "(prefers-color-scheme: light)"
@@ -53,6 +65,11 @@ theme:
     code: Roboto Mono
   extra_css:
     - css/custom.css
+  shortcuts:
+    help: 191 # ?
+    next: 78 # n
+    previous: 80 # p
+    search: 83 # s
   icon:
     repo: fontawesome/brands/github-alt
     logo: material/check-network-outline
@@ -67,6 +84,7 @@ plugins:
       - es
       - it
       - zh
+  section-index: {}
   awesome-pages: {}
   glightbox: {}
   mike:
@@ -78,6 +96,7 @@ plugins:
       python:
         paths: ["src"] # Point to the root 'src' directory
         options:
+          show_source: false
           show_root_heading: true
           show_object_full_path: false
           show_category_heading: true
@@ -85,7 +104,9 @@ plugins:
           show_submodules: true  # Crucial for documenting modules
           show_if_no_docstring: true
           show_signature: true
+          show_signature_annotations: true
           heading_level: 2
+          separate_signature: true
           filters: ["!^_"] # Exclude private methods
   i18n:
     docs_structure: suffix
@@ -121,21 +142,41 @@ plugins:
 
 # Markdown Extensions
 markdown_extensions:
+  - admonition
   - attr_list
+  - def_list
+  - footnotes
   - meta
   - md_in_html
+  - tables
   - toc:
       permalink: true
-  - admonition
   - codehilite:
       guess_lang: false
-  - pymdownx.superfences
+  - pymdownx.tasklist:
+      custom_checkbox: true
   - pymdownx.details
-  - pymdownx.tabbed
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.snippets:
+      base_path: "."
+      # dedent_subsections: true
+  - pymdownx.inlinehilite
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.caret
+  - pymdownx.mark
+  - pymdownx.tilde
   - pymdownx.emoji:
       emoji_index: !!python/name:material.extensions.emoji.twemoji
       emoji_generator: !!python/name:materialx.emoji.to_svg
-  - mkdocs-click
 
 # Customization
 extra:

@@ -39,12 +39,10 @@ def assert_common_initialization(
         translator=translation_manager_instance,
     )
 
+
 def assert_common_cli_logs(log_entries: list[EventDict]) -> None:
     # 1. Assert initial CLI startup (DEBUG)
-    assert any(
-        e.get("event") == "Main callback: is starting!" and e.get("log_level") == "debug" for e in log_entries
-    )
-
+    assert any(e.get("event") == "Main callback: is starting!" and e.get("log_level") == "debug" for e in log_entries)
 
     # 2. Assert key INFO level success messages
     assert any(

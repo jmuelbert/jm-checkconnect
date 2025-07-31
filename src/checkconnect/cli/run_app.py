@@ -11,10 +11,13 @@ from __future__ import annotations
 
 import structlog
 import typer
+from rich.console import Console
 
 from checkconnect.exceptions import ExitExceptionError
 from checkconnect.config.appcontext import AppContext  # Import the revised AppContext
 from checkconnect.core.checkconnect import CheckConnect
+
+console = Console()
 
 run_app = typer.Typer(pretty_exceptions_show_locals=False)
 
@@ -48,8 +51,6 @@ def run_command(ctx: typer.Context) -> None:
     # LoggingManager (which has configured global structlog), and TranslationManager.
     app_context: AppContext = ctx.obj["app_context"]
 
-    print(f"[DEBUG typer-run_app] AppContext from ctx: {app_context}")
-
     # Now, use the AppContext to access services
     log.info(app_context.gettext("Starting CLI in tests mode"))
     # The 'verbose' setting's effect on logging level is already handled by main_callback
@@ -58,14 +59,26 @@ def run_command(ctx: typer.Context) -> None:
 
     try:
         # CheckConnect should now take the AppContext instance
+        console.print(app_context.gettext("[bold green]Checking NTP and URL servers from config![/bold green]"))
+
         checker = CheckConnect(context=app_context)
         checker.run_all_checks()
+
+        console.print(app_context.gettext("[bold green]All checks passed successfully![/bold green]"))
+
     except ExitExceptionError as e:
-        log.exception(app_context.gettext("Error in run_command."))
+        console.print(app_context.gettext(f"[bold red]Critical Error:[/bold red] Cannot run checks. {e}"))
+        log.critical(app_context.gettext(f"Error in Checks: {e}"))
         sys.exit(1)
         raise typer.Exit(1)
     except Exception as e:
-        log.exception(app_context.gettext("An unexpected error occurred during tests."))
+        console.print(
+            app_context.gettext(
+                f"[bold red]Critical Error:[/bold red] An unexpected error occurred during checks. ({e}"
+            )
+        )
+        console.print(str(e), style="bold red")
+        log.exception(app_context.gettext(f"An unexpected error occurred during checks. ({e})"))
         sys.exit(1)
         raise typer.Exit(1)
 

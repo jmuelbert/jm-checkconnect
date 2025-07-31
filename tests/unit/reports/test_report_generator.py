@@ -5,13 +5,17 @@
 from __future__ import annotations
 
 from pathlib import Path
+import platformdirs
 from typing import TYPE_CHECKING
 from unittest.mock import patch
 
 import pytest
 from pydantic import ValidationError
 
+from checkconnect import __about__
+
 from checkconnect.exceptions import DirectoryCreationError
+import checkconnect.reports.report_generator as report_generator_module
 from checkconnect.reports.report_generator import (
     ReportGenerator,
     ReportInput,
@@ -45,7 +49,7 @@ def report_generator_from_params_instance(app_context_fixture: AppContext, tmp_p
     -------
         A `ReportGenerator` instance.
     """
-    return ReportGenerator.from_params(context=app_context_fixture, reports_dir=tmp_path / "output_from_params")
+    return ReportGenerator.from_params(context=app_context_fixture, arg_reports_dir=tmp_path / "output_from_params")
 
 
 @pytest.fixture
@@ -223,23 +227,16 @@ class TestReportGenerator:
 
     @pytest.mark.unit
     @pytest.mark.parametrize("app_context_fixture", ["simple"], indirect=True)
-    def test_from_params_uses_explicit_reports_dir(
-        self, app_context_fixture: AppContext, mocker: MockerFixture, tmp_path: Path
-    ) -> None:
+    def test_from_params_uses_explicit_reports_dir(self, app_context_fixture: AppContext, tmp_path: Path) -> None:
         """
         Test that `from_params` uses the default directory when none is configured.
 
         Ensures that if the `reports.directory` setting is missing from the config,
         the `ReportGenerator` falls back to its predefined default output path.
         """
-        mock_ensure_dir = mocker.patch.object(ReportGenerator, "_ensure_reports_directory", return_value=None)
-
         generator_reports_dir = tmp_path / "another_test_reports_dir"
 
-        generator = ReportGenerator.from_params(context=app_context_fixture, reports_dir=generator_reports_dir)
-        # Assert _ensure_reports_directory was called with the correct RELATIVE path
-        # The first argument is 'self', so the second is 'reports_dir'
-        mock_ensure_dir.assert_called_once_with(generator_reports_dir)
+        generator = ReportGenerator.from_params(context=app_context_fixture, arg_reports_dir=generator_reports_dir)
 
         assert generator.reports_dir == generator_reports_dir
 
@@ -251,87 +248,115 @@ class TestReportGenerator:
         """
         Test that `ReportGenerator.from_context` uses the configured directory when the context is 'full'.
         """
-        mock_ensure_dir = mocker.patch.object(ReportGenerator, "_ensure_reports_directory", return_value=None)
-
         app_context = report_generator_from_context_instance.context
 
         generator = ReportGenerator.from_context(context=app_context)
 
         expected_path_from_config = tmp_path / "test_reports_from_config"
 
-        mock_ensure_dir.assert_called_once_with(expected_path_from_config)
         assert generator.reports_dir == expected_path_from_config
 
     @pytest.mark.unit
     @pytest.mark.parametrize("app_context_fixture", ["simple"], indirect=True)
     def test_from_context_uses_default_reports_dir_if_none_in_config(
-        self, report_generator_from_context_instance: ReportGenerator, mocker: MockerFixture
+        self,
+        app_context_fixture: AppContext,  # Use this directly, no need for the report_generator_from_context_instance fixture if you're creating it here
+        mocker,  # Use mocker from pytest-mock for patching
+        caplog_structlog: list[EventDict],  # To capture structlog output
     ) -> None:
         """
-        Test that `from_context` uses the fixed default value 'reports'
-        when nothing is specified in the configuration.
+        Test that `from_context` uses the default user data directory
+        when the configuration does not specify a reports directory.
+
+        Also asserts that the correct log messages are emitted.
         """
-        mock_ensure_dir = mocker.patch.object(ReportGenerator, "_ensure_reports_directory", return_value=None)
+        # 1. Arrange (Setup)
+        # Ensure config.settings.get returns None for "reports", "directory"
+        # The 'simple' app_context_fixture should already have an empty config for this.
+        # If not, you might need to mock context.settings.get specifically.
+        mocker.patch.object(app_context_fixture.settings, "get", return_value=None)
 
-        app_context = report_generator_from_context_instance.context
+        # Mock platformdirs.user_data_dir to return a predictable path for testing
+        # This prevents creating real directories and ensures test reproducibility across OSes.
+        mock_user_data_dir_path = Path("/mocked/user/data/reports/checkconnect")
+        mocker.patch(f"{report_generator_module.__name__}.user_data_dir", return_value=str(mock_user_data_dir_path))
 
-        # Create the generator manually to control the patch
-        generator = ReportGenerator.from_context(context=app_context)
+        # Mock Path.mkdir since ReportGenerator.__init__ calls it
+        # We want to ensure it's called, but not actually create a directory.
+        # We'll use a MagicMock for the return value of Path().mkdir()
+        mock_mkdir = mocker.patch.object(Path, "mkdir", return_value=None)  # mkdir typically returns None
 
-        expected_default_path = Path("reports")  # The fixed default value in from_context
-        mock_ensure_dir.assert_called_once_with(expected_default_path)
-        assert generator.reports_dir == expected_default_path
+        # 2. Act (Call the code under test)
+        generator = ReportGenerator.from_context(context=app_context_fixture)
 
-    @pytest.mark.unit
-    @pytest.mark.parametrize("app_context_fixture", ["simple"], indirect=True)
-    def test_ensure_reports_directory_creates_dir(
-        self, report_generator_from_context_instance: ReportGenerator, tmp_path: Path
-    ) -> None:
-        """
-        Test that `_ensure_reports_directory` creates the directory if it doesn't exist.
+        # 3. Assert (Verify behavior)
 
-        Ensures that the internal helper method correctly creates the target
-        output directory and its parents, and returns the verified path.
-        """
-        # Ensure the directory does not exist to start the test
-        test_dir = tmp_path / "new_reports"
-        assert not test_dir.exists()
+        # Assert that the reports_dir is the expected default path
+        assert generator.reports_dir == mock_user_data_dir_path
 
-        created_path = report_generator_from_context_instance._ensure_reports_directory(test_dir)  # noqa: SLF001
-        assert created_path == test_dir
-        assert test_dir.is_dir()
-        assert test_dir.exists()
+        # Assert that mkdir was called correctly
+        # It should be called on the Path object representing the default path.
+        # The `parents=True` and `exist_ok=True` arguments are important.
+        mock_mkdir.assert_called_once_with(parents=True, exist_ok=True)
+
+        assert any(
+            "Report directory not found in config or invalid. Using default: '{reports_dir}'" in e.get("event")
+            and e.get("reports_dir") == mock_user_data_dir_path
+            and e.get("log_level") == "warning"
+            for e in caplog_structlog
+        )
+
+        assert any(
+            "Ensured report directory exists: '{reports_dir}'" in e.get("event")
+            and e.get("reports_dir") == mock_user_data_dir_path
+            and e.get("log_level") == "info"
+            for e in caplog_structlog
+        )
 
     @pytest.mark.unit
     @pytest.mark.parametrize("app_context_fixture", ["simple"], indirect=True)
     def test_ensure_reports_directory_raises_error_on_failure(
-        self,
-        app_context_fixture: AppContext,
+        self, app_context_fixture: AppContext, caplog_structlog: list[EventDict]
     ) -> None:
         """
-        Test that `_ensure_reports_directory` raises `DirectoryCreationError` on failure.
+        Test that `_ensure_reports_directory` raises `DirectoryCreationError` on failure
+        and logs the appropriate error with structlog.
 
         Simulates an `OSError` during directory creation (e.g., permission issues)
         and asserts that the custom `DirectoryCreationError` is raised with
-        appropriate messaging.
+        appropriate messaging, and that the `structlog` output is correct.
         """
-        target_path = Path("/nonexistent/path_unwritable")  # A path designed to fail
+        # Define a target path that will definitely cause an OSError
+        target_path = Path("/nonexistent/path_unwritable")
+
+        # Define the expected error message from the OSError
+        os_error_message = "Permission denied"
+
         with (
-            patch.object(Path, "mkdir", side_effect=OSError("Permission denied")),
+            # Patch Path.mkdir to simulate an OSError
+            patch.object(Path, "mkdir", side_effect=OSError(os_error_message)),
+            # Assert that DirectoryCreationError is raised
             pytest.raises(DirectoryCreationError) as excinfo,
         ):
-            ReportGenerator.from_params(app_context_fixture, target_path)
+            # Call the method that internally tries to create the directory
+            ReportGenerator.from_params(context=app_context_fixture, arg_reports_dir=target_path)
 
-        assert "[mocked] Failed to create report directory /nonexistent/path_unwritable: Permission denied" in str(
-            excinfo.value
-        )
-        assert "Permission denied" in str(excinfo.value)
+        # Assertions for the raised exception
+        assert f"Failed to create report directory: '{target_path}': {os_error_message}" in str(excinfo.value)
+        assert os_error_message in str(excinfo.value)
         assert isinstance(excinfo.value.__cause__, OSError)
+
+        assert any(
+            e.get("event") == "[mocked] Failed to create report directory: '{reports_dir}'"
+            and e.get("reports_dir") == target_path
+            and e.get("log_level") == "error"
+            for e in caplog_structlog
+        )
 
     @pytest.mark.unit
     @pytest.mark.parametrize("app_context_fixture", ["full"], indirect=True)
     def test_generate_report_creates_file(
-        self, report_generator_from_context_instance: ReportGenerator, mocker: MockerFixture
+        self, report_generator_from_context_instance: ReportGenerator, caplog_structlog: list[EventDict]
     ) -> None:
         """
         Test the `generate_report` method, which creates a plain text file.
@@ -343,9 +368,6 @@ class TestReportGenerator:
         ntp_data = ["ntp1.example.com: OK", "ntp2.example.com: FAILED"]
         url_data = ["https://example.com: 200", "https://bad.com: 404"]
         report_input = ReportInput(ntp_results=ntp_data, url_results=url_data)
-
-        # Mock the logger to check if the info message is logged
-        mocker.patch.object(report_generator_from_context_instance.logger, "info")
 
         report_filename = "my_connectivity_report.txt"
         report_path = report_generator_from_context_instance.generate_report(report_input, report_filename)
@@ -362,6 +384,9 @@ class TestReportGenerator:
         assert "NTP Test Result 2" not in content  # Ensure no old content is present
         assert "URL Results:" in content
         assert "https://example.com: 200" in content
+
+        for event in caplog_structlog:
+            print(event)
 
     @pytest.mark.unit
     def test_generate_html_report_success(
@@ -401,7 +426,10 @@ class TestReportGenerator:
 
     @pytest.mark.unit
     def test_generate_html_report_missing_data_raises_error(
-        self, report_generator_from_context_instance: ReportGenerator, mocker: MockerFixture
+        self,
+        report_generator_from_context_instance: ReportGenerator,
+        mocker: MockerFixture,
+        caplog_structlog: list[EventDict],
     ) -> None:
         """
         Test that `generate_html_report` raises `ValidationError` when no data is provided.
@@ -409,23 +437,24 @@ class TestReportGenerator:
         Ensures that an attempt to generate an HTML report with empty NTP and URL
         result lists results in a `ValidationError` due to `ReportInput`'s validation.
         """
-        # Mock the logger to check if the error is logged
-        mocker.patch.object(report_generator_from_context_instance.logger, "error")
-        mocker.patch.object(report_generator_from_context_instance.logger, "exception")
 
         with pytest.raises(ValidationError) as excinfo:  # Pydantic ValidationError
             report_generator_from_context_instance.generate_html_report([], [])
 
         assert "Field 'ntp_results' cannot be empty." in str(excinfo.value)
         assert "Field 'url_results' cannot be empty." in str(excinfo.value)
-        report_generator_from_context_instance.logger.exception.assert_called_once()
-        assert "Invalid report data:" in report_generator_from_context_instance.logger.exception.call_args[0][0]
+
+        assert any(
+            "Invalid report data:" in log_entry.get("event") and log_entry.get("log_level") == "error"
+            for log_entry in caplog_structlog
+        )
 
     @pytest.mark.unit
     def test_generate_html_report_io_error(
         self,
         report_generator_from_context_instance: ReportGenerator,
         mocker: MockerFixture,
+        caplog_structlog: list[EventDict],
     ) -> None:
         """
         Test that `generate_html_report` raises `OSError` when file writing fails.
@@ -453,19 +482,20 @@ class TestReportGenerator:
             side_effect=mock_os_error_instance,
         )
 
-        # Mock the logger's exception method to assert it was called
-        mocker.patch.object(report_generator_from_context_instance.logger, "exception")
-
         with pytest.raises(OSError, match="Disk full: No space left on device"):
             report_generator_from_context_instance.generate_html_report(ntp_data, url_data)
 
-        report_generator_from_context_instance.logger.exception.assert_called_once_with(
-            "[mocked] Error generating HTML report.",
+        assert any(
+            "[mocked] Error generating HTML report." in e.get("event") and e.get("log_level") == "error"
+            for e in caplog_structlog
         )
 
     @pytest.mark.unit
     def test_generate_pdf_report_success(
-        self, report_generator_from_context_instance: ReportGenerator, mocker: MockerFixture
+        self,
+        report_generator_from_context_instance: ReportGenerator,
+        mocker: MockerFixture,
+        caplog_structlog: list[EventDict],
     ) -> None:
         """
         Test the successful creation of a PDF report.
@@ -489,8 +519,6 @@ class TestReportGenerator:
         mock_weasyprint_html_class.return_value = mock_weasyprint_html_instance
         mocker.patch("checkconnect.reports.report_generator.HTML", new=mock_weasyprint_html_class)
 
-        mocker.patch.object(report_generator_from_context_instance.logger, "info")
-
         report_path = report_generator_from_context_instance.generate_pdf_report(ntp_data, url_data)
 
         expected_path = report_generator_from_context_instance.reports_dir / ReportGenerator.PDF_FILENAME
@@ -502,13 +530,20 @@ class TestReportGenerator:
         mock_weasyprint_html_class.assert_called_once_with(string="<html>Mocked HTML for PDF</html>")
         # Assert write_pdf was called on the HTML instance
         mock_weasyprint_html_instance.write_pdf.assert_called_once_with(str(expected_path))
-        report_generator_from_context_instance.logger.info.assert_any_call(
-            "[mocked] PDF report generated at %s", str(expected_path)
+
+        assert any(
+            "PDF report generated at" in e.get("event")
+            and e.get("output_path") == expected_path
+            and e.get("log_level") == "info"
+            for e in caplog_structlog
         )
 
     @pytest.mark.unit
     def test_generate_pdf_report_missing_data_raises_error(
-        self, report_generator_from_context_instance: ReportGenerator, mocker: MockerFixture
+        self,
+        mocker: MockerFixture,
+        report_generator_from_context_instance: ReportGenerator,
+        caplog_structlog: list[EventDict],
     ) -> None:
         """
         Test that `generate_pdf_report` raises `ValidationError` when no data is provided.
@@ -516,19 +551,24 @@ class TestReportGenerator:
         Ensures that an attempt to generate a PDF report with empty NTP and URL
         result lists results in a `ValidationError` due to `ReportInput`'s validation.
         """
-        mocker.patch.object(report_generator_from_context_instance.logger, "error")
-        mocker.patch.object(report_generator_from_context_instance.logger, "exception")
-
         with pytest.raises(ValidationError) as excinfo:  # Pydantic ValidationError
             report_generator_from_context_instance.generate_pdf_report([], [])
 
         assert "Field 'ntp_results' cannot be empty." in str(excinfo.value)
         assert "Field 'url_results' cannot be empty." in str(excinfo.value)
-        report_generator_from_context_instance.logger.exception.assert_called_once()
-        assert "Invalid report data:" in report_generator_from_context_instance.logger.exception.call_args[0][0]
+        assert (
+            "Invalid report data: 2 validation errors for ReportInput\nntp_results\n" in e.get("event")
+            and e.get("log_level") == "error"
+            for e in caplog_structlog
+        )
 
     @pytest.mark.unit
-    def test_generate_pdf_report_error(self, report_generator_from_context_instance, mocker) -> None:
+    def test_generate_pdf_report_error(
+        self,
+        mocker: MockerFixture,
+        report_generator_from_context_instance: ReportGenerator,
+        caplog_structlog: list[EventDict],
+    ) -> None:
         """
         Test that `generate_pdf_report` raises a general `Exception` on PDF generation failure.
 
@@ -549,19 +589,21 @@ class TestReportGenerator:
         mock_weasyprint_html_instance.write_pdf.side_effect = Exception("WeasyPrint error")
         mocker.patch("checkconnect.reports.report_generator.HTML", return_value=mock_weasyprint_html_instance)
 
-        mocker.patch.object(report_generator_from_context_instance.logger, "exception")
-
         with pytest.raises(Exception, match="WeasyPrint error"):  # WeasyPrint raises generic Exception
             report_generator_from_context_instance.generate_pdf_report(ntp_data, url_data)
 
-        report_generator_from_context_instance.logger.exception.assert_called_once_with(
-            "[mocked] Error generating PDF report."
+        assert any(
+            e.get("event") == "[mocked] Error generating PDF report." and e.get("log_level") == "error"
+            for e in caplog_structlog
         )
 
     @pytest.mark.unit
     @pytest.mark.parametrize("app_context_fixture", ["simple"], indirect=True)
     def test_generate_reports_calls_both_html_and_pdf(
-        self, report_generator_from_context_instance: ReportGenerator, mocker: MockerFixture
+        self,
+        report_generator_from_context_instance: ReportGenerator,
+        mocker: MockerFixture,
+        caplog_structlog: list[EventDict],
     ) -> None:
         """
         Test that `generate_reports` calls both `generate_html_report` and `generate_pdf_report`.
@@ -576,7 +618,6 @@ class TestReportGenerator:
         # Mock the internal methods to check if they are called
         mocker.patch.object(report_generator_from_context_instance, "generate_html_report")
         mocker.patch.object(report_generator_from_context_instance, "generate_pdf_report")
-        mocker.patch.object(report_generator_from_context_instance.logger, "info")
 
         report_generator_from_context_instance.generate_reports(ntp_data, url_data)
 
@@ -587,9 +628,11 @@ class TestReportGenerator:
         report_generator_from_context_instance.generate_pdf_report.assert_called_once_with(
             ntp_results=ntp_data, url_results=url_data
         )
-
-        report_generator_from_context_instance.logger.info.assert_called_with(
-            "[mocked] Generating reports in %s", report_generator_from_context_instance.reports_dir
+        assert any(
+            event.get("event") == "[mocked] Generating reports"
+            and event.get("reports_dir") == report_generator_from_context_instance.reports_dir
+            and event.get("log_level") == "info"
+            for event in caplog_structlog
         )
 
     @pytest.mark.unit

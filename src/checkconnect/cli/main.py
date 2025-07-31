@@ -307,6 +307,7 @@ def main_callback(
 
 def main() -> None:
     """Main entry point for CLI dispatch."""
+    print("Starting main function")
     main_app()
 
 

@@ -20,6 +20,7 @@ from pytest_mock import MockerFixture
 from unittest.mock import MagicMock, patch
 
 from typer.testing import CliRunner
+
 # Import the report_app Typer instance and the command function
 # Adjust this import path if your file structure is different
 from checkconnect.cli import main as cli_main
@@ -36,6 +37,7 @@ if TYPE_CHECKING:
     from structlog.typing import EventDict
 else:
     EventDict = dict[str, Any]
+
 
 @pytest.fixture
 def mock_report_manager_class():
@@ -57,20 +59,23 @@ def mock_report_generator_class():
         mock_rg_class.from_params.return_value = mock_instance
         yield mock_rg_class
 
+
 @pytest.fixture
 def mock_checkconnect_class():
-    """Mocks the CheckConnect class and its instance methods."""
+    """Mocks the CheckConnect class and its instance methods, including getters."""
     with patch("checkconnect.cli.report_app.CheckConnect") as mock_cc_class:
         mock_instance = MagicMock(name="CheckConnect_instance")
         mock_instance.run_all_checks.return_value = None
-        mock_instance.ntp_results = ["mocked_ntp_data"]
-        mock_instance.url_results = ["mocked_url_data"]
-        # mock_cc_class.from_params.return_value = mock_instance  ❌ NICHT NUR DAS
-        mock_cc_class.return_value = mock_instance  # ✅ WICHTIG
+
+        # NEU: Mock die Getter-Methoden anstatt der direkten Attribute
+        mock_instance.get_ntp_results.return_value = ["mocked_ntp_data_from_getter"]
+        mock_instance.get_url_results.return_value = ["mocked_url_data_from_getter"]
+
+        mock_cc_class.return_value = mock_instance
         yield mock_cc_class
 
-class TestCliReports:
 
+class TestCliReports:
     @pytest.mark.integration
     def test_report_command_from_main_runs_successfully(
         self,
@@ -95,6 +100,9 @@ class TestCliReports:
         # Verify it points to the correct mock if AppContext.create is mocked in conftest
         assert AppContext.create.return_value == app_context_instance
 
+        mock_report_manager_instance = mock_report_manager_class.from_params.return_value
+        mock_report_manager_instance.results_exists.return_value = True  # <-- WICHTIG: Überschreibe hier!
+
         test_env = {
             "NO_COLOR": "1",  # Disable colors
             "TERM": "dumb",  # Disable advanced terminal features like frames
@@ -111,6 +119,7 @@ class TestCliReports:
 
         # Assert CLI command exits with code 0
         assert result.exit_code == 0, f"Command exited with non-zero code: {result.exception}"
+        assert "Reports generated successfully" in result.output
 
         # Common initialization assertions
         assert_common_initialization(
@@ -119,16 +128,15 @@ class TestCliReports:
             translation_manager_instance,
             expected_cli_log_level=logging.WARNING,  # Default from verbose=0 in cli_main
             expected_language="en",
-            expected_console_logging=True
+            expected_console_logging=True,
         )
-
 
         # Specific assertion for the report command
         mock_report_manager_class.from_params.return_value.results_exists.assert_called_once_with()
         mock_report_manager_class.from_params.return_value.load_previous_results.assert_called_once_with()
 
         mock_report_generator_class.from_params.assert_called_once_with(
-            context=AppContext.create.return_value, reports_dir=None
+            context=AppContext.create.return_value, arg_reports_dir=None
         )
         # Assert ReportGenerator instance's generate_reports was called with the loaded data
         mock_report_generator_class.from_params.return_value.generate_reports.assert_called_once_with(
@@ -151,7 +159,8 @@ class TestCliReports:
 
         # 3. Assert report specific startup INFO log
         assert any(
-            e.get("event") == "Starting Checkconnect in generate-reports mode." and e.get("log_level") == "info" for e in caplog_structlog
+            e.get("event") == "Starting Checkconnect in generate-reports mode." and e.get("log_level") == "info"
+            for e in caplog_structlog
         )
 
         # Optional: Assert no ERROR/CRITICAL logs in a successful run
@@ -178,6 +187,8 @@ class TestCliReports:
         # Ensure AppContext.create.return_value is readily available for later assertions
         assert AppContext.create.return_value == app_context_instance
 
+        mock_report_manager_instance = mock_report_manager_class.from_params.return_value
+        mock_report_manager_instance.results_exists.return_value = True  # <-- WICHTIG: Überschreibe hier!
 
         data_dir_path = Path("/mock/data")
         reports_dir_path = Path("/mock/reports")
@@ -205,6 +216,7 @@ class TestCliReports:
 
         # Assert CLI command exits with code 0
         assert result.exit_code == 0, f"Command exited with non-zero code: {result.exception}"
+        assert "Reports generated successfully" in result.output
 
         # Common initialization assertions
         assert_common_initialization(
@@ -213,24 +225,23 @@ class TestCliReports:
             translation_manager_instance,
             expected_cli_log_level=logging.WARNING,  # Default from verbose=0 in cli_main
             expected_language="en",
-            expected_console_logging=True
+            expected_console_logging=True,
         )
 
         # Specific assertion for the report command
         mock_report_manager_class.from_params.assert_called_once_with(
-            context=AppContext.create.return_value, data_dir=data_dir_path
+            context=AppContext.create.return_value, arg_data_dir=data_dir_path
         )
         mock_report_manager_class.from_params.return_value.results_exists.assert_called_once()
         mock_report_manager_class.from_params.return_value.load_previous_results.assert_called_once_with()
 
         mock_report_generator_class.from_params.assert_called_once_with(
-            context=AppContext.create.return_value, reports_dir=reports_dir_path
+            context=AppContext.create.return_value, arg_reports_dir=reports_dir_path
         )
         # Assert ReportGenerator instance's generate_reports was called with the loaded data
         mock_report_generator_class.from_params.return_value.generate_reports.assert_called_once_with(
             ntp_results=["mocked_ntp_data"],
             url_results=["mocked_url_data"],
-
         )
 
         # --- Asserting on Specific Log Entries from Your Output ---
@@ -248,7 +259,8 @@ class TestCliReports:
 
         # 3. Assert report specific startup INFO log
         assert any(
-            e.get("event") == "Starting Checkconnect in generate-reports mode." and e.get("log_level") == "info" for e in caplog_structlog
+            e.get("event") == "Starting Checkconnect in generate-reports mode." and e.get("log_level") == "info"
+            for e in caplog_structlog
         )
 
         # Optional: Assert no ERROR/CRITICAL logs in a successful run
@@ -275,7 +287,7 @@ class TestCliReports:
         logging_manager_instance = mock_dependencies["logging_manager_instance"]
         translation_manager_instance = mock_dependencies["translation_manager_instance"]
         app_context_instance = mock_dependencies["app_context_instance"]
-        check_connect_instance = mock_dependencies["check_connect_instance"]
+        checkconnect_instance = mock_dependencies["check_connect_instance"]
 
         # Ensure AppContext.create.return_value is readily available for later assertions
         assert AppContext.create.return_value == app_context_instance
@@ -283,7 +295,6 @@ class TestCliReports:
         # Configure ReportManager to indicate results exist
         mock_report_manager_class.from_params.return_value.results_exists.return_value = False
         # The load_previous_results return value is already set in the fixture
-
 
         # Define paths for options
         reports_dir = tmp_path / "my_reports_new"
@@ -316,6 +327,7 @@ class TestCliReports:
 
         # Assert CLI command exits with code 0
         assert result.exit_code == 0, f"Command exited with non-zero code: {result.exception}"
+        assert "Reports generated successfully" in result.output
 
         # Common initialization assertions
         assert_common_initialization(
@@ -324,37 +336,31 @@ class TestCliReports:
             translation_manager_instance,
             expected_cli_log_level=logging.WARNING,  # Default from verbose=0 in cli_main
             expected_language="en",
-            expected_console_logging=True
+            expected_console_logging=True,
         )
-
-        # --- Asserting on Log Entries using caplog_structlog ---
-        print("Asserting on Log Entries using caplog_structlog:")
-        for log_entry in caplog_structlog:
-            print(log_entry)
-        print("------------------------------------------------")
-
 
         # Check first for existing results
         # Verify ReportManager.from_params was called (even if no existing results)
         mock_report_manager_class.from_params.assert_called_once_with(
-                context=AppContext.create.return_value, data_dir=data_dir)
+            context=AppContext.create.return_value, arg_data_dir=data_dir
+        )
         mock_report_manager_instance = mock_report_manager_class.from_params.return_value
         mock_report_manager_instance.results_exists.assert_called_once()
         mock_report_manager_instance.load_previous_results.assert_not_called()  # Should not be called
 
         # If result doesn't exists generate new results
         mock_checkconnect_class.assert_called_once_with(context=AppContext.create.return_value)
-        mock_checkconnect_instance = mock_checkconnect_class.return_value
-        mock_checkconnect_instance.run_all_checks.assert_called_once()
+        checkconnect_instance = mock_checkconnect_class.return_value
+        checkconnect_instance.run_all_checks.assert_called_once()
 
         # Finally generate the reports in HTML and PDF formats
         # Verify ReportGenerator.from_params and generate_reports were called with new results
         mock_report_generator_class.from_params.assert_called_once_with(
-            context=AppContext.create.return_value, reports_dir=reports_dir
+            context=AppContext.create.return_value, arg_reports_dir=reports_dir
         )
         mock_report_generator_instance = mock_report_generator_class.from_params.return_value
         mock_report_generator_instance.generate_reports.assert_called_once_with(
-            ntp_results=["mocked_ntp_data"], url_results=["mocked_url_data"]
+            ntp_results=["mocked_ntp_data_from_getter"], url_results=["mocked_url_data_from_getter"]
         )
 
         # --- Asserting on Specific Log Entries from Your Output ---
@@ -372,84 +378,12 @@ class TestCliReports:
 
         # 3. Assert report specific startup INFO log
         assert any(
-            e.get("event") == "Starting Checkconnect in generate-reports mode." and e.get("log_level") == "info" for e in caplog_structlog
-        )
-
-        # Optional: Assert no ERROR/CRITICAL logs in a successful run
-        assert not any(e.get("log_level") in ["error", "critical"]for e in caplog_structlog)
-
-    @pytest.mark.integration
-    def test_reports_command_exit_exception_error(
-        self,
-        mock_dependencies: dict[str, Any],
-        mock_report_manager_class: MagicMock,
-        mock_report_generator_class: MagicMock,
-        runner: CliRunner,
-        caplog_structlog: list[EventDict],
-    ) -> None:
-        """
-        Test error handling when an ExitExceptionError occurs.
-        """
-        # Arrange
-        settings_manager_instance = mock_dependencies["settings_manager_instance"]
-        logging_manager_instance = mock_dependencies["logging_manager_instance"]
-        translation_manager_instance = mock_dependencies["translation_manager_instance"]
-        app_context_instance = mock_dependencies["app_context_instance"]
-
-        # Ensure AppContext.create.return_value is readily available for later assertions
-        assert AppContext.create.return_value == app_context_instance
-
-
-        # Setup mocks to raise ExitExceptionError
-        mock_report_manager_class.from_params.side_effect = ExitExceptionError("Test error")
-
-
-        # Invoke the command
-        result = runner.invoke(
-            cli_main.main_app,
-            ["report"],
-        )
-
-        # Assert CLI command exits with code 0
-        assert result.exit_code == 1, f"Missing exception: {result.output}"
-
-        # Common initialization assertions
-        assert_common_initialization(
-            settings_manager_instance,
-            logging_manager_instance,
-            translation_manager_instance,
-            expected_cli_log_level=logging.WARNING,  # Default from verbose=0 in cli_main
-            expected_language="en",
-            expected_console_logging=True
-        )
-
-        # Specific assertion for the report command
-        mock_report_manager_class.from_params.assert_called_once_with(
-            context=AppContext.create.return_value, data_dir=None
-        )
-        # Ensure generate_reports was not called as an error occurred early
-        mock_report_generator_class.from_params.return_value.generate_reports.assert_not_called()
-
-        assert "Cannot start generate reports for checkconnect." in result.stdout, "Expected 'Cannot start generate reports for checkconnect.' in stdout"
-        assert "Test error" in result.stdout, "Expected 'Test error' in stdout"
-
-        # --- Asserting on Specific Log Entries from Your Output ---
-        assert_common_cli_logs(caplog_structlog)
-
-        # Assert CLI Args
-        assert any(
-            e.get("event") == "CLI Args"
-            and e.get("log_level") == "debug"
-            and e.get("verbose") == 0
-            and e.get("language") is None
-            and e.get("config_file") is None
+            e.get("event") == "Starting Checkconnect in generate-reports mode." and e.get("log_level") == "info"
             for e in caplog_structlog
         )
 
-        # 3. Assert GUI specific startup INFO log
-        assert any(
-            e.get("event") == "Starting Checkconnect in generate-reports mode." and e.get("log_level") == "info" for e in caplog_structlog
-        )
+        # Optional: Assert no ERROR/CRITICAL logs in a successful run
+        assert not any(e.get("log_level") in ["error", "critical"] for e in caplog_structlog)
 
     @pytest.mark.integration
     def test_reports_command_default_paths(
@@ -496,15 +430,13 @@ class TestCliReports:
         # Invoke the command without --reports-dir or --data-dir
         result = runner.invoke(
             cli_main.main_app,
-            [
-                "--config", str(config_file),
-                "report"
-            ],
+            ["--config", str(config_file), "report"],
             env=test_env,
         )
 
         # Assert CLI command exits with code 0
         assert result.exit_code == 0, f"Command exited with non-zero code: {result.exception}"
+        assert "Reports generated successfully" in result.output
 
         # Common initialization assertions
         assert_common_initialization(
@@ -513,7 +445,7 @@ class TestCliReports:
             translation_manager_instance,
             expected_cli_log_level=logging.WARNING,  # Default from verbose=0 in cli_main
             expected_language="en",
-            expected_console_logging=True
+            expected_console_logging=True,
         )
 
         # Verify ReportManager.from_params and ReportGenerator.from_params
@@ -526,27 +458,19 @@ class TestCliReports:
         # before being passed to `from_params`. This test asserts the flow.
         # Specific assertion for the report command
         mock_report_manager_class.from_params.assert_called_once_with(
-            context=AppContext.create.return_value, data_dir=None
+            context=AppContext.create.return_value, arg_data_dir=None
         )
         mock_report_manager_class.from_params.return_value.results_exists.assert_called_once()
 
-
         mock_report_generator_class.from_params.assert_called_once_with(
-            context=AppContext.create.return_value, reports_dir=None
+            context=AppContext.create.return_value, arg_reports_dir=None
         )
 
         # Assert ReportGenerator instance's generate_reports was called with the loaded data
         mock_report_generator_class.from_params.return_value.generate_reports.assert_called_once_with(
-            ntp_results=["mocked_ntp_data"],
-            url_results=["mocked_url_data"],
-
+            ntp_results=["mocked_ntp_data_from_getter"],
+            url_results=["mocked_url_data_from_getter"],
         )
-        # --- Asserting on Log Entries using caplog_structlog ---
-        print(result.output)
-        print("Asserting on Log Entries using caplog_structlog:")
-        for log_entry in caplog_structlog:
-            print(log_entry)
-        print("------------------------------------------------")
 
         # --- Asserting on Specific Log Entries from Your Output ---
         assert_common_cli_logs(caplog_structlog)
@@ -563,11 +487,89 @@ class TestCliReports:
 
         # 3. Assert report specific startup INFO log
         assert any(
-            e.get("event") == "Starting Checkconnect in generate-reports mode." and e.get("log_level") == "info" for e in caplog_structlog
+            e.get("event") == "Starting Checkconnect in generate-reports mode." and e.get("log_level") == "info"
+            for e in caplog_structlog
         )
 
         # Optional: Assert no ERROR/CRITICAL logs in a successful run
         assert not any(e.get("log_level") in ["error", "critical"] for e in caplog_structlog)
+
+    @pytest.mark.integration
+    def test_reports_command_exit_exception_error(
+        self,
+        mock_dependencies: dict[str, Any],
+        mock_report_manager_class: MagicMock,
+        mock_report_generator_class: MagicMock,
+        runner: CliRunner,
+        caplog_structlog: list[EventDict],
+    ) -> None:
+        """
+        Test error handling when an ExitExceptionError occurs.
+        """
+        # Arrange
+        settings_manager_instance = mock_dependencies["settings_manager_instance"]
+        logging_manager_instance = mock_dependencies["logging_manager_instance"]
+        translation_manager_instance = mock_dependencies["translation_manager_instance"]
+        app_context_instance = mock_dependencies["app_context_instance"]
+
+        # Ensure AppContext.create.return_value is readily available for later assertions
+        assert AppContext.create.return_value == app_context_instance
+
+        # Setup mocks to raise ExitExceptionError
+        mock_report_generator_class.from_params.side_effect = ExitExceptionError("Test error")
+
+        # Invoke the command
+        result = runner.invoke(
+            cli_main.main_app,
+            ["report"],
+        )
+
+        for entry in caplog_structlog:
+            print(entry)
+
+        # Assert CLI command exits with code 0
+        assert result.exit_code == 1, f"Missing exception: {result.output}"
+        assert "Cannot start generate reports for checkconnect." in result.stdout, (
+            "Expected 'Cannot start generate reports for checkconnect.' in stdout"
+        )
+        assert "Test error" in result.stdout, "Expected 'Test error' in stdout"
+
+        # Common initialization assertions
+        assert_common_initialization(
+            settings_manager_instance,
+            logging_manager_instance,
+            translation_manager_instance,
+            expected_cli_log_level=logging.WARNING,  # Default from verbose=0 in cli_main
+            expected_language="en",
+            expected_console_logging=True,
+        )
+
+        # Specific assertion for the report command
+        mock_report_manager_class.from_params.assert_called_once_with(
+            context=AppContext.create.return_value, arg_data_dir=None
+        )
+        # Ensure generate_reports was not called as an error occurred early
+        mock_report_generator_class.from_params.return_value.generate_reports.assert_not_called()
+
+        # --- Asserting on Specific Log Entries from Your Output ---
+        assert_common_cli_logs(caplog_structlog)
+
+        # Assert CLI Args
+        assert any(
+            e.get("event") == "CLI Args"
+            and e.get("log_level") == "debug"
+            and e.get("verbose") == 0
+            and e.get("language") is None
+            and e.get("config_file") is None
+            for e in caplog_structlog
+        )
+
+        # Assert ERROR/CRITICAL logs
+        assert any(
+            e.get("log_level") == "error"
+            and e.get("event") == "Cannot start generate reports for checkconnect error: Test error"
+            for e in caplog_structlog
+        )
 
     def test_report_command_with_help_option(
         self,
@@ -615,8 +617,14 @@ class TestCliReports:
         # Options
         assert "--help          Show this message and exit." in result.output
         # Configuration
-        assert "--data-dir     -d      DIRECTORY  Directory where data will be saved. Default used the system defined user data dir. [default: None]" in result.output
-        assert "--reports-dir  -r      DIRECTORY  Directory where reports will be saved (overrides config). [default: None]" in result.output
+        assert (
+            "--data-dir     -d      DIRECTORY  Directory where data will be saved. Default used the system defined user data dir. [default: None]"
+            in result.output
+        )
+        assert (
+            "--reports-dir  -r      DIRECTORY  Directory where reports will be saved (overrides config). [default: None]"
+            in result.output
+        )
 
         # --- Asserting on Specific Log Entries from Your Output ---
 

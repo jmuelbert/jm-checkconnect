@@ -74,29 +74,43 @@ def reports(
         ntp_results: list[str] = []
         url_results: list[str] = []
 
-        report_manager = ReportManager.from_params(context=app_context, data_dir=data_dir)
+        console.print(app_context.gettext("[bold green]Generating reports.[/bold green]"))
+
+        report_manager = ReportManager.from_params(context=app_context, arg_data_dir=data_dir)
 
         if report_manager.results_exists():
+            print("[DEBUG Report-App] Loading previous results...")
             ntp_results, url_results = report_manager.load_previous_results()
         else:
-            print("[DEBUG Report-App] Generating reports...")
+            print("[DEBUG Report-App] Generating reports with CheckConnect.")
             checker = CheckConnect(context=app_context)
             checker.run_all_checks()
-            ntp_results = checker.ntp_results
-            url_results = checker.url_results
+            print("[DEBUG Report-App] Getting results from CheckConnect")
+            ntp_results = checker.get_ntp_results()
+            url_results = checker.get_url_results()
 
-        report_generator = ReportGenerator.from_params(context=app_context, reports_dir=reports_dir)
+        report_generator = ReportGenerator.from_params(context=app_context, arg_reports_dir=reports_dir)
+        print(f"[DEBUG Report-App] Generating reports with ntp_results={ntp_results} and url_results={url_results}")
         report_generator.generate_reports(
             ntp_results=ntp_results,
             url_results=url_results,
         )
 
+        console.print(app_context.gettext("[bold green]Reports generated successfully[/bold green]"))
     except ExitExceptionError as e:
-        console.print(f"[bold red]Critical Error:[/bold red] Cannot start generate reports for checkconnect. ({e})")
-        log.exception(context.gettext(f"Cannot start generate reports for checkconnect error: {e}"))
+        console.print(
+            app_context.gettext(
+                f"[bold red]Critical Error:[/bold red] Cannot start generate reports for checkconnect. ({e})"
+            )
+        )
+        log.exception(app_context.gettext(f"Cannot start generate reports for checkconnect error: {e}"))
         raise typer.Exit(1)
 
     except Exception as e:
-        console.print(f"[bold red]Critical Error:[/bold red]An unexpected error occurred generate reports. ({e})")
+        console.print(
+            app_context.gettext(
+                f"[bold red]Critical Error:[/bold red] An unexpected error occurred generate reports. ({e})"
+            )
+        )
         log.exception(app_context.gettext(f"An unexpected error occurred generate reports error:{e}"))
         raise typer.Exit(1)

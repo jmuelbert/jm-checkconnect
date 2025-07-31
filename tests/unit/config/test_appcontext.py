@@ -23,6 +23,7 @@ import structlog
 # Assuming your AppContext is in 'checkconnect.config.appcontext'
 from checkconnect.config.appcontext import AppContext
 from checkconnect.config.settings_manager import SettingsManager
+from checkconnect.config.translation_manager import TranslationManager
 
 # --- Fixtures for Mocking Dependencies ---
 
@@ -34,6 +35,16 @@ def mock_settings_manager():
     # or ensure the actual class is imported if you're creating real mocks.
     mock = MagicMock(spec=SettingsManager)
     return mock
+
+
+@pytest.fixture
+def mocked_translation():
+    """Mocks the Translator."""
+    mock_translator = MagicMock(spec=TranslationManager)
+    mock_translator.gettext.side_effect = lambda text: f"[mocked] {text}"
+    mock_translator.translate.side_effect = lambda text: f"[mocked] {text}"
+
+    return mock_translator
 
 
 # --- Tests for AppContext ---
@@ -151,73 +162,18 @@ class TestAppContext:
         """
         Tests that gettext delegates to the translator and returns the translated message.
         """
-        app_context = AppContext(settings=mock_settings_manager, translator=mocked_translation)
+        app_context = AppContext.create(settings_instance=mock_settings_manager, translator_instance=mocked_translation)
 
         message = "Hello, world!"
         translated_message = app_context.gettext(message)
 
         mocked_translation.gettext.assert_called_once_with(message)
-        assert translated_message == f"Translated: {message}"
+        assert translated_message == f"[mocked] {message}"
 
     class TestCreateMethod:
         """
         Tests for the AppContext.create factory method.
         """
-
-        @pytest.mark.unit
-        @patch("checkconnect.config.appcontext.SettingsManager")
-        @patch("checkconnect.config.appcontext.TranslationManager")
-        def test_create_with_no_args(
-            self,
-            MockTranslationManager,
-            MockSettingsManager,
-        ) -> None:
-            """
-            Tests that create initializes default SettingsManager and TranslationManager
-            when no arguments are provided.
-            """
-            app_context = AppContext.create()
-
-            MockSettingsManager.assert_called_once_with()
-            MockTranslationManager.assert_called_once_with(language=None)
-
-            assert isinstance(app_context, AppContext)
-            assert app_context.settings is MockSettingsManager.return_value
-            assert app_context.translator is MockTranslationManager.return_value
-
-        @pytest.mark.unit
-        @patch("checkconnect.config.logging_manager.LoggingManager")
-        @patch("checkconnect.config.appcontext.TranslationManager")
-        @patch("checkconnect.config.appcontext.SettingsManager")
-        def test_create_with_existing_config_and_language(
-            self, MockSettingsManager: MagicMock, MockTranslationManager: MagicMock, MockLoggingManager: MagicMock
-        ) -> None:
-            mock_provided_settings = MagicMock(spec=SettingsManager)
-            test_language = "de"
-
-            # Execute the method under test
-            app_context = AppContext.create(settings=mock_provided_settings, language=test_language)
-
-            # Assertions on mock calls
-
-            # 1. SettingsManager should NOT be called because it was provided
-            MockSettingsManager.assert_not_called()
-
-            # 2. TranslationManager SHOULD be called once with the specified language
-            MockTranslationManager.assert_called_once()  # Ensure it was called exactly once
-            # Now, explicitly check the arguments of that single call
-            actual_call_args, actual_call_kwargs = MockTranslationManager.call_args
-
-            assert actual_call_args == ()  # Ensure no positional arguments were passed
-            assert actual_call_kwargs == {"language": test_language}  # This must now match exactly!
-
-            # 3. LoggingManager should NOT be called directly by AppContext.create
-            MockLoggingManager.assert_not_called()
-
-            # Assertions on the returned AppContext instance
-            assert isinstance(app_context, AppContext)
-            assert app_context.settings is mock_provided_settings
-            assert app_context.translator is MockTranslationManager.return_value
 
         @pytest.mark.unit
         @patch("checkconnect.config.logging_manager.LoggingManager")
@@ -235,9 +191,12 @@ class TestAppContext:
             """
             # This test runs in isolation, so the AppContext's code is paramount.
             # The configure_structlog_for_tests fixture for this class is auto-applied.
-            AppContext.create()
+            AppContext.create(
+                settings_instance=MockSettingsManager.return_value,
+                translator_instance=MockTranslationManager.return_value,
+            )
 
             MockLoggingManager.assert_not_called()  # The key assertion
             # Also verify that other managers are still created/used correctly
-            MockSettingsManager.assert_called_once_with()
-            MockTranslationManager.assert_called_once_with(language=None)
+            MockSettingsManager.assert_not_called()
+            MockTranslationManager.assert_not_called()

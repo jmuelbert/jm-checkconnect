@@ -113,11 +113,14 @@ class SettingsManager:
         configuration is found, default values are used and written to the
         first writable path.
         """
-        self._settings: dict[str, dict[str, Any]] = {}
-        self._loaded_config_file: Optional[Path] = None
-        self._internal_errors: list[str] = []  # Errors specific to this instance's setup
-        # This logger will use the bootstrap configuration initially.
-        self.logger = structlog.get_logger(__name__)
+        # Ensure that during init, these are only set if it's the *first* instantiation
+        # If it's a subsequent call due to singleton, don't reset
+        if not hasattr(self, "_settings"):
+            self._settings: dict[str, dict[str, Any]] = {}
+            self._loaded_config_file: Optional[Path] = None
+            self._internal_errors: list[str] = []  # Errors specific to this instance's setup
+            # This logger will use the bootstrap configuration initially.
+            self.logger = structlog.get_logger(__name__)
 
     @property
     def loaded_config_file(self) -> Optional[Path]:
@@ -141,8 +144,7 @@ class SettingsManager:
         # Reset current settings and errors before loading
         print("DEBUG SettingsManager] Loading settings")
         self._settings = {}
-        self._loaded_config_file = None
-        self._initialization_errors = []  # Clear internal errors before a new load attempt
+        self._internal_errors = []  # Clear internal errors before a new load attempt
 
         loaded_config = self._load_config_from_paths(config_path_from_cli)
         self._settings = loaded_config
@@ -168,13 +170,14 @@ class SettingsManager:
                         path=str(config_path_from_cli),
                         error=str(e),
                     )
-                    self._initialization_errors.append(f"CLI config '{config_path_from_cli}' error: {e}")
+                    self._internal_errors.append(f"CLI config '{config_path_from_cli}' error: {e}")
+                    raise
             else:
                 self.logger.warning(
                     "Specified configuration file via CLI does not exist. Searching predefined locations.",
                     path=str(config_path_from_cli),
                 )
-                self._initialization_errors.append(f"CLI config '{config_path_from_cli}' not found.")
+                self._internal_errors.append(f"CLI config '{config_path_from_cli}' not found.")
 
         # 2. Search predefined locations
         self.logger.info(
@@ -187,7 +190,7 @@ class SettingsManager:
             if path.exists():
                 try:
                     loaded = self._load_from_file(path)
-                    self.logger.info("Found and loaded configuration from predefined location", path=str(path))
+                    self.logger.debug("Found and loaded configuration from predefined location", path=str(path))
                     return loaded
                 except (SettingsConfigurationError, ConfigFileNotFoundError) as e:
                     self.logger.warning(
@@ -195,19 +198,21 @@ class SettingsManager:
                         path=str(path),
                         error=str(e),
                     )
-                    self._initialization_errors.append(f"Predefined config '{path}' error: {e}")
+                    self._internal_errors.append(f"Predefined config '{str(path)}' error: {e}")
+                    raise
             else:
                 self.logger.debug("Predefined config location does not exist", path=str(path))
 
         # 3. No configuration file found after all attempts; use default
         self.logger.warning("No valid configuration file found; using default settings.")
-        self._initialization_errors.append("No configuration file found; using default settings.")
+        self._internal_errors.append("No configuration file found; using default settings.")
         # Attempt to save default config, but don't prevent return of defaults if saving fails
         try:
             self._save_default_config()
         except SettingsWriteConfigurationError as e:
-            self.logger.error("Failed to save default configuration after falling back to defaults.", error=str(e))
-            self._initialization_errors.append(f"Failed to save default config: {e}")
+            self.logger.exception("Failed to save default configuration after falling back to defaults.", error=str(e))
+            self._internal_errors.append(f"Failed to save default config: {e}")
+            raise
 
         return self.DEFAULT_CONFIG.copy()  # Always return a copy to prevent external modification
 
@@ -227,23 +232,23 @@ class SettingsManager:
             self.loaded_config_file = path  # Track the loaded config file
             return config
         except tomllib.TOMLDecodeError as e:
-            self._initialization_errors.append(f"TOML decoding failed for '{path}': {e}")
+            self._internal_errors.append(f"TOML decoding failed for '{str(path)}': {e}")
             self.logger.exception("TOML decoding failed for configuration file", path=str(path))
-            raise SettingsConfigurationError(f"Malformed TOML file: {path}") from e
+            raise SettingsConfigurationError(f"Malformed TOML file: {str(path)}") from e
         except (
             OSError
         ) as e:  # Catch file-related OS errors (e.g., permissions, not found if path.exists() failed somehow)
-            self._initialization_errors.append(f"OS error accessing config file '{path}': {e}")
+            self._internal_errors.append(f"OS error accessing config file '{str(path)}': {e}")
             self.logger.exception("Operating system error accessing configuration file", path=str(path))
-            raise ConfigFileNotFoundError(f"Could not access file: {path}") from e  # Renamed exception for clarity
+            raise ConfigFileNotFoundError(f"Could not access file: {str(path)}") from e  # Renamed exception for clarity
         except Exception as e:
-            self._initialization_errors.append(f"Unexpected error loading config '{path}': {e}")
+            self._internal_errors.append(f"Unexpected error loading config '{str(path)}': {e}")
             self.logger.exception("Unexpected error while loading configuration", path=str(path))
-            raise SettingsConfigurationError(f"Unexpected error loading config: {path}") from e
+            raise SettingsConfigurationError(f"Unexpected error loading config: {str(path)}") from e
 
     def _save_default_config(self) -> None:
         """
-        Writes the default configuration to the first writable location.
+        Write the default configuration to the first writable location.
         Raises: SettingsWriteConfigurationError if no location is writable.
         """
         for path_candidate in self.DEFAULT_SETTINGS_LOCATIONS:  # Use DEFAULT_SETTINGS_LOCATIONS
@@ -256,17 +261,21 @@ class SettingsManager:
                 self.loaded_config_file = path
                 return  # Successfully saved, so exit
             except (OSError, PermissionError) as e:
-                self.logger.warning(
-                    "Unable to write default configuration to this location, trying next.", path=str(path), error=str(e)
+                self.logger.exception(
+                    "Unable to write default configuration to this location.", path=str(path), error=str(e)
                 )
-                self._initialization_errors.append(f"Failed to save default config to '{path}': {e}")
+                self._internal_errors.append(f"Failed to save default config to '{str(path)}': {e}")
+                raise SettingsWriteConfigurationError("Unable to write default configuration to this location.") from e
             except Exception as e:
                 self.logger.warning(
-                    "Unexpected error while attempting to save default config to this location, trying next.",
+                    self._("Unexpected error while attempting to save default config to this location, trying next."),
                     path=str(path),
                     error=str(e),
                 )
-                self._initialization_errors.append(f"Unexpected error saving default config to '{path}': {e}")
+                self._internal_errors.append(f"Unexpected error saving default config to '{str(path)}': {e}")
+                raise SettingsWriteConfigurationError(
+                    "Unexpected error while attempting to save default config to this location, trying next."
+                ) from e
 
         self.logger.error("Failed to write default configuration to any specified location.")
         raise SettingsWriteConfigurationError("Could not save default configuration to any valid location.")
@@ -292,12 +301,14 @@ class SettingsManager:
                     error=str(e),
                 )
                 target_file = None
+                raise
             except Exception:
                 self.logger.exception(
                     "Unexpected error when checking writability of loaded config file for saving",
                     path=str(self._loaded_config_file),
                 )
                 target_file = None
+                raise
 
         if not target_file:
             self.logger.info("Searching for a writable location to save configuration.")
@@ -312,9 +323,13 @@ class SettingsManager:
                     self.logger.info("Found writable location for saving", path=str(target_file))
                     break
                 except (OSError, PermissionError) as e:
-                    self.logger.warning("Location not writable for saving configuration", path=str(path), error=str(e))
+                    self.logger.exception(
+                        "Location not writable for saving configuration", path=str(path), error=str(e)
+                    )
+                    raise SettingsWriteConfigurationError("Location not writable for saving configuration")
                 except Exception:
                     self.logger.exception("Unexpected error when checking writability for saving", path=str(path))
+                    raise SettingsWriteConfigurationError("Unexpected error when checking writability for saving")
 
         if target_file:
             try:
@@ -323,14 +338,17 @@ class SettingsManager:
                 self.logger.info("Configuration saved successfully.", path=str(target_file))
                 self._loaded_config_file = target_file  # Update the loaded file
             except (OSError, PermissionError) as e:
-                self.logger.error(
+                self.logger.exception(
                     "Failed to save configuration due to OS/permission error", path=str(target_file), error=str(e)
                 )
+                raise
             except Exception:
                 self.logger.exception("Unexpected error while saving configuration", path=str(target_file))
+                raise
         else:
             self.logger.error("No writable location available for saving configuration.")
             # Depending on your design, you might want to raise an exception here too if saving is critical
+            raise ValueError("No writable location available for saving configuration.")
 
     def copy(self) -> dict[str, dict[str, Any]]:
         """
@@ -415,8 +433,39 @@ class SettingsManager:
         self._save_config()
 
     def reload(self) -> None:
-        """Reload the configuration from disk."""
-        self._settings = self._load_config()
+        """
+        Reloads configuration from the disk, prioritizing the previously loaded file.
+        If no file was previously loaded, or if it's no longer valid,
+        it attempts to re-search predefined locations.
+        """
+        self.logger.debug("Reloading configuration from disk")
+
+        # Key change: Use the *stored* _loaded_config_file for reload if available
+        if self._loaded_config_file and self._loaded_config_file.exists() and self._loaded_config_file.is_file():
+            self.logger.info(f"Reloading from previously loaded path: {self._loaded_config_file}")
+            try:
+                reloaded_config = self._load_from_file(self._loaded_config_file)
+                self._settings = reloaded_config
+                self.logger.info("Successfully reloaded configuration from previous path.")
+            except (SettingsConfigurationError, ConfigFileNotFoundError, OSError) as e:
+                self.logger.warning(
+                    f"Failed to reload from previous path ({self._loaded_config_file}), attempting re-search.",
+                    error=str(e),
+                )
+                self._loaded_config_file = None  # Invalidate the path if it failed
+                self.load_settings(config_path_from_cli=None)  # Fallback to a fresh search
+            except Exception as e:
+                self.logger.exception(
+                    f"Unexpected error during reload from previous path: {self._loaded_config_file}", error=str(e)
+                )
+                self._loaded_config_file = None
+                self.load_settings(config_path_from_cli=None)  # Fallback
+        else:
+            self.logger.warning(
+                "No valid previously loaded config path or path is no longer valid for reload. Attempting to re-search."
+            )
+            # If no previous path, or it's invalid, trigger a full search
+            self.load_settings(config_path_from_cli=None)
 
     def save(self) -> None:
         """Persist current configuration to disk."""

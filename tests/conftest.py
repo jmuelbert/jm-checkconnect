@@ -415,17 +415,25 @@ def mock_platformdirs_paths(mocker: Any, tmp_path: Path) -> dict[str, Path]:
     """
     mock_user_config_dir = tmp_path / "user_config"
     mock_site_config_dir = tmp_path / "site_config"
+    mock_user_data_dir = tmp_path / "user_data"
+    mock_site_data_dir = tmp_path / "site_data"
 
     mocker.patch("platformdirs.user_config_dir", return_value=str(mock_user_config_dir))
     mocker.patch("platformdirs.site_config_dir", return_value=str(mock_site_config_dir))
+    mocker.patch("platformdirs.user_data_dir", return_value=str(mock_user_data_dir))
+    mocker.patch("platformdirs.site_data_dir", return_value=str(mock_site_data_dir))
 
     # Ensure these directories exist for tests that expect them to be writable
     mock_user_config_dir.mkdir(parents=True, exist_ok=True)
     mock_site_config_dir.mkdir(parents=True, exist_ok=True)
+    mock_user_data_dir.mkdir(parents=True, exist_ok=True)
+    mock_site_data_dir.mkdir(parents=True, exist_ok=True)
 
     return {
         "user_config": mock_user_config_dir,
         "site_config": mock_site_config_dir,
+        "user_data": mock_user_data_dir,
+        "site_data": mock_site_data_dir,
     }
 
 
@@ -527,6 +535,16 @@ def config_file(tmp_path: Path) -> Path:
             "output_format": "console",
         },
         "console_handler": {"enabled": True},
+        "file_handler": {
+            "enabled": False,
+            "file_name": "test_file.log",
+        },
+        "limited_file_handler": {
+            "enabled": False,
+            "file_name": "limited_test_file.log",
+            "max_bytes": 1024,
+            "backup_count": 5,
+        },
         "gui": {
             "enabled": True,
         },

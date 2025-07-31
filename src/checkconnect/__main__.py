@@ -9,4 +9,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    cli_app()
+    main_app()

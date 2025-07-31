@@ -9,6 +9,7 @@ This define the CLI for the summary CLI.
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 from typing import Annotated
 
@@ -19,9 +20,10 @@ from rich.console import Console
 from checkconnect.exceptions import ExitExceptionError
 from checkconnect.cli.options import get_data_dir_option_definition, get_report_dir_option_definition
 from checkconnect.config.appcontext import AppContext
+from checkconnect.core.checkconnect import CheckConnect
 from checkconnect.reports.report_manager import OutputFormat, ReportManager
-from sqlite3.dbapi2 import Date
 
+console = Console()
 
 summary_app = typer.Typer(pretty_exceptions_show_locals=False)
 
@@ -35,7 +37,6 @@ log = structlog.get_logger(__name__)
 @summary_app.command("summary")
 def summary(
     ctx: typer.Context,
-    reports_dir: Annotated[Path | None, get_report_dir_option_definition()] = None,
     data_dir: Annotated[Path | None, get_data_dir_option_definition()] = None,
     summary_format: Annotated[
         OutputFormat,
@@ -58,9 +59,8 @@ def summary(
 
     Args:
     ----
-        reports_dir (Path | None): Path to store to the last check results.
-        data_dir (Path | None): Path to the data directory.
-        summary_format (str): Output format for the summary ('text', 'markdown', 'html').
+        ctx (typer.Context): The Typer context object, injected automatically.
+
 
     Raises:
     ------
@@ -68,48 +68,58 @@ def summary(
             Leave the app with typer.Exit(1)
 
     """
-    # Retrieve global options from ctx.obj
-    language: str | None = ctx.obj.get("language")
-    config_file_str: str | None = ctx.obj.get("config_file")
+    # Retrieve the AppContext instance from ctx.obj
+    # This AppContext instance is already initialized with SettingsManager,
+    # LoggingManager (which has configured global structlog), and TranslationManager.
+    app_context: AppContext = ctx.obj["app_context"]
 
-    config_file_path = Path(config_file_str) if config_file_str else None
-
-    context: AppContext = initialize_app_context(config_file=config_file_path, language=language)
+    # Now, use the AppContext to access services
+    log.info(app_context.gettext("Starting Checkconnect in summary mode."))
+    # The 'verbose' setting's effect on logging level is already handled by main_callback
+    # so no need for specific "Verbose logging enabled" messages unless you want more nuance.
+    log.debug(app_context.gettext("Debug logging is active based on verbosity setting."))
 
     # Validate format
     valid_formats = [OutputFormat.text.value, "markdown", "html"]
     if summary_format not in valid_formats:
-        msg = f"Invalid format: {summary_format}.Valid formats are: {{', '.join(valid_formats)}}"
+        msg = app_context.gettext("Invalid format: {summary_format}.Valid formats are: {{', '.join(valid_formats)}}")
         log.error(msg)
         raise typer.Exit(1)
-
-    log.info(context.gettext("Generating summary..."))
-    log.debug(context.gettext("Verbose logging enabled."))
 
     try:
         ntp_results: list[str] = []
         url_results: list[str] = []
 
-        report_manager = ReportManager.from_params(context=context, data_dir=data_dir)
+        report_manager = ReportManager.from_params(context=app_context, arg_data_dir=data_dir)
 
         if report_manager.results_exists():
             ntp_results, url_results = report_manager.load_previous_results()
         else:
-            console.print("[bold red]No results found")
-            sys.exit()
+            console.print("[bold red]Error:[/bold red] No saved result found.")
+            sys.exit(1)
 
         summary_output = report_manager.get_summary(
-            ntp_results,
-            url_results,
-            summary_format,
+            ntp_results=ntp_results,
+            url_results=url_results,
+            summary_format=summary_format,
         )
 
+        console.print(app_context.gettext("[bold green]Results:[/bold green]"))
         if summary_format == "text":
-            console = Console()
             console.print(summary_output)
         else:
             typer.echo(summary_output)
 
-    except ExitExceptionError:
-        log.exception(context.gettext("Error generating summary."))
-        typer.Exit(1)
+    except ExitExceptionError as e:
+        console.print(
+            app_context.gettext(f"[bold red]Error:[/bold red] Cannot start generate summary for checkconnect. ({e})")
+        )
+        log.exception(app_context.gettext(f"Cannot start generate summary for checkconnect. ({e})"))
+        raise typer.Exit(1)
+
+    except Exception as e:
+        console.print(
+            app_context.gettext(f"[bold red]Error:[/bold red] An unexpected error occurred generate summary. ({e})")
+        )
+        log.exception(app_context.gettext(f"An unexpected error occurred generate summary. ({e})"))
+        raise typer.Exit(1)

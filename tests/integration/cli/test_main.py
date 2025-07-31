@@ -19,6 +19,7 @@ from checkconnect.config.appcontext import AppContext
 
 from tests.utils.common import assert_common_cli_logs
 
+
 class TestCliMain:
     @pytest.mark.integration
     def test_main_callback_with_all_options(
@@ -113,7 +114,6 @@ class TestCliMain:
             for e in caplog_structlog
         )
 
-
         # 4. Assert CLI-Verbose and Logging Level determination (DEBUG)
         assert any(
             e.get("event") == "Main callback: Determined CLI-Verbose and Logging Level to pass to LoggingManager."
@@ -134,7 +134,6 @@ class TestCliMain:
 
         # Optional: Assert no ERROR/CRITICAL logs in a successful run
         assert not any(e.get("log_level") in ["error", "critical"] for e in caplog_structlog)
-
 
         # Check config file was passed and assigned
         loaded_config_file = settings_manager_instance.loaded_config_file
@@ -210,7 +209,6 @@ class TestCliMain:
             for e in caplog_structlog
         )
 
-
         # 4. Assert CLI-Verbose and Logging Level determination (DEBUG)
         assert any(
             e.get("event") == "Main callback: Determined CLI-Verbose and Logging Level to pass to LoggingManager."
@@ -231,7 +229,6 @@ class TestCliMain:
 
         # Optional: Assert no ERROR/CRITICAL logs in a successful run
         assert not any(e.get("log_level") in ["error", "critical"] for e in caplog_structlog)
-
 
     @pytest.mark.integration
     @pytest.mark.parametrize(
@@ -287,7 +284,8 @@ class TestCliMain:
     @pytest.mark.integration
     def test_main_callback_raises_on_config_load_failure(
         self,
-        mocker: MockerFixture, mock_dependencies: dict[str, Any],
+        mocker: MockerFixture,
+        mock_dependencies: dict[str, Any],
         runner: CliRunner,
         caplog_structlog: list[EventDict],
     ) -> None:
@@ -329,19 +327,18 @@ class TestCliMain:
 
         # 2. Assert key INFO level success messages
         assert any(
-            e.get("event") == "Main callback: Initializing SettingsManager..."
-            and e.get("log_level") == "debug"
+            e.get("event") == "Main callback: Initializing SettingsManager..." and e.get("log_level") == "debug"
             for e in caplog_structlog
         )
 
         # At the end of the assert block for successful tests:
         assert any(
-            e.get("log_level") == "error" or e.get("log_level") == "critical" and
-            e.get("event") == "Main callback: Failed to initialize SettingsManager or load configuration!" and
-            e.get("error_details") == "Boom"
+            e.get("log_level") == "error"
+            or e.get("log_level") == "critical"
+            and e.get("event") == "Main callback: Failed to initialize SettingsManager or load configuration!"
+            and e.get("error_details") == "Boom"
             for e in caplog_structlog
         )
-
 
     @pytest.mark.integration
     def test_main_callback_with_invalid_config_file(
@@ -365,7 +362,7 @@ class TestCliMain:
         assert result.exit_code != 0, f"Unexpected failure: {result.output}"
         assert "Invalid value for '--config'" in result.output
 
-
+    @pytest.mark.integration
     def test_main_with_help_option(
         self,
         runner: CliRunner,
@@ -406,7 +403,7 @@ class TestCliMain:
         assert "--language  -l      TEXT  Language (e.g., 'en', 'de'). " in result.output
         # Logging
         assert (
-            "--verbose  -v      INTEGER  Increase verbosity. Default logging level is WARNING. Use -v to enable INFO messages. -vv to enable DEBUG messages. Additional -v flags"
+            "--verbose  -v      INTEGER  Increase verbosity. Default logging level is WARNING. Use -v to enable INFO messages. -vv to enable DEBUG messages. Additional -v"
             in result.output
         )  # Corrected from `main_app`
         # Configuration
@@ -441,3 +438,7 @@ class TestCliMain:
         assert result.exit_code == 0, f"Unexpected failure: {result.output}"
         assert "CheckConnect" in result.output
         assert "version" in result.output.lower()
+
+
+if __name__ == "__main__":
+    main_app()

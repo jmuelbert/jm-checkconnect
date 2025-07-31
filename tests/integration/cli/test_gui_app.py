@@ -87,7 +87,7 @@ class TestCliGUI:
             translation_manager_instance,
             expected_cli_log_level=logging.WARNING,  # Default from verbose=0 in cli_main
             expected_language="en",
-            expected_console_logging=False
+            expected_console_logging=False,
         )
 
         # Specific assertion for the GUI command
@@ -182,8 +182,8 @@ class TestCliGUI:
             translation_manager_instance,
             expected_cli_log_level=logging.WARNING,
             expected_language=expected_language_for_translation,  # Use the specific expected language
-            expected_console_logging=False)
-
+            expected_console_logging=False,
+        )
 
         # Specific assertion for the GUI command
         mock_gui_startup_run.assert_called_once_with(
@@ -247,11 +247,13 @@ class TestCliGUI:
             translation_manager_instance,
             expected_cli_log_level=logging.WARNING,  # Default from verbose=0 in cli_main
             expected_language="en",
-            expected_console_logging=False
+            expected_console_logging=False,
         )
 
         # Assert GUI failure message in stdout
-        assert "Cannot start GUI due to application error:" in result.stdout, "Expected 'Cannot start GUI due to application error:' in stdout"
+        assert "Cannot start GUI due to application error:" in result.stdout, (
+            "Expected 'Cannot start GUI due to application error:' in stdout"
+        )
         assert "GUI failure" in result.stdout, "Expected 'GUI failure' in stdout"
 
         # --- Asserting on Specific Log Entries from Your Output ---
@@ -304,7 +306,9 @@ class TestCliGUI:
         result = runner.invoke(cli_main.main_app, ["gui"])
 
         assert result.exit_code == 1, f"Missing exception: {result.output}"
-        assert "An unexpected error occurred during GUI startup:" in result.stdout, "Expected 'An unexpected error occurred during GUI startup:'"
+        assert "An unexpected error occurred during GUI startup:" in result.stdout, (
+            "Expected 'An unexpected error occurred during GUI startup:'"
+        )
         assert "Crash" in result.stdout, "Expected 'Crash'"
 
         # Common initialization assertions
@@ -314,9 +318,8 @@ class TestCliGUI:
             translation_manager_instance,
             expected_cli_log_level=logging.WARNING,  # Default from verbose=0 in cli_main
             expected_language="en",
-            expected_console_logging=False
+            expected_console_logging=False,
         )
-
 
         # --- Asserting on Specific Log Entries from Your Output ---
         assert_common_cli_logs(caplog_structlog)
@@ -330,7 +333,6 @@ class TestCliGUI:
             and e.get("config_file") is None
             for e in caplog_structlog
         )
-
 
         # 3. Assert GUI specific startup INFO log
         assert any(
@@ -383,6 +385,7 @@ class TestCliGUI:
             translation_manager_instance,
             expected_cli_log_level=logging.WARNING,  # Default from verbose=0 in cli_main
             expected_language="en",
+            expected_console_logging=False,
         )
 
         # Headers
