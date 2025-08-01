@@ -5,20 +5,20 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+import structlog
 from bs4 import BeautifulSoup
 from PySide6.QtWidgets import QApplication
 
 # Assuming these imports are correct for your project structure
 from checkconnect.config.appcontext import AppContext
 from checkconnect.core.checkconnect import CheckConnect
+from checkconnect.gui.gui_main import CheckConnectGUIRunner
 from checkconnect.reports.report_generator import (
     ReportGenerator,
     generate_html_report,
     generate_pdf_report,
 )
 from checkconnect.reports.report_manager import OutputFormat, ReportManager
-from checkconnect.gui.gui_main import CheckConnectGUIRunner
-import structlog
 
 log = structlog.get_logger(__name__)
 

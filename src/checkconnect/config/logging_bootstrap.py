@@ -1,20 +1,14 @@
-import logging
-import sys
 
 import structlog
-from structlog.dev import ConsoleRenderer
 from structlog.processors import (
-    TimeStamper,
     StackInfoRenderer,
-    format_exc_info,
+    TimeStamper,
     UnicodeDecoder,
+    format_exc_info,
 )
 from structlog.stdlib import (
-    add_logger_name,
     add_log_level,
-    LoggerFactory,
-    BoundLogger,
-    ProcessorFormatter,
+    add_logger_name,
 )
 
 

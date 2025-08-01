@@ -5,17 +5,14 @@
 from __future__ import annotations
 
 from pathlib import Path
-import platformdirs
 from typing import TYPE_CHECKING
 from unittest.mock import patch
 
 import pytest
 from pydantic import ValidationError
 
-from checkconnect import __about__
-
-from checkconnect.exceptions import DirectoryCreationError
 import checkconnect.reports.report_generator as report_generator_module
+from checkconnect.exceptions import DirectoryCreationError
 from checkconnect.reports.report_generator import (
     ReportGenerator,
     ReportInput,

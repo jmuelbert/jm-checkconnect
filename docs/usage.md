@@ -4,10 +4,6 @@
 
 This page provides documentation for our command line tools.
 
-::: mkdocs-click
-    :module: checkconnect.__main__
-    :command: main
-
 - cli-mode
 
 ```bash
@@ -23,7 +19,7 @@ python checkconnect --gui
 ## Examples
 
 - Start the GUI version. _Option_ --gui
- 
+
 ```bash
     python -m checkconnect --gui
 ```

@@ -5,15 +5,13 @@
 from __future__ import annotations
 
 import json
-from math import e
 from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest.mock import patch
 
 import pytest
 
-from checkconnect import __about__
-
+import checkconnect.reports.report_manager as report_manager_module
 from checkconnect.exceptions import (
     DirectoryCreationError,
     SummaryDataLoadError,
@@ -21,7 +19,6 @@ from checkconnect.exceptions import (
     SummaryFormatError,
     SummaryValueError,
 )
-import checkconnect.reports.report_manager as report_manager_module
 from checkconnect.reports.report_manager import OutputFormat, ReportDataType, ReportManager
 
 if TYPE_CHECKING:

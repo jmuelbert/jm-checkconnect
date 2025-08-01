@@ -1,6 +1,5 @@
-import pytest
 from unittest.mock import MagicMock
-import structlog
+
 from structlog.typing import EventDict
 
 from checkconnect.config.appcontext import AppContext

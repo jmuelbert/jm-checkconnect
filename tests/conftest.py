@@ -4,24 +4,21 @@
 
 from __future__ import annotations
 
-import os
 import logging
-import shutil
+import os
 import sys
 import tempfile
 from pathlib import Path
-import tomli_w
 from typing import TYPE_CHECKING, Any
-
 from unittest.mock import MagicMock
 
 import pytest
 import structlog
+import tomli_w
 from PySide6.QtWidgets import QApplication
 from typer.testing import CliRunner
 
 # Import your application's singletons and core classes
-
 # Example for __about__.py (e.g., if it's in checkconnect/__about__.py)
 import checkconnect.__about__ as about_module
 
@@ -32,8 +29,6 @@ import checkconnect.cli.main as cli_main_module
 import checkconnect.cli.options as cli_options_module
 
 # Example for cli.run_app (e.g., if it's in checkconnect/cli/run_app.py)
-import checkconnect.cli.run_app as cli_run_app_module
-
 from checkconnect.config.appcontext import AppContext
 from checkconnect.config.logging_manager import LoggingManager, LoggingManagerSingleton
 from checkconnect.config.settings_manager import SettingsManager, SettingsManagerSingleton
@@ -41,7 +36,6 @@ from checkconnect.config.translation_manager import TranslationManager, Translat
 
 # Assuming these exist in your project, if not, adjust paths or remove
 from checkconnect.core.checkconnect import CheckConnect  # For CheckConnect mocking
-from checkconnect.cli import main as cli_main_module  # For patching user_config_dir and __about__
 
 if TYPE_CHECKING:
     from collections.abc import Generator, Iterator
@@ -162,7 +156,7 @@ def isolated_test_env(mocker: MockerFixture, tmp_path: Path) -> dict[str, Path]:
 
 
 # --- 2. Global Dependency Mocks Fixture ---
-@pytest.fixture()
+@pytest.fixture
 def mock_dependencies(
     mocker: MockerFixture,
     isolated_test_env: dict[str, Path],  # This fixture creates temporary directories for config/data/reports

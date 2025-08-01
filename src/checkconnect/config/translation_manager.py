@@ -26,10 +26,9 @@ import importlib.resources
 import locale
 import logging
 import os
-import sys
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable, ClassVar, Final
-
+from typing import ClassVar, Final
 
 from checkconnect.__about__ import __app_name__
 from checkconnect.config.settings_manager import SettingsManagerSingleton

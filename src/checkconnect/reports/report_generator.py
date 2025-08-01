@@ -19,12 +19,10 @@ from typing import TYPE_CHECKING, Any, Final
 
 import structlog
 from platformdirs import user_data_dir
-
 from pydantic import BaseModel, ValidationError, ValidationInfo, field_validator
 from weasyprint import HTML
 
 from checkconnect import __about__
-
 from checkconnect.exceptions import DirectoryCreationError, ReportsMissingDataError
 
 if TYPE_CHECKING:
@@ -336,12 +334,11 @@ class ReportGenerator:
                 reports_dir=arg_reports_dir,
             )
             return cls(context=context, reports_dir=arg_reports_dir)
-        else:
-            # No argument provided, fall back to logic in from_context
-            log.debug(
-                context.translator.translate("No report directory argument provided. Falling back to config/default.")
-            )
-            return cls.from_context(context)
+        # No argument provided, fall back to logic in from_context
+        log.debug(
+            context.translator.translate("No report directory argument provided. Falling back to config/default.")
+        )
+        return cls.from_context(context)
 
     def _validate_results(self, ntp_results: list[str], url_results: list[str]) -> None:
         """

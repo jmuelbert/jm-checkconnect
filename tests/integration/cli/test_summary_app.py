@@ -5,28 +5,23 @@
 from __future__ import annotations
 
 import logging
-
-from typing import TYPE_CHECKING, Any
-
 from pathlib import Path
-from rich.console import Console
-
-import pytest
-from pytest_mock import MockerFixture
+from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock, patch
 
-from typer.testing import CliRunner
+import pytest
 
-from checkconnect.exceptions import ExitExceptionError
+
 from checkconnect.cli import main as cli_main
 from checkconnect.config.appcontext import AppContext
-from checkconnect.reports.report_manager import OutputFormat, ReportManager
-
-from tests.utils.common import assert_common_initialization, assert_common_cli_logs
+from checkconnect.exceptions import ExitExceptionError
+from checkconnect.reports.report_manager import OutputFormat
+from tests.utils.common import assert_common_cli_logs, assert_common_initialization
 
 if TYPE_CHECKING:
     # If EventDict is a specific type alias in structlog
     from structlog.typing import EventDict
+    from typer.testing import CliRunner
 else:
     EventDict = dict[str, Any]
 
@@ -392,10 +387,14 @@ class TestCliSummary:
 
         # Assert ERROR/CRITICAL logs
         assert any(
-            e.get("log_level") == "error"
-            and e.get("event") == "Cannot start generate summary for checkconnect. (Test error)"
+            "exc_info" in e
+            and e.get("event") == "Cannot start generate summary for checkconnect."
+            and isinstance(e.get("exc_info"), ExitExceptionError)
+            and str(e.get("exc_info")) == "Test error"
+            and e.get("log_level") == "error"
             for e in caplog_structlog
         )
+        
 
     def test_cli_wrong_summary_format(
         self,

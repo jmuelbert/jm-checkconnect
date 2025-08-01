@@ -26,7 +26,7 @@ import copy
 import tomllib
 from importlib.resources import files
 from pathlib import Path
-from typing import Any, ClassVar, TypeVar, Optional
+from typing import Any, ClassVar, TypeVar
 
 import platformdirs
 import structlog
@@ -117,20 +117,20 @@ class SettingsManager:
         # If it's a subsequent call due to singleton, don't reset
         if not hasattr(self, "_settings"):
             self._settings: dict[str, dict[str, Any]] = {}
-            self._loaded_config_file: Optional[Path] = None
+            self._loaded_config_file: Path | None = None
             self._internal_errors: list[str] = []  # Errors specific to this instance's setup
             # This logger will use the bootstrap configuration initially.
             self.logger = structlog.get_logger(__name__)
 
     @property
-    def loaded_config_file(self) -> Optional[Path]:
+    def loaded_config_file(self) -> Path | None:
         return self._loaded_config_file
 
     @loaded_config_file.setter
     def loaded_config_file(self, path: Path):
         self._loaded_config_file = path
 
-    def load_settings(self, config_path_from_cli: Optional[Path] = None) -> None:
+    def load_settings(self, config_path_from_cli: Path | None = None) -> None:
         """
         Load the application settings.
 
@@ -149,7 +149,7 @@ class SettingsManager:
         loaded_config = self._load_config_from_paths(config_path_from_cli)
         self._settings = loaded_config
 
-    def _load_config_from_paths(self, config_path_from_cli: Optional[Path] = None) -> Dict[str, Dict[str, Any]]:
+    def _load_config_from_paths(self, config_path_from_cli: Path | None = None) -> Dict[str, Dict[str, Any]]:
         """Load the configuration, prioritizing CLI path, then predefined locations."""
         self.logger.debug("Attempting to load config from predefined paths")
         # 1. Try CLI-provided path first
@@ -198,7 +198,7 @@ class SettingsManager:
                         path=str(path),
                         error=str(e),
                     )
-                    self._internal_errors.append(f"Predefined config '{str(path)}' error: {e}")
+                    self._internal_errors.append(f"Predefined config '{path!s}' error: {e}")
                     raise
             else:
                 self.logger.debug("Predefined config location does not exist", path=str(path))
@@ -232,19 +232,19 @@ class SettingsManager:
             self.loaded_config_file = path  # Track the loaded config file
             return config
         except tomllib.TOMLDecodeError as e:
-            self._internal_errors.append(f"TOML decoding failed for '{str(path)}': {e}")
+            self._internal_errors.append(f"TOML decoding failed for '{path!s}': {e}")
             self.logger.exception("TOML decoding failed for configuration file", path=str(path))
-            raise SettingsConfigurationError(f"Malformed TOML file: {str(path)}") from e
+            raise SettingsConfigurationError(f"Malformed TOML file: {path!s}") from e
         except (
             OSError
         ) as e:  # Catch file-related OS errors (e.g., permissions, not found if path.exists() failed somehow)
-            self._internal_errors.append(f"OS error accessing config file '{str(path)}': {e}")
+            self._internal_errors.append(f"OS error accessing config file '{path!s}': {e}")
             self.logger.exception("Operating system error accessing configuration file", path=str(path))
-            raise ConfigFileNotFoundError(f"Could not access file: {str(path)}") from e  # Renamed exception for clarity
+            raise ConfigFileNotFoundError(f"Could not access file: {path!s}") from e  # Renamed exception for clarity
         except Exception as e:
-            self._internal_errors.append(f"Unexpected error loading config '{str(path)}': {e}")
+            self._internal_errors.append(f"Unexpected error loading config '{path!s}': {e}")
             self.logger.exception("Unexpected error while loading configuration", path=str(path))
-            raise SettingsConfigurationError(f"Unexpected error loading config: {str(path)}") from e
+            raise SettingsConfigurationError(f"Unexpected error loading config: {path!s}") from e
 
     def _save_default_config(self) -> None:
         """
@@ -264,7 +264,7 @@ class SettingsManager:
                 self.logger.exception(
                     "Unable to write default configuration to this location.", path=str(path), error=str(e)
                 )
-                self._internal_errors.append(f"Failed to save default config to '{str(path)}': {e}")
+                self._internal_errors.append(f"Failed to save default config to '{path!s}': {e}")
                 raise SettingsWriteConfigurationError("Unable to write default configuration to this location.") from e
             except Exception as e:
                 self.logger.warning(
@@ -272,7 +272,7 @@ class SettingsManager:
                     path=str(path),
                     error=str(e),
                 )
-                self._internal_errors.append(f"Unexpected error saving default config to '{str(path)}': {e}")
+                self._internal_errors.append(f"Unexpected error saving default config to '{path!s}': {e}")
                 raise SettingsWriteConfigurationError(
                     "Unexpected error while attempting to save default config to this location, trying next."
                 ) from e
@@ -284,7 +284,7 @@ class SettingsManager:
         """
         Saves the current configuration to the loaded file path, or the first writable location.
         """
-        target_file: Optional[Path] = None
+        target_file: Path | None = None
 
         if self._loaded_config_file:  # Use the private attribute consistent with property
             try:

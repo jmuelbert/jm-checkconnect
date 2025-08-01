@@ -7,18 +7,13 @@
 from __future__ import annotations
 
 import json
-import tomllib
-import tomli_w
-
 import subprocess
 import sys
+import tomllib
 from pathlib import Path
-import platformdirs
 
 import pytest
-
-from checkconnect.config.appcontext import AppContext
-from checkconnect.config.logging_manager import LoggingManagerSingleton
+import tomli_w
 
 
 class ServerCheckMissingError(Exception):
@@ -285,7 +280,7 @@ class TestIntegration:
             capture_output=True,
             text=True,
             # check=True,
-            cwd=test_env,
+            cwd=test_env, check=False,
         )
 
         assert result.returncode == 1, f"Command failed:\n{result.stdout}"

@@ -10,17 +10,16 @@ This define the CLI for the summary CLI.
 from __future__ import annotations
 
 import sys
-from pathlib import Path
+from pathlib import Path  # noqa: TC003
 from typing import Annotated
 
 import structlog
 import typer
 from rich.console import Console
 
-from checkconnect.exceptions import ExitExceptionError
-from checkconnect.cli.options import get_data_dir_option_definition, get_report_dir_option_definition
+from checkconnect.cli.options import get_data_dir_option_definition
 from checkconnect.config.appcontext import AppContext
-from checkconnect.core.checkconnect import CheckConnect
+from checkconnect.exceptions import ExitExceptionError
 from checkconnect.reports.report_manager import OutputFormat, ReportManager
 
 console = Console()
@@ -114,12 +113,12 @@ def summary(
         console.print(
             app_context.gettext(f"[bold red]Error:[/bold red] Cannot start generate summary for checkconnect. ({e})")
         )
-        log.exception(app_context.gettext(f"Cannot start generate summary for checkconnect. ({e})"))
-        raise typer.Exit(1)
+        log.exception(app_context.gettext("Cannot start generate summary for checkconnect."), exc_info=e)
+        raise typer.Exit(1) from e
 
     except Exception as e:
         console.print(
             app_context.gettext(f"[bold red]Error:[/bold red] An unexpected error occurred generate summary. ({e})")
         )
-        log.exception(app_context.gettext(f"An unexpected error occurred generate summary. ({e})"))
-        raise typer.Exit(1)
+        log.exception(app_context.gettext("An unexpected error occurred generate summary."), exc_info=e)
+        raise typer.Exit(1) from e

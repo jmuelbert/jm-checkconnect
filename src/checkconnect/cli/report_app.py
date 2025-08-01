@@ -111,5 +111,5 @@ def reports(
                 f"[bold red]Critical Error:[/bold red] An unexpected error occurred generate reports. ({e})"
             )
         )
-        log.exception(app_context.gettext("An unexpected error occurred generate reports error."), exc_info=e)
+        log.exception(app_context.gettext("An unexpected error occurred generate reports."), exc_info=e)
         raise typer.Exit(1) from e

@@ -20,8 +20,6 @@ from unittest.mock import MagicMock, call, mock_open, patch
 import pytest
 import tomli_w
 
-from checkconnect.exceptions import ConfigFileNotFoundError, SettingsConfigurationError, SettingsWriteConfigurationError
-
 # Assuming SettingsManager and its exceptions are in a file named `settings_manager.py`
 # Adjust the import path if your file structure is different.
 from checkconnect.config.settings_manager import (
@@ -29,6 +27,7 @@ from checkconnect.config.settings_manager import (
     SettingsManager,
     SettingsManagerSingleton,
 )
+from checkconnect.exceptions import SettingsConfigurationError, SettingsWriteConfigurationError
 
 if TYPE_CHECKING:
     from structlog.typing import EventDict

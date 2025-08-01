@@ -173,12 +173,11 @@ class ReportManager:
                 data_dir=arg_data_dir,
             )
             return cls(context=context, data_dir=arg_data_dir)
-        else:
-            # No argument provided, fall back to logic in from_context
-            log.debug(
-                context.translator.translate("No data directory argument provided. Falling back to config/default.")
-            )
-            return cls.from_context(context)
+        # No argument provided, fall back to logic in from_context
+        log.debug(
+            context.translator.translate("No data directory argument provided. Falling back to config/default.")
+        )
+        return cls.from_context(context)
 
     def _get_filepath(self, data_type: ReportDataType) -> Path:
         """

@@ -12,15 +12,12 @@ like gettext, locale, and importlib.resources.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
-import os
-
 import gettext
 import locale
+import os
 from collections.abc import Generator
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock, call, patch
 
 import pytest
@@ -36,7 +33,6 @@ from checkconnect.config.translation_manager import TranslationManager, Translat
 
 if TYPE_CHECKING:
     from pytest_mock import MockerFixture
-    from structlog.typing import EventDict
 
 # --- Fixtures ---
 
@@ -80,7 +76,7 @@ def mock_gettext_translation(mocker: Any) -> Generator[Any, Any, Any]:
     mocker.patch("pathlib.Path.exists", return_value=True)
 
     # Yield all the mocks you need to access in your test
-    yield mock_trans_func, mock_translations_obj, mock_gettext_method, mock_ngettext_method
+    return mock_trans_func, mock_translations_obj, mock_gettext_method, mock_ngettext_method
 
 
 @pytest.fixture
@@ -125,7 +121,7 @@ def assert_translation_called_with():
         actual_fallback = kwargs.get("fallback")
         assert actual_fallback == fallback, f"Expected fallback '{fallback}', got '{actual_fallback}'"
 
-    yield _assert
+    return _assert
 
 
 @pytest.fixture
@@ -176,7 +172,7 @@ def mock_locale_functions(mocker: MockerFixture) -> None:
     # })
 
     # Yielding the mocks allows tests to make assertions on them if needed
-    yield mock_set_locale, mock_get_locale
+    return mock_set_locale, mock_get_locale
 
     # No cleanup specifically needed for mocks as mocker handles it.
 
@@ -395,7 +391,7 @@ class TestTranslationManager:
             languages=[expected_language],
             fallback=True,
         )
-        assert manager._ is mock_trans_func.return_value.gettext  # noqa: SLF001 Test the private _
+        assert manager._ is mock_trans_func.return_value.gettext
         assert manager.translation is mock_trans_func.return_value
 
     @pytest.mark.unit
@@ -491,7 +487,7 @@ class TestTranslationManager:
             manager.current_language == "fr"
         )  # current_language is still the requested one, but the actual translation object is for fallback.
 
-        assert manager._("Hello") == "Fallback: Hello"  # noqa: SLF001 Test the private _
+        assert manager._("Hello") == "Fallback: Hello"
 
     @pytest.mark.unit
     def test_get_system_language_success(

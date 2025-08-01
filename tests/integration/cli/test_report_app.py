@@ -566,6 +566,85 @@ class TestCliReports:
             for e in caplog_structlog
         )
 
+    @pytest.mark.integration
+    def test_reports_command_handles_unexpected_exception(
+        self,
+        mock_dependencies: dict[str, Any],
+        mock_report_manager_class: MagicMock,
+        mock_report_generator_class: MagicMock,
+        mock_checkconnect_class: MagicMock,
+        runner: CliRunner,
+        caplog_structlog: list[EventDict],
+    ) -> None:
+        """
+        Test error handling when an ExitExceptionError occurs.
+        """
+        # Arrange
+        settings_manager_instance = mock_dependencies["settings_manager_instance"]
+        logging_manager_instance = mock_dependencies["logging_manager_instance"]
+        translation_manager_instance = mock_dependencies["translation_manager_instance"]
+        app_context_instance = mock_dependencies["app_context_instance"]
+
+        # Ensure AppContext.create.return_value is readily available for later assertions
+        assert AppContext.create.return_value == app_context_instance
+
+
+        checkconnect_instance = mock_checkconnect_class.return_value
+        checkconnect_instance.run_all_checks.side_effect = RuntimeError("Something went wrong")
+
+        # Invoke the command
+        result = runner.invoke(
+            cli_main.main_app,
+            ["report"],
+        )
+
+        # Assert CLI command exits with code 0
+        assert result.exit_code == 1, f"Missing exception: {result.output}"
+        assert "An unexpected error occurred generate reports." in result.stdout, (
+            "Expected 'An unexpected error occurred generate reports.' in stdout"
+        )
+        assert "Something went wrong" in result.stdout, "Expected 'Test error' in stdout"
+
+        # Common initialization assertions
+        assert_common_initialization(
+            settings_manager_instance,
+            logging_manager_instance,
+            translation_manager_instance,
+            expected_cli_log_level=logging.WARNING,  # Default from verbose=0 in cli_main
+            expected_language="en",
+            expected_console_logging=True,
+        )
+
+        # Specific assertion for the report command
+        mock_report_manager_class.from_params.assert_called_once_with(
+            context=AppContext.create.return_value, arg_data_dir=None
+        )
+        # Ensure generate_reports was not called as an error occurred early
+        mock_report_generator_class.from_params.return_value.generate_reports.assert_not_called()
+
+        # --- Asserting on Specific Log Entries from Your Output ---
+        assert_common_cli_logs(caplog_structlog)
+
+        # Assert CLI Args
+        assert any(
+            e.get("event") == "CLI Args"
+            and e.get("log_level") == "debug"
+            and e.get("verbose") == 0
+            and e.get("language") is None
+            and e.get("config_file") is None
+            for e in caplog_structlog
+        )
+
+        # Assert ERROR/CRITICAL logs
+        assert any(
+            "exc_info" in e
+            and e.get("event") == "An unexpected error occurred generate reports."
+            and isinstance(e.get("exc_info"), RuntimeError)
+            and str(e.get("exc_info")) == "Something went wrong"
+            and e.get("log_level") == "error"
+            for e in caplog_structlog
+        )
+
     def test_report_command_with_help_option(
         self,
         mock_dependencies: dict[str, Any],

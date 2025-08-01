@@ -2,28 +2,19 @@
 import logging
 import sys
 from pathlib import Path
-from unittest.mock import MagicMock, call
+from unittest.mock import call
 
 import pytest
-import structlog # Keep this import for type hinting and other uses in test file
-from structlog.stdlib import ProcessorFormatter
+import structlog  # Keep this import for type hinting and other uses in test file
 
 # Import the module itself to patch its internal references
-from checkconnect.config import logging_manager as logging_manager_module
-
 # Assuming your LoggingManager and LoggingManagerSingleton are in this path
-from checkconnect.config.logging_manager import ( # Still import the classes for direct use
+from checkconnect.config.logging_manager import (  # Still import the classes for direct use
     LoggingManager,
     LoggingManagerSingleton,
-    APP_NAME,
-    DEFAULT_LOG_FILENAME,
-    DEFAULT_LIMITED_LOG_FILENAME,
-    DEFAULT_MAX_BYTE,
-    DEFAULT_BACKUP_COUNT,
 )
 from checkconnect.exceptions import (
     InvalidLogLevelError,
-    LogDirectoryError,
     LogHandlerError,
 )
 

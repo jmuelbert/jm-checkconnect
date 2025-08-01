@@ -86,14 +86,13 @@ logger.error("Failed to connect to external service.", service="AuthAPI", status
 
 from __future__ import annotations
 
-import traceback
 import logging
 import logging.config
 import logging.handlers
 import sys
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any, ClassVar, Final, Self, TYPE_CHECKING, Unpack
+from typing import TYPE_CHECKING, Any, ClassVar, Final, Self
 
 import structlog
 from rich.console import Console
@@ -101,9 +100,7 @@ from structlog.stdlib import ProcessorFormatter
 
 from checkconnect.__about__ import __app_name__
 from checkconnect.config.appcontext import AppContext
-from checkconnect.config.settings_manager import SettingsManager # Assuming this is available
-from checkconnect.config.translation_manager import TranslationManagerSingleton # Assuming this is available
-from checkconnect.exceptions import ( # Assuming these custom exceptions exist
+from checkconnect.exceptions import (  # Assuming these custom exceptions exist
     InvalidLogLevelError,
     LogDirectoryError,
     LogHandlerError,
@@ -112,7 +109,6 @@ from checkconnect.exceptions import ( # Assuming these custom exceptions exist
 if TYPE_CHECKING:
     from types import TracebackType
 
-    from structlog.stdlib import BoundLogger
     from structlog.typing import Processor
 
 
@@ -240,7 +236,7 @@ class LoggingManager:
         root_logger = logging.getLogger()
         print("Shutdown logging handlers...",root_logger.handlers[:])
         for handler in root_logger.handlers[:]: # Iterate over a copy to safely modify
-            print("Shutting down logging handlers...{}".format(handler.__class__.__name__))
+            print(f"Shutting down logging handlers...{handler.__class__.__name__}")
             try:
                 handler.close()
                 root_logger.removeHandler(handler)
