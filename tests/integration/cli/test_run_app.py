@@ -11,30 +11,21 @@ AppContext, and calls startup.run with the right context.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
 import logging
-import tempfile
-from pathlib import Path
-
-from pydantic_core.core_schema import ExpectedSerializationTypes
-
-import pytest
-from pytest_mock import MockerFixture
+from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock, patch
 
-from typer.testing import CliRunner
+import pytest
 
-from checkconnect.config.appcontext import AppContext
 from checkconnect.cli import main as cli_main
-from checkconnect.cli.run_app import run_app
+from checkconnect.config.appcontext import AppContext
 from checkconnect.exceptions import ExitExceptionError
-
-
-from tests.utils.common import assert_common_initialization, assert_common_cli_logs
+from tests.utils.common import assert_common_cli_logs, assert_common_initialization
 
 if TYPE_CHECKING:
     # If EventDict is a specific type alias in structlog
     from structlog.typing import EventDict
+    from typer.testing import CliRunner
 else:
     EventDict = dict[str, Any]
 
@@ -190,11 +181,16 @@ class TestCliRun:
             for e in caplog_structlog
         )
 
-        # Optional: Assert no ERROR/CRITICAL logs in a successful run
+        # Assert ERROR/CRITICAL logs
         assert any(
-            e.get("log_level") in ["error", "critical"] and e.get("event") == "Error in Checks: Controlled failure"
+            "exc_info" in e
+            and e.get("event") ==  "Cannot due checks for checkconnect."
+            and isinstance(e.get("exc_info"), ExitExceptionError)
+            and str(e.get("exc_info")) == "Controlled failure"
+            and e.get("log_level") == "error"
             for e in caplog_structlog
         )
+
 
     @pytest.mark.integration
     def test_run_command_handles_unexpected_exception(
@@ -257,10 +253,13 @@ class TestCliRun:
             for e in caplog_structlog
         )
 
-        # Optional: Assert no ERROR/CRITICAL logs in a successful run
+        # Assert ERROR/CRITICAL logs
         assert any(
-            e.get("log_level") in ["error", "critical"]
-            and e.get("event") == "An unexpected error occurred during checks. (Something went wrong)"
+            "exc_info" in e
+            and e.get("event") ==  "An unexpected error occurred during checks."
+            and isinstance(e.get("exc_info"), RuntimeError)
+            and str(e.get("exc_info")) == "Something went wrong"
+            and e.get("log_level") == "error"
             for e in caplog_structlog
         )
 
@@ -311,3 +310,48 @@ class TestCliRun:
 
         # Options
         assert "--help          Show this message and exit." in result.output
+
+        # --- Asserting on Specific Log Entries from Your Output ---
+
+        # 1. Assert initial CLI startup (DEBUG)
+        assert any(
+            e.get("event") == "Main callback: is starting!" and e.get("log_level") == "debug" for e in caplog_structlog
+        )
+        assert any(
+            e.get("event") == "CLI Args"
+            and e.get("log_level") == "debug"
+            and e.get("verbose") == 0
+            and e.get("language") is None
+            and e.get("config_file") is None
+            for e in caplog_structlog
+        )
+
+        # 2. Assert key INFO level success messages
+        assert any(
+            e.get("event") == "Main callback: SettingsManager initialized and configuration loaded."
+            and e.get("log_level") == "info"
+            for e in caplog_structlog
+        )
+        assert any(
+            e.get("event") == "Main callback: TranslationManager initialized." and e.get("log_level") == "info"
+            for e in caplog_structlog
+        )
+        assert any(
+            e.get("event") == "Main callback: Full logging configured based on application settings and CLI options."
+            and e.get("log_level") == "info"
+            for e in caplog_structlog
+        )
+
+        # 3. Assert CLI-Verbose and Logging Level determination (DEBUG)
+        assert any(
+            e.get("event") == "Main callback: Determined CLI-Verbose and Logging Level to pass to LoggingManager."
+            and e.get("log_level") == "debug"
+            and e.get("verbose_input") == 0
+            and e.get("derived_cli_log_level") == "WARNING"
+            for e in caplog_structlog
+        )
+
+        # At the end of the assert block for successful tests:
+        assert not any(e.get("log_level") == "error" or e.get("log_level") == "critical" for e in caplog_structlog), (
+            "Unexpected ERROR or CRITICAL logs found in a successful test run."
+        )

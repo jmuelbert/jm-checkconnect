@@ -467,7 +467,6 @@ class TestCliReports:
             url_results=["mocked_url_data_from_getter"],
         )
 
-
         # --- Asserting on Specific Log Entries from Your Output ---
         assert_common_cli_logs(caplog_structlog)
 
