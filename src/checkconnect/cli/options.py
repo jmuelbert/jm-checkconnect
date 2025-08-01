@@ -3,6 +3,7 @@
 
 """
 The common options definitions for the CheckConnect application.
+
 These functions return typer.Option objects to be used with Annotated.
 """
 
@@ -23,8 +24,9 @@ def get_language_option_definition() -> typer.Option:  # Returns a typer.Option 
 
 def get_verbose_option_definition() -> typer.Option:
     """
-    Returns a typer.Option object for verbosity,
-    toggling between INFO and DEBUG.
+    Return a typer.Option object for verbosity.
+
+    The Option is for increase the logging Verbosity.
     """
     return typer.Option(
         "-v",
