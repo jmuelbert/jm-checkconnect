@@ -11,16 +11,18 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path  # noqa: TC003
-from typing import Annotated
+from typing import TYPE_CHECKING, Annotated
 
 import structlog
 import typer
 from rich.console import Console
 
 from checkconnect.cli.options import get_data_dir_option_definition
-from checkconnect.config.appcontext import AppContext
 from checkconnect.exceptions import ExitExceptionError
 from checkconnect.reports.report_manager import OutputFormat, ReportManager
+
+if TYPE_CHECKING:
+    from checkconnect.config.appcontext import AppContext
 
 console = Console()
 

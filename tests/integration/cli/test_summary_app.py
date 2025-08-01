@@ -5,12 +5,11 @@
 from __future__ import annotations
 
 import logging
-from pathlib import Path
+from pathlib import Path  # noqa: TC003
 from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 
 from checkconnect.cli import main as cli_main
 from checkconnect.config.appcontext import AppContext
@@ -394,19 +393,99 @@ class TestCliSummary:
             and e.get("log_level") == "error"
             for e in caplog_structlog
         )
-        
 
-    def test_cli_wrong_summary_format(
+
+    @pytest.mark.integration
+    def test_summary_command_handles_unexpected_exception(
         self,
         mock_dependencies: dict[str, Any],
         mock_report_manager_class: MagicMock,
         runner: CliRunner,
         caplog_structlog: list[EventDict],
     ) -> None:
+        """Test that exceptions during summary startup are logged and handled."""
+        """
+        Test error handling when an ExitExceptionError occurs.
+        """
         # Arrange
         settings_manager_instance = mock_dependencies["settings_manager_instance"]
         logging_manager_instance = mock_dependencies["logging_manager_instance"]
         translation_manager_instance = mock_dependencies["translation_manager_instance"]
+        app_context_instance = mock_dependencies["app_context_instance"]
+
+        # Ensure AppContext.create.return_value is readily available for later assertions
+        assert AppContext.create.return_value == app_context_instance
+
+        # Setup mocks to raise ExitExceptionError
+        mock_report_manager_class.from_params.side_effect = RuntimeError("Something went wrong")
+
+        # Invoke the command
+        result = runner.invoke(
+            cli_main.main_app,
+            ["summary"],
+        )
+
+        # Assert CLI command exits with code 0
+        assert result.exit_code == 1, f"Missing exception: {result.output}"
+        assert "An unexpected error occurred generate summary." in result.stdout, (
+            "Expected 'An unexpected error occurred generate summary.' in stdout"
+        )
+        assert "Something went wrong" in result.stdout, "Expected 'Test error' in stdout"
+
+        # Common initialization assertions
+        assert_common_initialization(
+            settings_manager_instance,
+            logging_manager_instance,
+            translation_manager_instance,
+            expected_cli_log_level=logging.WARNING,  # Default from verbose=0 in cli_main
+            expected_language="en",
+            expected_console_logging=True,
+        )
+
+        # Specific assertion for the report command
+        mock_report_manager_class.from_params.assert_called_once_with(
+            context=AppContext.create.return_value, arg_data_dir=None
+        )
+        # Ensure generate_reports was not called as an error occurred early
+        mock_report_manager_class.from_params.return_value.load_previous_results.assert_not_called()
+
+        # --- Asserting on Specific Log Entries from Your Output ---
+        assert_common_cli_logs(caplog_structlog)
+
+        # Assert CLI Args
+        assert any(
+            e.get("event") == "CLI Args"
+            and e.get("log_level") == "debug"
+            and e.get("verbose") == 0
+            and e.get("language") is None
+            and e.get("config_file") is None
+            for e in caplog_structlog
+        )
+
+        # 3. Assert GUI specific startup INFO log
+        assert any(
+            e.get("event") == "Starting Checkconnect in summary mode." and e.get("log_level") == "info"
+            for e in caplog_structlog
+        )
+
+        # Assert ERROR/CRITICAL logs
+        assert any(
+            "exc_info" in e
+            and e.get("event") == "An unexpected error occurred generate summary."
+            and isinstance(e.get("exc_info"), RuntimeError)
+            and str(e.get("exc_info")) == "Something went wrong"
+            and e.get("log_level") == "error"
+            for e in caplog_structlog
+        )
+
+
+    def test_cli_wrong_summary_format(
+        self,
+        mock_dependencies: dict[str, Any],
+        mock_report_manager_class: MagicMock,
+        runner: CliRunner,
+    ) -> None:
+        # Arrange
         app_context_instance = mock_dependencies["app_context_instance"]
 
         # Ensure AppContext.create.return_value is readily available for later assertions
@@ -446,9 +525,6 @@ class TestCliSummary:
         Test that 'run summary --help' displays the help message specific to the 'run' command.
         """
         # Arrange
-        settings_manager_instance = mock_dependencies["settings_manager_instance"]
-        logging_manager_instance = mock_dependencies["logging_manager_instance"]
-        translation_manager_instance = mock_dependencies["translation_manager_instance"]
         app_context_instance = mock_dependencies["app_context_instance"]
 
         # Ensure AppContext.create.return_value is readily available for later assertions
@@ -462,12 +538,10 @@ class TestCliSummary:
             # If using rich_click specifically, sometimes CLICOLOR_FORCE=0 helps too
         }
 
-        result = runner.invoke(cli_main.main_app, ["summary", "--help"])
+        result = runner.invoke(cli_main.main_app, ["summary", "--help"], env=test_env)
 
         # Assert
         assert result.exit_code == 0, f"Unexpected failure: {result.exception}"
-
-        print(result.stdout)
 
         # Headers
         assert "Usage: cli summary [OPTIONS]" in result.output
@@ -482,4 +556,49 @@ class TestCliSummary:
         assert (
             "-format    -f      [text|markdown|html]  Output format: text, markdown, html. [default: text]"
             in result.output
+        )
+
+        # --- Asserting on Specific Log Entries from Your Output ---
+
+        # 1. Assert initial CLI startup (DEBUG)
+        assert any(
+            e.get("event") == "Main callback: is starting!" and e.get("log_level") == "debug" for e in caplog_structlog
+        )
+        assert any(
+            e.get("event") == "CLI Args"
+            and e.get("log_level") == "debug"
+            and e.get("verbose") == 0
+            and e.get("language") is None
+            and e.get("config_file") is None
+            for e in caplog_structlog
+        )
+
+        # 2. Assert key INFO level success messages
+        assert any(
+            e.get("event") == "Main callback: SettingsManager initialized and configuration loaded."
+            and e.get("log_level") == "info"
+            for e in caplog_structlog
+        )
+        assert any(
+            e.get("event") == "Main callback: TranslationManager initialized." and e.get("log_level") == "info"
+            for e in caplog_structlog
+        )
+        assert any(
+            e.get("event") == "Main callback: Full logging configured based on application settings and CLI options."
+            and e.get("log_level") == "info"
+            for e in caplog_structlog
+        )
+
+        # 3. Assert CLI-Verbose and Logging Level determination (DEBUG)
+        assert any(
+            e.get("event") == "Main callback: Determined CLI-Verbose and Logging Level to pass to LoggingManager."
+            and e.get("log_level") == "debug"
+            and e.get("verbose_input") == 0
+            and e.get("derived_cli_log_level") == "WARNING"
+            for e in caplog_structlog
+        )
+
+        # At the end of the assert block for successful tests:
+        assert not any(e.get("log_level") == "error" or e.get("log_level") == "critical" for e in caplog_structlog), (
+            "Unexpected ERROR or CRITICAL logs found in a successful test run."
         )
