@@ -11,18 +11,21 @@ output directory. If no results are available, an error is logged.
 
 from __future__ import annotations
 
-from pathlib import Path
-from typing import Annotated
-from rich.console import Console
+from pathlib import Path  # noqa: TC003
+from typing import TYPE_CHECKING, Annotated
+
 import structlog
 import typer
+from rich.console import Console
 
-from checkconnect.cli.options import get_report_dir_option_definition, get_data_dir_option_definition
-from checkconnect.exceptions import ExitExceptionError
-from checkconnect.config.appcontext import AppContext
+from checkconnect.cli.options import get_data_dir_option_definition, get_report_dir_option_definition
 from checkconnect.core.checkconnect import CheckConnect
+from checkconnect.exceptions import ExitExceptionError
 from checkconnect.reports.report_generator import ReportGenerator
 from checkconnect.reports.report_manager import ReportManager
+
+if TYPE_CHECKING:
+    from checkconnect.config.appcontext import AppContext
 
 console = Console()
 
@@ -79,18 +82,14 @@ def reports(
         report_manager = ReportManager.from_params(context=app_context, arg_data_dir=data_dir)
 
         if report_manager.results_exists():
-            print("[DEBUG Report-App] Loading previous results...")
             ntp_results, url_results = report_manager.load_previous_results()
         else:
-            print("[DEBUG Report-App] Generating reports with CheckConnect.")
             checker = CheckConnect(context=app_context)
             checker.run_all_checks()
-            print("[DEBUG Report-App] Getting results from CheckConnect")
             ntp_results = checker.get_ntp_results()
             url_results = checker.get_url_results()
 
         report_generator = ReportGenerator.from_params(context=app_context, arg_reports_dir=reports_dir)
-        print(f"[DEBUG Report-App] Generating reports with ntp_results={ntp_results} and url_results={url_results}")
         report_generator.generate_reports(
             ntp_results=ntp_results,
             url_results=url_results,
@@ -103,8 +102,8 @@ def reports(
                 f"[bold red]Critical Error:[/bold red] Cannot start generate reports for checkconnect. ({e})"
             )
         )
-        log.exception(app_context.gettext(f"Cannot start generate reports for checkconnect error: {e}"))
-        raise typer.Exit(1)
+        log.exception(app_context.gettext("Cannot start generate reports for checkconnect error."), exc_info=e)
+        raise typer.Exit(1) from e
 
     except Exception as e:
         console.print(
@@ -112,5 +111,5 @@ def reports(
                 f"[bold red]Critical Error:[/bold red] An unexpected error occurred generate reports. ({e})"
             )
         )
-        log.exception(app_context.gettext(f"An unexpected error occurred generate reports error:{e}"))
-        raise typer.Exit(1)
+        log.exception(app_context.gettext("An unexpected error occurred generate reports error."), exc_info=e)
+        raise typer.Exit(1) from e

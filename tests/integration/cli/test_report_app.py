@@ -14,27 +14,21 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
-
-import pytest
-from pytest_mock import MockerFixture
 from unittest.mock import MagicMock, patch
 
-from typer.testing import CliRunner
+import pytest
 
 # Import the report_app Typer instance and the command function
 # Adjust this import path if your file structure is different
 from checkconnect.cli import main as cli_main
-
 from checkconnect.config.appcontext import AppContext
 from checkconnect.exceptions import ExitExceptionError
-from checkconnect.reports.report_generator import ReportGenerator
-from checkconnect.reports.report_manager import ReportManager
-
-from tests.utils.common import assert_common_initialization, assert_common_cli_logs
+from tests.utils.common import assert_common_cli_logs, assert_common_initialization
 
 if TYPE_CHECKING:
     # If EventDict is a specific type alias in structlog
     from structlog.typing import EventDict
+    from typer.testing import CliRunner
 else:
     EventDict = dict[str, Any]
 
@@ -73,7 +67,6 @@ def mock_checkconnect_class():
 
         mock_cc_class.return_value = mock_instance
         yield mock_cc_class
-
 
 class TestCliReports:
     @pytest.mark.integration
@@ -269,7 +262,6 @@ class TestCliReports:
     @pytest.mark.integration
     def test_reports_command_success_without_existing_results(
         self,
-        mocker: MagicMock,
         mock_dependencies: dict[str, Any],
         mock_checkconnect_class: MagicMock,
         mock_report_manager_class: MagicMock,
@@ -388,11 +380,10 @@ class TestCliReports:
     @pytest.mark.integration
     def test_reports_command_default_paths(
         self,
-        mocker: MagicMock,
         mock_dependencies: dict[str, Any],
-        mock_checkconnect_class: MagicMock,
         mock_report_manager_class: MagicMock,
         mock_report_generator_class: MagicMock,
+        mock_checkconnect_class: MagicMock,
         tmp_path: Path,
         runner: CliRunner,
         caplog_structlog: list[EventDict],
@@ -406,7 +397,6 @@ class TestCliReports:
         logging_manager_instance = mock_dependencies["logging_manager_instance"]
         translation_manager_instance = mock_dependencies["translation_manager_instance"]
         app_context_instance = mock_dependencies["app_context_instance"]
-        check_connect_instance = mock_dependencies["check_connect_instance"]
 
         # Ensure AppContext.create.return_value is readily available for later assertions
         assert AppContext.create.return_value == app_context_instance
@@ -448,6 +438,11 @@ class TestCliReports:
             expected_console_logging=True,
         )
 
+        # If result doesn't exists generate new results
+        mock_checkconnect_class.assert_called_once_with(context=AppContext.create.return_value)
+        checkconnect_instance = mock_checkconnect_class.return_value
+        checkconnect_instance.run_all_checks.assert_called_once()
+
         # Verify ReportManager.from_params and ReportGenerator.from_params
         # were called. The actual default paths would depend on get_data_dir_option_definition
         # and get_report_dir_option_definition, which are usually dynamic (e.g., based on XDG).
@@ -471,6 +466,7 @@ class TestCliReports:
             ntp_results=["mocked_ntp_data_from_getter"],
             url_results=["mocked_url_data_from_getter"],
         )
+
 
         # --- Asserting on Specific Log Entries from Your Output ---
         assert_common_cli_logs(caplog_structlog)
@@ -524,9 +520,6 @@ class TestCliReports:
             ["report"],
         )
 
-        for entry in caplog_structlog:
-            print(entry)
-
         # Assert CLI command exits with code 0
         assert result.exit_code == 1, f"Missing exception: {result.output}"
         assert "Cannot start generate reports for checkconnect." in result.stdout, (
@@ -566,8 +559,11 @@ class TestCliReports:
 
         # Assert ERROR/CRITICAL logs
         assert any(
-            e.get("log_level") == "error"
-            and e.get("event") == "Cannot start generate reports for checkconnect error: Test error"
+            "exc_info" in e
+            and e.get("event") == "Cannot start generate reports for checkconnect error."
+            and isinstance(e.get("exc_info"), ExitExceptionError)
+            and str(e.get("exc_info")) == "Test error"
+            and e.get("log_level") == "error"
             for e in caplog_structlog
         )
 
