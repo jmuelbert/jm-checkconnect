@@ -158,7 +158,6 @@ class TestCliMain:
             for e in caplog_structlog
         )
 
-        # Optional: Assert no ERROR/CRITICAL logs in a successful run
         assert not any(e.get("log_level") in ["error", "critical"] for e in caplog_structlog)
 
         # Check config file was passed and assigned
@@ -386,10 +385,11 @@ class TestCliMain:
 
         # At the end of the assert block for successful tests:
         assert any(
-            e.get("log_level") == "error"
-            or (e.get("log_level") == "critical"
+            "exc_info" in e
             and e.get("event") == "Main callback: Failed to initialize SettingsManager or load configuration!"
-            and e.get("error_details") == "Boom")
+            and isinstance(e.get("exc_info"), RuntimeError)
+            and str(e.get("exc_info")) == "Boom"
+            and e.get("log_level") == "error"
             for e in caplog_structlog
         ), "Expected critical log for config load failure not found."
 

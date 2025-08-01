@@ -11,14 +11,17 @@ management
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import structlog
 import typer
 from rich.console import Console
 
 from checkconnect.exceptions import ExitExceptionError
-from checkconnect.config.appcontext import AppContext
 from checkconnect.gui import startup
 
+if TYPE_CHECKING:
+    from checkconnect.config.appcontext import AppContext
 
 console = Console()
 
@@ -74,13 +77,13 @@ def gui(ctx: typer.Context) -> None:
     except ExitExceptionError as e:
         # Catch specific application-level GUI errors that should lead to an explicit exit
         console.print(f"[bold red]Critical Error:[/bold red] Cannot start GUI due to application error:{e}")
-        log.exception(app_context.gettext(f"Cannot start GUI due to application error: {e}"))
-        raise typer.Exit(1)
+        log.exception(app_context.gettext("Cannot start GUI due to application error."), exc_info=e)
+        raise typer.Exit(1) from e
     except Exception as e:
         # Catch any other unexpected errors during GUI startup or lifecycle
         console.print(f"[bold red]Critical Error:[/bold red] An unexpected error occurred during GUI startup: ({e})")
-        log.exception(app_context.gettext(f"An unexpected error occurred during GUI startup: {e}"))
-        raise typer.Exit(1)
+        log.exception(app_context.gettext("An unexpected error occurred during GUI startup."), exc_info=e)
+        raise typer.Exit(1) from e
 
 
 if __name__ == "__main__":

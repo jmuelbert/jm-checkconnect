@@ -149,8 +149,8 @@ def _initialize_settings_manager(config_file: Path | None) -> SettingsManager:
         SettingsManagerSingleton.initialize_from_context(config_path=config_file)
 
     except Exception as e:
-        main_logger().critical(
-            "Main callback: Failed to initialize SettingsManager or load configuration!", error_details=str(e)
+        main_logger().exception(
+            "Main callback: Failed to initialize SettingsManager or load configuration!", exc_info=e
         )
         console.print(f"[bold red]Critical Error:[/bold red] Failed to load application configuration: {e}")
         raise typer.Exit(1) from e
@@ -192,7 +192,7 @@ def _initialize_translation_manager(language: str | None, app_config: dict[str, 
         )
 
     except Exception as e:
-        main_logger().critical("Main callback: Failed to initialize TranslationManager: ", error_details=str(e))
+        main_logger().exception("Main callback: Failed to initialize TranslationManager: ", exc_info=e)
         console.print(f"[bold red]Critical Error:[/bold red] Failed to initialize translation services: {e}")
         raise typer.Exit(1) from e
     else:
@@ -254,12 +254,12 @@ def _configure_logging_manager(*, app_context: AppContext, verbose: int, is_cli_
 
 
     except LogHandlerError as e:
-        main_logger().critical("Main callback: Critical logging setup error:", error_details=str(e))
+        main_logger().exception("Main callback: Critical logging setup error:", exc_info=e)
         console.print(f"[bold red]Critical Error:[/bold red] Failed to set up core logging handlers: {e}")
         raise typer.Exit(1) from e
     except Exception as e:
-        main_logger().critical(
-            "Main callback: Unexpected error during full logging configuration:", error_details=str(e)
+        main_logger().exception(
+            "Main callback: Unexpected error during full logging configuration:", exc_info=e
         )
         console.print(f"[bold red]Critical Error:[/bold red] Unexpected error during logging setup: {e}")
         raise typer.Exit(1) from e
@@ -337,7 +337,7 @@ def main_callback(
         main_logger().debug("Main callback: AppContext created with initialized managers.")
 
         # --- Phase 5: Configure Full Logging via LoggingManager Singleton ---
-        logging_manager = _configure_logging_manager(app_context, verbose, is_cli_mode)
+        logging_manager = _configure_logging_manager(app_context=app_context, verbose=verbose, is_cli_mode=is_cli_mode)
 
         # --- Phase 6: Store parsed option values and managers in the context object for subcommands ---
         ctx.ensure_object(dict)
@@ -368,13 +368,13 @@ def main_callback(
     except ExitExceptionError as e:
         # Catch specific application-level GUI errors that should lead to an explicit exit
         console.print(f"[bold red]Critical Error:[/bold red] Cannot start GUI due to application error:{e}")
-        main_logger().exception(app_context.gettext("Cannot start GUI due to application error."))
+        main_logger().exception(app_context.gettext("Cannot start GUI due to application error."), exc_info=e)
         raise typer.Exit(1) from e
     except Exception as e:
         # This is your custom error handling path for unexpected errors
-        critical_message = f"Critical Error: An unexpected error occurred during application startup: {e}"
-        main_logger().critical(critical_message, error_details=str(e))
-        console.print(f"[bold red]{critical_message}[/bold red]")  # This is your custom output
+        critical_message = "Critical Error: An unexpected error occurred during application startup: {e}"
+        main_logger().critical(critical_message, exc_info=e)
+        console.print(f"[bold red]{critical_message} {e}[/bold red]")  # This is your custom output
         raise typer.Exit(code=1) from e
 
 

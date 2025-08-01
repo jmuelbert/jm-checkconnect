@@ -11,25 +11,23 @@ AppContext, and calls startup.run with the right context.
 from __future__ import annotations
 
 import logging
-
 from typing import TYPE_CHECKING, Any
 
-from pydantic_core.core_schema import ErrorType
 import pytest
-from pytest_mock import MockerFixture
-from unittest.mock import MagicMock
-from typer.testing import CliRunner
 
 from checkconnect.cli import main as cli_main
-import checkconnect.gui.startup as gui_startup  # For patching
-from checkconnect.exceptions import ExitExceptionError
 from checkconnect.config.appcontext import AppContext
-
-from tests.utils.common import assert_common_initialization, assert_common_cli_logs
+from checkconnect.exceptions import ExitExceptionError
+from tests.utils.common import assert_common_cli_logs, assert_common_initialization
 
 if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
+
     # If EventDict is a specific type alias in structlog
     from structlog.typing import EventDict
+    from typer.testing import CliRunner
+
+
 else:
     EventDict = dict[str, Any]
 
@@ -274,10 +272,12 @@ class TestCliGUI:
             e.get("event") == "Starting CheckConnect GUI..." and e.get("log_level") == "info" for e in caplog_structlog
         )
 
-        # Optional: Assert no ERROR/CRITICAL logs in a successful run
         assert any(
-            e.get("event") == "Cannot start GUI due to application error: GUI failure"
-            and e.get("log_level") in ["error", "critical"]
+            "exc_info" in e
+            and e.get("event") == "Cannot start GUI due to application error."
+            and isinstance(e.get("exc_info"), ExitExceptionError)
+            and str(e.get("exc_info")) == "GUI failure"
+            and e.get("log_level") == "error"
             for e in caplog_structlog
         )
 
@@ -339,10 +339,12 @@ class TestCliGUI:
             e.get("event") == "Starting CheckConnect GUI..." and e.get("log_level") == "info" for e in caplog_structlog
         )
 
-        # Optional: Assert no ERROR/CRITICAL logs in a successful run
         assert any(
-            e.get("event") == "An unexpected error occurred during GUI startup: Crash"
-            and e.get("log_level") in ["error", "critical"]
+            "exc_info" in e
+            and e.get("event") == "An unexpected error occurred during GUI startup."
+            and isinstance(e.get("exc_info"), RuntimeError)
+            and str(e.get("exc_info")) == "Crash"
+            and e.get("log_level") == "error"
             for e in caplog_structlog
         )
 
