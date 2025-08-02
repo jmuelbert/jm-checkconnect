@@ -53,14 +53,18 @@ from checkconnect.config.translation_manager import TranslationManager
 if TYPE_CHECKING:
     from structlog.stdlib import BoundLogger
 
+    from checkconnect.config.settings_manager import SettingsManager
+    from checkconnect.config.translation_manager import TranslationManager
+
 log = structlog.get_logger(__name__)
 
 
 @dataclass
 class AppContext:
     """
-    Manage shared application context, providing access to pre-initialized
-    configuration and translation services.
+    Manage shared application context.
+
+    Providing access to pre-initialized configuration and translation services.
 
     This class serves as a central hub for essential application components,
     ensuring consistent access to global resources across the application.
@@ -80,13 +84,10 @@ class AppContext:
     # These attributes directly hold the instances of your managers
     settings: SettingsManager
     translator: TranslationManager
-    # No need for a separate logging_manager attribute unless AppContext
-    # needs to specifically manage the *logging_manager instance itself* (e.g., for shutdown).
-    # For getting loggers, structlog.get_logger() is sufficient globally.
 
     def get_module_logger(self, name: str) -> BoundLogger:
         """
-        Retrieves a `structlog` logger instance for a specific module.
+        Retrieve a `structlog` logger instance for a specific module.
 
         This method leverages the globally configured `structlog` system,
         which is set up by the `LoggingManagerSingleton` during application startup.
@@ -107,7 +108,7 @@ class AppContext:
 
     def gettext(self, message: str) -> str:
         """
-        Translates a given message string using the active translation manager.
+        Translate a given message string using the active translation manager.
 
         Parameters
         ----------
@@ -128,7 +129,9 @@ class AppContext:
         translator_instance: TranslationManager,  # Changed to accept an instance
     ) -> AppContext:
         """
-        Factory method to create an `AppContext` instance from pre-initialized managers.
+        Create an `AppContext` instance from pre-initialized managers.
+
+        That's the factory method for creating an `AppContext` instance.
 
         Parameters
         ----------
@@ -142,8 +145,5 @@ class AppContext:
         AppContext
             A fully initialized `AppContext` instance.
         """
-        print(
-            f"DEBUG: Call create with settings_instance: {settings_instance} and translator_instance: {translator_instance}"
-        )
         # No internal creation here, just passing them to the constructor
         return cls(settings=settings_instance, translator=translator_instance)

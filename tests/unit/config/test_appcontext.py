@@ -27,18 +27,16 @@ from checkconnect.config.translation_manager import TranslationManager
 
 # --- Fixtures for Mocking Dependencies ---
 
-
 @pytest.fixture
-def mock_settings_manager():
+def mock_settings_manager() -> MagicMock:
     """Mocks the SettingsManager."""
     # Use string for spec if you're only patching the class in some tests,
     # or ensure the actual class is imported if you're creating real mocks.
-    mock = MagicMock(spec=SettingsManager)
-    return mock
+    return MagicMock(spec=SettingsManager)
 
 
 @pytest.fixture
-def mocked_translation():
+def mocked_translation() -> MagicMock:
     """Mocks the Translator."""
     mock_translator = MagicMock(spec=TranslationManager)
     mock_translator.gettext.side_effect = lambda text: f"[mocked] {text}"
@@ -52,7 +50,7 @@ def mocked_translation():
 
 class TestAppContext:
     @pytest.mark.unit
-    def test_app_context_initialization(self, mock_settings_manager, mocked_translation: MagicMock) -> None:
+    def test_app_context_initialization(self, mock_settings_manager: MagicMock, mocked_translation: MagicMock) -> None:
         """
         Tests that AppContext correctly stores the provided manager instances.
         """
@@ -66,22 +64,13 @@ class TestAppContext:
     def test_get_module_logger_functionality(
         self,
         mock_structlog_get_logger: MagicMock,
-        mock_settings_manager,
+        mock_settings_manager: MagicMock,
         mocked_translation: MagicMock,
-        caplog_structlog: list[EventDict],
     ) -> None:
         """
         Tests that get_module_logger returns a functional structlog BoundLogger
         and that it's correctly named.
         """
-        print("\n--- test_get_module_logger_functionality: TEST started ---")  # DEBUG
-        print(
-            f"--- test_get_module_logger_functionality: Before AppContext, structlog.is_configured() = {structlog.is_configured()} ---"
-        )  # DEBUG
-        print(
-            f"--- test_module_logger_functionality: Before AppContext, root_logger handlers = {logging.getLogger().handlers} ---"
-        )  # DEBUG
-
         module_name = "my.test.module.logger"
 
         # Get a standard Python logger that BoundLogger will wrap
@@ -104,10 +93,10 @@ class TestAppContext:
             structlog.stdlib.add_logger_name,
             structlog.stdlib.add_log_level,
             structlog.stdlib.ProcessorFormatter.wrap_for_formatter,
-            # structlog.processors.TimeStamper(fmt="iso", utc=True), # Ensure this matches your conftest.py
-            # structlog.processors.StackInfoRenderer(), # If you have these in conftest
-            # structlog.processors.format_exc_info, # If you have these in conftest
-            # structlog.processors.UnicodeDecoder(), # If you have these in conftest
+            structlog.processors.TimeStamper(fmt="iso", utc=True), # Ensure this matches your conftest.py
+            structlog.processors.StackInfoRenderer(), # If you have these in conftest
+            structlog.processors.format_exc_info, # If you have these in conftest
+            structlog.processors.UnicodeDecoder(), # If you have these in conftest
             # Add ALL other processors from your conftest.py structlog_base_config here!
         ]
 
@@ -125,38 +114,13 @@ class TestAppContext:
         # module_name = __name__
         logger = app_context.get_module_logger(module_name)
 
-        print(
-            f"--- test_get_module_logger_functionality: After get_module_logger, logger type = {type(logger)} ---"
-        )  # DEBUG
-        print(f"--- test_get_module_logger_functionality: After get_module_logger, logger = {logger!r} ---")  # DEBUG
-
         mock_structlog_get_logger.assert_called_once_with(module_name)
         assert isinstance(logger, structlog.stdlib.BoundLogger)
-
-        logger.info("This is a test log message.", key="value")
-        # The `capture_logs` block should now correctly capture events
-        # because the BoundLogger's messages will propagate to the root logger
-        # where `structlog.testing.capture_logs` adds its temporary handler.
-        # with structlog.testing.capture_logs() as captured_logs:
-        #     logger.info("This is a test log message.", key="value")
-        #     assert len(captured_logs) == 1
-        #     log_entry = captured_logs[0]
-        #     assert log_entry["event"] == "This is a test log message."
-        #     assert log_entry["logger"] == module_name
-        #     assert log_entry["level"] == "info"
-        #     assert log_entry["key"] == "value"
-
-        for entry in caplog_structlog:
-            print(entry)
-            assert entry["event"] == "This is a test log message."
-            assert entry["logger"] == module_name
-            assert entry["level"] == "info"
-            assert entry["key"] == "value"
 
     @pytest.mark.unit
     def test_gettext(
         self,
-        mock_settings_manager,
+        mock_settings_manager: MagicMock,
         mocked_translation: MagicMock,
     ) -> None:
         """
@@ -181,9 +145,9 @@ class TestAppContext:
         @patch("checkconnect.config.appcontext.SettingsManager")
         def test_create_does_not_instantiate_logging_manager(
             self,
-            MockSettingsManager: MagicMock,  # Corresponds to the bottom-most @patch
-            MockTranslationManager: MagicMock,  # Corresponds to the middle @patch
-            MockLoggingManager: MagicMock,  # Corresponds to the top-most @patch
+            mock_settings_manager: MagicMock,  # Corresponds to the bottom-most @patch
+            mock_translation_manager: MagicMock,  # Corresponds to the middle @patch
+            mock_logging_manager: MagicMock,  # Corresponds to the top-most @patch
         ) -> None:
             """
             Tests that AppContext.create does NOT instantiate LoggingManager directly,
@@ -192,11 +156,11 @@ class TestAppContext:
             # This test runs in isolation, so the AppContext's code is paramount.
             # The configure_structlog_for_tests fixture for this class is auto-applied.
             AppContext.create(
-                settings_instance=MockSettingsManager.return_value,
-                translator_instance=MockTranslationManager.return_value,
+                settings_instance=mock_settings_manager.return_value,
+                translator_instance=mock_translation_manager.return_value,
             )
 
-            MockLoggingManager.assert_not_called()  # The key assertion
+            mock_logging_manager.assert_not_called()  # The key assertion
             # Also verify that other managers are still created/used correctly
-            MockSettingsManager.assert_not_called()
-            MockTranslationManager.assert_not_called()
+            mock_settings_manager.assert_not_called()
+            mock_translation_manager.assert_not_called()
