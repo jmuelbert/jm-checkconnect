@@ -1,8 +1,24 @@
-# test_logging_manager.py
+# SPDX-License-Identifier: EUPL-1.2
+# SPDX-FileCopyrightText: © 2025-present Jürgen Mülbert
+
+"""
+Pytest suite for the LoggingManager class and its initialization.
+
+This module contains unit tests for the `LoggingManager` class and the
+`LoggingManagerSingleton` class. It test also all functions in that classes.
+ensures their correct functionality, initialization of dependencies, resource
+access, and proper handling o various input scenarios, including default
+values and exception propagation Pytest-mock is used to isolate units under
+test by mocking external dependencies.
+"""
+
+from __future__ import annotations
+
 import logging
 import sys
 from pathlib import Path
-from unittest.mock import call
+from typing import TYPE_CHECKING, Final
+from unittest.mock import MagicMock, call
 
 import pytest
 import structlog  # Keep this import for type hinting and other uses in test file
@@ -18,10 +34,14 @@ from checkconnect.exceptions import (
     LogHandlerError,
 )
 
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
+
 # --- Fixtures for common mocks and setup ---
 
+
 @pytest.fixture(autouse=True)
-def mock_app_name(mocker):
+def mock_app_name(mocker: MockerFixture):
     """Mocks __app_name__ to a consistent value for testing."""
     mocker.patch("checkconnect.config.logging_manager.__app_name__", "test_app")
     # Re-import constants to reflect the patched __app_name__
@@ -32,7 +52,7 @@ def mock_app_name(mocker):
 
 
 @pytest.fixture
-def mock_app_context(mocker):
+def mock_app_context(mocker: MockerFixture) -> MagicMock:
     """Mocks AppContext with a settings manager and translator."""
     mock_settings = mocker.MagicMock()
     mock_translator = mocker.MagicMock()
@@ -45,13 +65,13 @@ def mock_app_context(mocker):
 
 
 @pytest.fixture
-def mock_structlog_configure(mocker):
+def mock_structlog_configure(mocker: MockerFixture) -> MagicMock:
     """Mocks structlog.configure to capture its arguments."""
     return mocker.patch("structlog.configure")
 
 
 @pytest.fixture
-def mock_structlog_get_logger(mocker):
+def mock_structlog_get_logger(mocker: MockerFixture) -> MagicMock:
     """
     Mocks structlog.get_logger to return a controlled mock of the BoundLogger instance.
     This mock will also capture calls made to the get_logger function itself.
@@ -68,50 +88,48 @@ def mock_structlog_get_logger(mocker):
 
     # Patch structlog.get_logger at the global structlog module level.
     # This is often more reliable for structlog due to its internal caching/module loading.
-    mock_get_logger_func = mocker.patch(
-        "structlog.get_logger", return_value=mock_bound_logger
-    )
-
     # We return the mock for the get_logger function, which also has the mock_bound_logger
     # as its return_value. This allows tests to access both.
-    return mock_get_logger_func
-
+    return mocker.patch("structlog.get_logger", return_value=mock_bound_logger)
 
 @pytest.fixture(autouse=True)
-def reset_logging_singleton():
+def reset_logging_singleton() -> None:
     """Resets the LoggingManagerSingleton and structlog defaults before each test."""
     LoggingManagerSingleton.reset()
     # Reset structlog's internal state to ensure clean slate for patching
     structlog.reset_defaults()
     yield
     LoggingManagerSingleton.reset()
-    structlog.reset_defaults() # Ensure reset after test too
+    structlog.reset_defaults()  # Ensure reset after test too
 
 
 @pytest.fixture(autouse=True)
-def mock_logger_methods(mocker):
+def mock_logger_methods(mocker: MockerFixture) -> None:
     """
     Mocks common logging.Logger methods (addHandler, removeHandler, setLevel)
     to prevent actual side effects on the global logging system during tests.
     """
     mocker.patch.object(logging.Logger, "addHandler")
+
     # Patch removeHandler with a side_effect that actually removes from the handlers list
     # This ensures that root_logger.handlers is truly modified during the test.
-    def side_effect_remove_handler(*args, **kwargs): # Accept *args, **kwargs for flexibility
+    def side_effect_remove_handler(*args, **kwargs):  # Accept *args, **kwargs for flexibility
         logger_instance = None
         handler_to_remove = None
+        expected_args:Final[int] = 2
 
-        if len(args) == 2 and isinstance(args[0], logging.Logger) and isinstance(args[1], logging.Handler):
+        if len(args) == expected_args and isinstance(args[0], logging.Logger) and isinstance(args[1], logging.Handler):
             # Case 1: Called as logger_instance.removeHandler(handler_to_remove)
             logger_instance = args[0]
             handler_to_remove = args[1]
         elif len(args) == 1 and isinstance(args[0], logging.Handler):
             # Case 2: Called as removeHandler(handler_to_remove) (e.g., by pytest's internal cleanup)
-            logger_instance = logging.getLogger() # Assume root logger
+            logger_instance = logging.getLogger()  # Assume root logger
             handler_to_remove = args[0]
         else:
             # Fallback for unexpected call signatures, or re-raise if strictness is desired
-            raise TypeError(f"Unexpected call signature for removeHandler side_effect: args={args}, kwargs={kwargs}")
+            msg = f"Unexpected call signature for removeHandler side_effect: args={args}, kwargs={kwargs}"
+            raise TypeError(msg)
 
         if handler_to_remove in logger_instance.handlers:
             logger_instance.handlers.remove(handler_to_remove)
@@ -119,8 +137,9 @@ def mock_logger_methods(mocker):
     mocker.patch.object(logging.Logger, "removeHandler", side_effect=side_effect_remove_handler)
     mocker.patch.object(logging.Logger, "setLevel")
 
+
 @pytest.fixture(autouse=True)
-def cleanup_root_logger():
+def cleanup_root_logger() -> None:
     """
     Cleans up root logger handlers before and after each test.
     This runs *after* mock_logger_methods, so the mocked add/remove handlers
@@ -137,12 +156,14 @@ def cleanup_root_logger():
         root_logger.removeHandler(handler)
         handler.close()
 
+
 # --- Test Cases for LoggingManager ---
+
 
 class TestLoggingManager:
     """Tests for the LoggingManager class."""
 
-    def test_init_lightweight(self, mock_structlog_get_logger):
+    def test_init_lightweight(self, mock_structlog_get_logger: MagicMock) -> None:
         """Verify lightweight initialization of LoggingManager."""
         # mock_structlog_get_logger is now the mock for the get_logger *function*
         # Its return_value is the mock_bound_logger instance.
@@ -150,7 +171,7 @@ class TestLoggingManager:
 
         # This will now use the patched structlog.get_logger from logging_manager_module
         manager = LoggingManager()
-        assert manager._internal_errors == []
+        assert manager._internal_errors == []   # noqa: SLF001
         assert manager.cli_log_level is None
         assert manager.enable_console_logging is False
         assert manager.log_config == {}
@@ -158,44 +179,39 @@ class TestLoggingManager:
         assert manager.translator is None
         # Verify that a temporary structlog logger was obtained during init
         mock_get_logger_func.assert_called_with("LoggingManagerInit")
-        assert manager._logger is not None
+        assert manager._logger is not None  # noqa: SLF001
 
     @pytest.mark.parametrize(
         ("config_level_str", "cli_level", "expected_level"),
         [
-            ("INFO", None, logging.INFO),   # No CLI, use config
-            ("DEBUG", None, logging.DEBUG), # No CLI, use config
-            ("ERROR", None, logging.ERROR), # No CLI, use config
+            ("INFO", None, logging.INFO),  # No CLI, use config
+            ("DEBUG", None, logging.DEBUG),  # No CLI, use config
+            ("ERROR", None, logging.ERROR),  # No CLI, use config
             # CLI always overrides:
-            ("INFO", logging.DEBUG, logging.DEBUG),   # Config INFO (20), CLI DEBUG (10) -> DEBUG (10)
-            ("DEBUG", logging.INFO, logging.DEBUG),   # Config DEBUG (10), CLI INFO (20) -> INFO (20)
-            ("WARNING", logging.DEBUG, logging.DEBUG), # Config WARNING (30), CLI DEBUG (10) -> DEBUG (10)
-            ("DEBUG", logging.WARNING, logging.DEBUG), # Config DEBUG (10), CLI WARNING (30) -> WARNING (30)
-            ("ERROR", logging.DEBUG, logging.DEBUG),   # Config ERROR (40), CLI DEBUG (10) -> DEBUG (10)
+            ("INFO", logging.DEBUG, logging.DEBUG),  # Config INFO (20), CLI DEBUG (10) -> DEBUG (10)
+            ("DEBUG", logging.INFO, logging.DEBUG),  # Config DEBUG (10), CLI INFO (20) -> INFO (20)
+            ("WARNING", logging.DEBUG, logging.DEBUG),  # Config WARNING (30), CLI DEBUG (10) -> DEBUG (10)
+            ("DEBUG", logging.WARNING, logging.DEBUG),  # Config DEBUG (10), CLI WARNING (30) -> WARNING (30)
+            ("ERROR", logging.DEBUG, logging.DEBUG),  # Config ERROR (40), CLI DEBUG (10) -> DEBUG (10)
         ],
     )
     def test_apply_configuration_log_level_determination(
         self,
-        mocker,
-        mock_app_context,
-        mock_structlog_configure,
-        mock_structlog_get_logger, # This is the mock for the get_logger function
-        mock_logger_methods, # Use the new fixture
-        config_level_str,
-        cli_level,
-        expected_level,
+        mocker: MagicMock,
+        mock_app_context: MagicMock,
+        mock_structlog_configure: MagicMock,
+        config_level_str: str,
+        cli_level: int,
+        expected_level: int,
     ):
         """Test that effective log level is correctly determined."""
-        mock_get_logger_func = mock_structlog_get_logger
-        # Access the returned bound logger mock from the get_logger function mock
-        mock_bound_logger = mock_get_logger_func.return_value
 
         manager = LoggingManager()
         mock_app_context.settings.get_section.return_value = {
             "level": config_level_str,
             "log_directory": "/var/log/test",
         }
-        mocker.patch("pathlib.Path.mkdir") # Mock directory creation
+        mocker.patch("pathlib.Path.mkdir")  # Mock directory creation
 
         # Mock handlers to prevent actual file/stream operations
         mocker.patch("logging.StreamHandler")
@@ -230,8 +246,11 @@ class TestLoggingManager:
         # The actual filtering behavior is now tested in test_log_level_filtering_behaves_correctly
 
     def test_apply_configuration_invalid_log_level(
-        self, mocker, mock_app_context, mock_structlog_get_logger, mock_logger_methods
-    ):
+        self,
+        mocker: MagicMock,
+        mock_app_context: MagicMock,
+        mock_structlog_get_logger: MagicMock,
+    ) -> None:
         """Test that invalid log level falls back to INFO and logs an internal error."""
         mock_get_logger_func = mock_structlog_get_logger
         mock_bound_logger = mock_get_logger_func.return_value
@@ -261,14 +280,18 @@ class TestLoggingManager:
         assert manager.effective_log_level == logging.INFO
         assert len(manager.get_instance_errors()) == 1
         assert "Invalid log level 'INVALID_LEVEL'" in manager.get_instance_errors()[0]
-        mock_bound_logger.warning.assert_called_with( # Assert on the returned logger's method
+        mock_bound_logger.warning.assert_called_with(  # Assert on the returned logger's method
             "Translated: Invalid log level 'INVALID_LEVEL' in config. Falling back to INFO.",
             level_from_config="INVALID_LEVEL",
         )
-        logging.getLogger().setLevel.assert_called_once_with(logging.INFO) # Verify setLevel call
+        logging.getLogger().setLevel.assert_called_once_with(logging.INFO)  # Verify setLevel call
 
     def test_apply_configuration_no_log_directory_for_file_handler(
-        self, mocker, mock_app_context, mock_structlog_get_logger, mock_logger_methods
+        self,
+        mocker: MagicMock,
+        mock_app_context: MagicMock,
+        mock_structlog_get_logger: MagicMock,
+
     ):
         """Test that missing log directory for file handler raises LogHandlerError."""
         mock_get_logger_func = mock_structlog_get_logger
@@ -301,24 +324,31 @@ class TestLoggingManager:
             )
 
         assert "Failed to set up main file handler." in str(excinfo.value)
+        # assert "LogHandlerError" == exc_info.type.__name__
+        assert excinfo.type.__name__ == "LogHandlerError"
         assert "Log directory not specified" in manager.get_instance_errors()[0]
-        mock_bound_logger.exception.assert_called_with( # Assert on the returned logger's method
-            "Translated: Critical error during logging configuration:", exc_info=True
+        mock_bound_logger.exception.assert_called_with(  # Assert on the returned logger's method
+            "Translated: Critical error during logging configuration:",
+            exc_info=excinfo.value,
         )
         # Verify setLevel was called, even if handler setup failed later
         logging.getLogger().setLevel.assert_called_once_with(logging.INFO)
 
-
     def test_apply_configuration_successful_setup(
-        self, mocker, mock_app_context, mock_structlog_configure, mock_structlog_get_logger, mock_logger_methods
-    ):
+        self,
+        mocker: MagicMock, mock_app_context: MagicMock, mock_structlog_configure: MagicMock, mock_structlog_get_logger: MagicMock, tmp_path: Path
+    ) -> None:
         """Test successful application of configuration with all handlers."""
         mock_get_logger_func = mock_structlog_get_logger
         mock_bound_logger = mock_get_logger_func.return_value
+        expected_get_logger_calls: Final[int] = 2
+        expected_add_handler_calls: Final[int] = 5
+        expected_mkdir_calls: Final[int] = 2
+        log_directory = tmp_path / "logs"
 
         manager = LoggingManager()
         mock_app_context.settings.get_section.side_effect = lambda section: {
-            "logger": {"level": "DEBUG", "log_directory": "/var/log/test"},
+            "logger": {"level": "DEBUG", "log_directory": str(log_directory)},
             "console_handler": {"enabled": True},
             "file_handler": {"enabled": True, "file_name": "my_app.log"},
             "limited_file_handler": {"enabled": True, "file_name": "limited.log", "max_bytes": 100, "backup_count": 2},
@@ -334,10 +364,15 @@ class TestLoggingManager:
             cli_log_level=None,
             enable_console_logging=True,
             log_config={
-                "logger": {"level": "DEBUG", "log_directory": "/var/log/test"},
+                "logger": {"level": "DEBUG", "log_directory": str(log_directory)},
                 "console_handler": {"enabled": True},
                 "file_handler": {"enabled": True, "file_name": "my_app.log"},
-                "limited_file_handler": {"enabled": True, "file_name": "limited.log", "max_bytes": 100, "backup_count": 2},
+                "limited_file_handler": {
+                    "enabled": True,
+                    "file_name": "limited.log",
+                    "max_bytes": 100,
+                    "backup_count": 2,
+                },
             },
             translator=mock_app_context.translator,
         )
@@ -352,12 +387,14 @@ class TestLoggingManager:
         assert structlog.stdlib.filter_by_level in processors
 
         # Verify directory creation: expect two calls, one for each file handler setup
-        assert mock_path_mkdir.call_count == 2
-        mock_path_mkdir.assert_has_calls([
-            call(parents=True, exist_ok=True),
-            call(parents=True, exist_ok=True),
-        ], any_order=True)
-
+        assert mock_path_mkdir.call_count == expected_mkdir_calls
+        mock_path_mkdir.assert_has_calls(
+            [
+                call(parents=True, exist_ok=True),
+                call(parents=True, exist_ok=True),
+            ],
+            any_order=True,
+        )
 
         # Verify console handler setup
         mock_stream_handler.assert_called_once_with(sys.stdout)
@@ -365,19 +402,21 @@ class TestLoggingManager:
         mock_stream_handler.return_value.setLevel.assert_called_once_with(logging.DEBUG)
 
         # Verify file handler setup
-        mock_file_handler.assert_called_once_with(Path("/var/log/test/my_app.log"), mode="a", encoding="utf-8")
+        mock_file_handler.assert_called_once_with(Path(log_directory / "my_app.log"), mode="a", encoding="utf-8")
         mock_file_handler.return_value.setFormatter.assert_called_once()
         mock_file_handler.return_value.setLevel.assert_called_once_with(logging.DEBUG)
 
         # Verify limited file handler setup
         mock_rotating_file_handler.assert_called_once_with(
-            Path("/var/log/test/limited.log"), maxBytes=100, backupCount=2, encoding="utf-8"
+            Path(log_directory / "limited.log"), maxBytes=100, backupCount=2, encoding="utf-8"
         )
         mock_rotating_file_handler.return_value.setFormatter.assert_called_once()
-        mock_rotating_file_handler.return_value.setLevel.assert_called_once_with(logging.ERROR) # Limited handler is ERROR level
+        mock_rotating_file_handler.return_value.setLevel.assert_called_once_with(
+            logging.ERROR
+        )  # Limited handler is ERROR level
 
         # Verify all handlers were added to the root logger using the patched addHandler
-        assert logging.getLogger().addHandler.call_count == 5
+        assert logging.getLogger().addHandler.call_count == expected_add_handler_calls
         # Check specific calls (order might vary, so check individual calls)
         handler_calls = [c.args[0] for c in logging.getLogger().addHandler.call_args_list]
         assert mock_stream_handler.return_value in handler_calls
@@ -390,7 +429,7 @@ class TestLoggingManager:
         # Verify the total number of calls to get_logger in this specific test scenario
         # 1. In LoggingManager.__init__ ("LoggingManagerInit")
         # 2. At the end of _setup_logging_pipeline ("LoggingManager")
-        assert mock_get_logger_func.call_count == 2
+        assert mock_get_logger_func.call_count == expected_get_logger_calls
         # Assert on the debug method of the *returned* bound logger mock
         mock_bound_logger.debug.assert_any_call(
             "Translated: LoggingManager internal logger re-initialized with full config."
@@ -398,19 +437,23 @@ class TestLoggingManager:
         # Verify setLevel was called on the root logger
         logging.getLogger().setLevel.assert_called_once_with(logging.DEBUG)
 
-
     @pytest.mark.parametrize(
-        "method_name, log_level",
+        ("method_name"),
         [
-            ("info", logging.INFO),
-            ("debug", logging.DEBUG),
-            ("warning", logging.WARNING),
-            ("error", logging.ERROR),
-            ("critical", logging.CRITICAL),
+            ("info"),
+            ("debug"),
+            ("warning"),
+            ("error"),
+            ("critical")
         ],
     )
     def test_logging_methods_delegate_to_structlog(
-        self, mocker, mock_app_context, mock_structlog_get_logger, method_name, log_level, mock_logger_methods
+        self,
+        mocker: MagicMock,
+        mock_app_context: MagicMock,
+        mock_structlog_get_logger: MagicMock,
+        method_name: str,
+        tmp_path: Path,
     ):
         """Test that public logging methods delegate to the underlying structlog logger."""
         mock_get_logger_func = mock_structlog_get_logger
@@ -418,20 +461,22 @@ class TestLoggingManager:
 
         manager = LoggingManager()
         # Minimal config to allow apply_configuration to run
-        mock_app_context.settings.get_section.return_value = {"level": "INFO", "log_directory": "/tmp"}
+        mock_app_context.settings.get_section.return_value = {"level": "INFO", "log_directory": str(tmp_path)}
         mocker.patch("pathlib.Path.mkdir")
         mocker.patch("logging.StreamHandler")
         mocker.patch("logging.FileHandler")
         mocker.patch("logging.handlers.RotatingFileHandler")
 
         manager.apply_configuration(
-            cli_log_level=None, enable_console_logging=True, log_config={"logger": {"level": "INFO", "log_directory": "/tmp"}}, translator=mock_app_context.translator
+            cli_log_level=None,
+            enable_console_logging=True,
+            log_config={"logger": {"level": "INFO", "log_directory": str(tmp_path)}},
+            translator=mock_app_context.translator,
         )
 
         # Reset the mock's call history after apply_configuration has run
         # This clears any debug/info calls made during the setup phase.
         mock_bound_logger.reset_mock()
-
 
         # Get the mock BoundLogger instance that structlog.get_logger returns
         # This call to get_logger() within manager.get_logger() will hit mock_get_logger_func
@@ -443,7 +488,6 @@ class TestLoggingManager:
         # Call the manager's method
         getattr(manager, method_name)(test_msg, **test_kwargs)
 
-
         # Verify that the corresponding structlog method was called with translated message and kwargs
         expected_msg = f"Translated: {test_msg}"
         getattr(mock_bound_logger, method_name).assert_called_once_with(expected_msg, **test_kwargs)
@@ -451,23 +495,26 @@ class TestLoggingManager:
         # so we can assert it here.
         logging.getLogger().setLevel.assert_called_once_with(logging.INFO)
 
-
     def test_exception_method_delegates_with_exc_info(
-        self, mocker, mock_app_context, mock_structlog_get_logger, mock_logger_methods
-    ):
+        self,
+        mocker: MagicMock, mock_app_context: MagicMock, mock_structlog_get_logger: MagicMock, tmp_path: Path
+    ) -> None:
         """Test that the exception method delegates with exc_info."""
         mock_get_logger_func = mock_structlog_get_logger
         mock_bound_logger = mock_get_logger_func.return_value
 
         manager = LoggingManager()
-        mock_app_context.settings.get_section.return_value = {"level": "INFO", "log_directory": "/tmp"}
+        mock_app_context.settings.get_section.return_value = {"level": "INFO", "log_directory": str(tmp_path)}
         mocker.patch("pathlib.Path.mkdir")
         mocker.patch("logging.StreamHandler")
         mocker.patch("logging.FileHandler")
         mocker.patch("logging.handlers.RotatingFileHandler")
 
         manager.apply_configuration(
-            cli_log_level=None, enable_console_logging=True, log_config={"logger": {"level": "INFO", "log_directory": "/tmp"}}, translator=mock_app_context.translator
+            cli_log_level=None,
+            enable_console_logging=True,
+            log_config={"logger": {"level": "INFO", "log_directory": str(tmp_path)}},
+            translator=mock_app_context.translator,
         )
 
         # Reset the mock's call history after apply_configuration has run
@@ -482,8 +529,7 @@ class TestLoggingManager:
         mock_bound_logger.exception.assert_called_once_with(f"Translated: {test_msg}", **test_kwargs)
         logging.getLogger().setLevel.assert_called_once_with(logging.INFO)
 
-
-    def test_shutdown_closes_and_removes_handlers(self, mocker, mock_logger_methods):
+    def test_shutdown_closes_and_removes_handlers(self, mocker: MagicMock) -> None:
         """Test that shutdown method correctly closes and removes handlers."""
         # --- FIX APPLIED HERE ---
         # Instead of adding handlers via the mocked addHandler, directly set root_logger.handlers
@@ -495,9 +541,9 @@ class TestLoggingManager:
         # Temporarily store the original handlers to restore them later,
         # as cleanup_root_logger fixture also manipulates this list.
         original_root_handlers = list(root_logger.handlers)
-        root_logger.handlers = [mock_handler1, mock_handler2] # Directly populate the handlers list
+        root_logger.handlers = [mock_handler1, mock_handler2]  # Directly populate the handlers list
 
-        manager = LoggingManager() # Needs an instance to call shutdown
+        manager = LoggingManager()  # Needs an instance to call shutdown
 
         manager.shutdown()
 
@@ -506,21 +552,18 @@ class TestLoggingManager:
         # Verify that removeHandler was called for each handler
         # This assertion now passes because the mocked removeHandler in the fixture
         # actually modifies the root_logger.handlers list.
-        logging.getLogger().removeHandler.assert_has_calls([
-            call(mock_handler1),
-            call(mock_handler2)
-        ], any_order=True)
+        logging.getLogger().removeHandler.assert_has_calls([call(mock_handler1), call(mock_handler2)], any_order=True)
         # Assert that the handlers list is now empty
-        assert not root_logger.handlers # This should be empty after shutdown
+        assert not root_logger.handlers  # This should be empty after shutdown
 
         # Restore original handlers for subsequent tests/cleanup
         root_logger.handlers = original_root_handlers
 
-    def test_get_instance_errors(self):
+    def test_get_instance_errors(self) -> None:
         """Test that get_instance_errors returns accumulated errors."""
         manager = LoggingManager()
-        manager._internal_errors.append("Error 1")
-        manager._internal_errors.append("Error 2")
+        manager._internal_errors.append("Error 1")  # noqa: SLF001
+        manager._internal_errors.append("Error 2")  # noqa: SLF001
         errors = manager.get_instance_errors()
         assert errors == ["Error 1", "Error 2"]
         # Ensure it returns a copy
@@ -530,31 +573,30 @@ class TestLoggingManager:
 
 # --- Test Cases for LoggingManagerSingleton ---
 
+
 class TestLoggingManagerSingleton:
     """Tests for the LoggingManagerSingleton class."""
 
-    def test_get_instance_before_initialization_raises_error(self):
+    def test_get_instance_before_initialization_raises_error(self) -> None:
         """Test that get_instance raises RuntimeError if not initialized."""
         with pytest.raises(RuntimeError, match="LoggingManager has not been initialized"):
             LoggingManagerSingleton.get_instance()
 
     def test_initialize_from_context_successful(
-        self, mocker, mock_app_context, mock_structlog_configure, mock_structlog_get_logger, mock_logger_methods
-    ):
+        self, mocker: MagicMock, mock_app_context: MagicMock, tmp_path: Path
+    ) -> None:
         """Test successful initialization of the singleton."""
-        mock_get_logger_func = mock_structlog_get_logger
-        mock_bound_logger = mock_get_logger_func.return_value
 
         mock_apply_config = mocker.patch.object(LoggingManager, "apply_configuration")
 
         # Simulate minimal config for apply_configuration
         # Use side_effect to return different dicts for different sections
         mock_app_context.settings.get_section.side_effect = lambda section_name: {
-            "logger": {"level": "INFO", "log_directory": "/tmp"},
+            "logger": {"level": "INFO", "log_directory": str(tmp_path)},
             "console_handler": {},
             "file_handler": {},
             "limited_file_handler": {},
-        }.get(section_name, {}) # Return empty dict if section not found in this mock
+        }.get(section_name, {})  # Return empty dict if section not found in this mock
 
         LoggingManagerSingleton.initialize_from_context(
             app_context=mock_app_context,
@@ -562,7 +604,7 @@ class TestLoggingManagerSingleton:
             enable_console_logging=True,
         )
 
-        assert LoggingManagerSingleton._is_configured is True
+        assert LoggingManagerSingleton._is_configured is True  # noqa: SLF001
         assert isinstance(LoggingManagerSingleton.get_instance(), LoggingManager)
         assert LoggingManagerSingleton.get_initialization_errors() == []
 
@@ -570,7 +612,7 @@ class TestLoggingManagerSingleton:
             cli_log_level=logging.DEBUG,
             enable_console_logging=True,
             log_config={
-                "logger": {"level": "INFO", "log_directory": "/tmp"},
+                "logger": {"level": "INFO", "log_directory": str(tmp_path)},
                 "console_handler": {},
                 "file_handler": {},
                 "limited_file_handler": {},
@@ -579,8 +621,8 @@ class TestLoggingManagerSingleton:
         )
 
     def test_initialize_from_context_reinitialization_ignored(
-        self, mocker, mock_app_context, caplog, mock_logger_methods, mock_structlog_get_logger
-    ):
+        self, mocker: MagicMock, mock_app_context: MagicMock, caplog: pytest.LogCaptureFixture, mock_structlog_get_logger: MagicMock, tmp_path: Path
+    ) -> None:
         """Test that re-initialization attempts are ignored with a warning."""
         mock_get_logger_func = mock_structlog_get_logger
         mock_bound_logger = mock_get_logger_func.return_value
@@ -589,13 +631,13 @@ class TestLoggingManagerSingleton:
 
         # First successful initialization
         mock_app_context.settings.get_section.side_effect = lambda section_name: {
-            "logger": {"level": "INFO", "log_directory": "/tmp"},
+            "logger": {"level": "INFO", "log_directory": str(tmp_path)},
             "console_handler": {},
             "file_handler": {},
             "limited_file_handler": {},
         }.get(section_name, {})
         LoggingManagerSingleton.initialize_from_context(app_context=mock_app_context)
-        mock_apply_config.reset_mock() # Reset mock after first call
+        mock_apply_config.reset_mock()  # Reset mock after first call
 
         # Attempt re-initialization
         with caplog.at_level(logging.WARNING):
@@ -607,15 +649,16 @@ class TestLoggingManagerSingleton:
             # caplog.text will be empty because the message goes to the mock, not standard logging
             # assert "Attempted to re-initialize LoggingManagerSingleton" in caplog.text # This assertion will fail
 
-        mock_apply_config.assert_not_called() # Should not call apply_configuration again
-        assert "LoggingManagerSingleton already configured. Cannot re-configure." in LoggingManagerSingleton.get_initialization_errors()
+        mock_apply_config.assert_not_called()  # Should not call apply_configuration again
+        assert (
+            "LoggingManagerSingleton already configured. Cannot re-configure."
+            in LoggingManagerSingleton.get_initialization_errors()
+        )
 
     def test_initialize_from_context_propagates_log_handler_error(
-        self, mocker, mock_app_context, mock_logger_methods, mock_structlog_get_logger
-    ):
+        self, mocker: MagicMock, mock_app_context: MagicMock, tmp_path: Path
+    ) -> None:
         """Test that LogHandlerError during apply_configuration is propagated."""
-        mock_get_logger_func = mock_structlog_get_logger
-        mock_bound_logger = mock_get_logger_func.return_value
 
         mocker.patch.object(
             LoggingManager,
@@ -624,25 +667,25 @@ class TestLoggingManagerSingleton:
         )
         # Simulate minimal config for apply_configuration
         mock_app_context.settings.get_section.side_effect = lambda section_name: {
-            "logger": {"level": "INFO", "log_directory": "/tmp"},
+            "logger": {"level": "INFO", "log_directory": str(tmp_path)},
             "console_handler": {},
             "file_handler": {},
             "limited_file_handler": {},
         }.get(section_name, {})
 
-
         with pytest.raises(LogHandlerError, match="Mock handler error"):
             LoggingManagerSingleton.initialize_from_context(app_context=mock_app_context)
 
-        assert LoggingManagerSingleton._is_configured is False
+        assert LoggingManagerSingleton._is_configured is False  # noqa: SLF001
         assert "Mock handler error" in LoggingManagerSingleton.get_initialization_errors()
 
     def test_initialize_from_context_propagates_invalid_log_level_error(
-        self, mocker, mock_app_context, mock_logger_methods, mock_structlog_get_logger
-    ):
+        self,
+        mocker: MagicMock,
+        mock_app_context: MagicMock,
+        tmp_path: Path
+    ) -> None:
         """Test that InvalidLogLevelError during apply_configuration is propagated."""
-        mock_get_logger_func = mock_structlog_get_logger
-        mock_bound_logger = mock_get_logger_func.return_value
 
         mocker.patch.object(
             LoggingManager,
@@ -650,7 +693,7 @@ class TestLoggingManagerSingleton:
             side_effect=InvalidLogLevelError("Mock invalid level error"),
         )
         mock_app_context.settings.get_section.side_effect = lambda section_name: {
-            "logger": {"level": "INFO", "log_directory": "/tmp"},
+            "logger": {"level": "INFO", "log_directory": str(tmp_path)},
             "console_handler": {},
             "file_handler": {},
             "limited_file_handler": {},
@@ -659,15 +702,13 @@ class TestLoggingManagerSingleton:
         with pytest.raises(InvalidLogLevelError, match="Mock invalid level error"):
             LoggingManagerSingleton.initialize_from_context(app_context=mock_app_context)
 
-        assert LoggingManagerSingleton._is_configured is False
+        assert LoggingManagerSingleton._is_configured is False  # noqa: SLF001
         assert "Mock invalid level error" in LoggingManagerSingleton.get_initialization_errors()
 
     def test_initialize_from_context_propagates_generic_exception(
-        self, mocker, mock_app_context, mock_logger_methods, mock_structlog_get_logger
-    ):
+        self, mocker: MagicMock, mock_app_context: MagicMock, tmp_path: Path
+    ) -> None:
         """Test that a generic Exception during apply_configuration is propagated."""
-        mock_get_logger_func = mock_structlog_get_logger
-        mock_bound_logger = mock_get_logger_func.return_value
 
         mocker.patch.object(
             LoggingManager,
@@ -675,7 +716,7 @@ class TestLoggingManagerSingleton:
             side_effect=ValueError("Generic mock error"),
         )
         mock_app_context.settings.get_section.side_effect = lambda section_name: {
-            "logger": {"level": "INFO", "log_directory": "/tmp"},
+            "logger": {"level": "INFO", "log_directory": str(tmp_path)},
             "console_handler": {},
             "file_handler": {},
             "limited_file_handler": {},
@@ -684,40 +725,46 @@ class TestLoggingManagerSingleton:
         with pytest.raises(ValueError, match="Generic mock error"):
             LoggingManagerSingleton.initialize_from_context(app_context=mock_app_context)
 
-        assert LoggingManagerSingleton._is_configured is False
-        assert "Unexpected error during LoggingManager configuration: Generic mock error" in LoggingManagerSingleton.get_initialization_errors()
+        assert LoggingManagerSingleton._is_configured is False  # noqa: SLF001
+        assert (
+            "Unexpected error during LoggingManager configuration: Generic mock error"
+            in LoggingManagerSingleton.get_initialization_errors()
+        )
 
-    def test_reset_cleans_up_state(self, mocker, mock_logger_methods, mock_structlog_get_logger):
+    def test_reset_cleans_up_state(
+        self,
+        mocker: MagicMock,
+    ) -> None:
         """Test that reset method correctly cleans up singleton state."""
-        mock_get_logger_func = mock_structlog_get_logger
-        mock_bound_logger = mock_get_logger_func.return_value
 
         mock_shutdown = mocker.patch.object(LoggingManager, "shutdown")
 
         # Simulate a configured singleton
-        LoggingManagerSingleton._instance = LoggingManager()
-        LoggingManagerSingleton._is_configured = True
-        LoggingManagerSingleton._initialization_errors.append("Some error")
+        LoggingManagerSingleton._instance = LoggingManager()  # noqa: SLF001
+        LoggingManagerSingleton._is_configured = True # noqa: SLF001
+        LoggingManagerSingleton._initialization_errors.append("Some error")  # noqa: SLF001
 
         LoggingManagerSingleton.reset()
 
-        mock_shutdown.assert_called_once() # Verify shutdown was called on the instance
-        assert LoggingManagerSingleton._instance is None
-        assert LoggingManagerSingleton._is_configured is False
-        assert LoggingManagerSingleton._initialization_errors == []
+        mock_shutdown.assert_called_once()  # Verify shutdown was called on the instance
+        assert LoggingManagerSingleton._instance is None  # noqa: SLF001
+        assert LoggingManagerSingleton._is_configured is False  # noqa: SLF001
+        assert LoggingManagerSingleton._initialization_errors == []  # noqa: SLF001
 
-    def test_get_initialization_errors_aggregates_from_instance(self, mocker, mock_logger_methods, mock_structlog_get_logger):
+    def test_get_initialization_errors_aggregates_from_instance(
+        self,
+        mocker: MagicMock,
+    ) -> None:
         """Test that get_initialization_errors aggregates errors from the instance."""
-        mock_get_logger_func = mock_structlog_get_logger
-        mock_bound_logger = mock_get_logger_func.return_value
+        expected_unique_errors: Final[int] = 3
 
         mock_instance = mocker.MagicMock(spec=LoggingManager)
         mock_instance.get_instance_errors.return_value = ["Instance Error 1", "Instance Error 2"]
 
-        LoggingManagerSingleton._instance = mock_instance
-        LoggingManagerSingleton._initialization_errors.append("Singleton Error 1")
+        LoggingManagerSingleton._instance = mock_instance  # noqa: SLF001
+        LoggingManagerSingleton._initialization_errors.append("Singleton Error 1") # noqa: SLF001
 
         errors = LoggingManagerSingleton.get_initialization_errors()
         assert set(errors) == {"Singleton Error 1", "Instance Error 1", "Instance Error 2"}
         # Ensure unique errors are returned
-        assert len(errors) == 3
+        assert len(errors) == expected_unique_errors
