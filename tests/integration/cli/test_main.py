@@ -26,6 +26,7 @@ if TYPE_CHECKING:
     from structlog.typing import EventDict
     from typer.testing import CliRunner
 
+
 class TestCliMain:
     """
     Integration test suite for the main CheckConnect CLI application.
@@ -419,13 +420,12 @@ class TestCliMain:
         # Typer automatically handles "file must exist" for Path types
         assert result.exit_code != 0, f"Expected non-zero exit code for invalid config file, got 0: {result.output}"
         assert "Invalid value for '--config'" in result.output
-        assert str(non_existent_path) in result.output # Ensure the path is mentioned in the error
+        assert str(non_existent_path) in result.output  # Ensure the path is mentioned in the error
 
         # Ensure no managers were initialized if the config file was invalid
         mock_dependencies["settings_manager_instance"].get_all_settings.assert_not_called()
         mock_dependencies["translation_manager_instance"].configure.assert_not_called()
         mock_dependencies["logging_manager_instance"].apply_configuration.assert_not_called()
-
 
     @pytest.mark.integration
     def test_main_with_help_option(
@@ -478,7 +478,10 @@ class TestCliMain:
             in result.output
         )
         # Configuration
-        assert "--config  -c      FILE  Path to the config file. A default one is created if missing. [default: None] " in result.output
+        assert (
+            "--config  -c      FILE  Path to the config file. A default one is created if missing. [default: None] "
+            in result.output
+        )
         # Commands
         assert "run       Run network tests for NTP and HTTPS servers." in result.output
         assert (

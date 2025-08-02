@@ -184,13 +184,12 @@ class TestCliRun:
         # Assert ERROR/CRITICAL logs
         assert any(
             "exc_info" in e
-            and e.get("event") ==  "Cannot due checks for checkconnect."
+            and e.get("event") == "Cannot due checks for checkconnect."
             and isinstance(e.get("exc_info"), ExitExceptionError)
             and str(e.get("exc_info")) == "Controlled failure"
             and e.get("log_level") == "error"
             for e in caplog_structlog
         )
-
 
     @pytest.mark.integration
     def test_run_command_handles_unexpected_exception(
@@ -256,7 +255,7 @@ class TestCliRun:
         # Assert ERROR/CRITICAL logs
         assert any(
             "exc_info" in e
-            and e.get("event") ==  "An unexpected error occurred during checks."
+            and e.get("event") == "An unexpected error occurred during checks."
             and isinstance(e.get("exc_info"), RuntimeError)
             and str(e.get("exc_info")) == "Something went wrong"
             and e.get("log_level") == "error"

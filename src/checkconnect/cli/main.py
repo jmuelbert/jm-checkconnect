@@ -160,6 +160,7 @@ def _initialize_settings_manager(config_file: Path | None) -> SettingsManager:
             main_logger().warning("Main callback: SettingsManager setup warning:", error_details=str(err))
         return settings_manager
 
+
 def _initialize_translation_manager(language: str | None, app_config: dict[str, Any]) -> TranslationManager:
     """
     Initialize the TranslationManager Singleton and returns its instance.
@@ -200,6 +201,7 @@ def _initialize_translation_manager(language: str | None, app_config: dict[str, 
         for err in TranslationManagerSingleton.get_initialization_errors():
             main_logger().warning("Main callback: TranslationManager setup warning:", error_details=str(err))
         return translation_manager
+
 
 def _configure_logging_manager(*, app_context: AppContext, verbose: int, is_cli_mode: bool) -> LoggingManager:
     """
@@ -252,15 +254,12 @@ def _configure_logging_manager(*, app_context: AppContext, verbose: int, is_cli_
 
         logging_manager = LoggingManagerSingleton.get_instance()
 
-
     except LogHandlerError as e:
         main_logger().exception("Main callback: Critical logging setup error:", exc_info=e)
         console.print(f"[bold red]Critical Error:[/bold red] Failed to set up core logging handlers: {e}")
         raise typer.Exit(1) from e
     except Exception as e:
-        main_logger().exception(
-            "Main callback: Unexpected error during full logging configuration:", exc_info=e
-        )
+        main_logger().exception("Main callback: Unexpected error during full logging configuration:", exc_info=e)
         console.print(f"[bold red]Critical Error:[/bold red] Unexpected error during logging setup: {e}")
         raise typer.Exit(1) from e
     else:
@@ -268,6 +267,7 @@ def _configure_logging_manager(*, app_context: AppContext, verbose: int, is_cli_
         for err in LoggingManagerSingleton.get_initialization_errors():
             main_logger().warning("Main callback: LoggingManager setup warning:", error_details=str(err))
         return logging_manager
+
 
 @main_app.callback()
 def main_callback(

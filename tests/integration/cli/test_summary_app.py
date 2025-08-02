@@ -394,7 +394,6 @@ class TestCliSummary:
             for e in caplog_structlog
         )
 
-
     @pytest.mark.integration
     def test_summary_command_handles_unexpected_exception(
         self,
@@ -477,7 +476,6 @@ class TestCliSummary:
             and e.get("log_level") == "error"
             for e in caplog_structlog
         )
-
 
     def test_cli_wrong_summary_format(
         self,

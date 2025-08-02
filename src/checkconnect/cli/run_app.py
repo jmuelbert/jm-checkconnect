@@ -72,7 +72,7 @@ def run_command(ctx: typer.Context) -> None:
 
     except ExitExceptionError as e:
         console.print(app_context.gettext(f"[bold red]Critical Error:[/bold red] Cannot run checks. {e}"))
-        log.exception(app_context.gettext("Cannot due checks for checkconnect."),  exc_info=e)
+        log.exception(app_context.gettext("Cannot due checks for checkconnect."), exc_info=e)
         raise typer.Exit(1) from e
     except Exception as e:
         console.print(
@@ -83,6 +83,7 @@ def run_command(ctx: typer.Context) -> None:
         console.print(str(e), style="bold red")
         log.exception(app_context.gettext("An unexpected error occurred during checks."), exc_info=e)
         raise typer.Exit(1) from e
+
 
 if __name__ == "__main__":
     run_app()  # Use run_app to execute

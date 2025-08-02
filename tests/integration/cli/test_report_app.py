@@ -68,6 +68,7 @@ def mock_checkconnect_class():
         mock_cc_class.return_value = mock_instance
         yield mock_cc_class
 
+
 class TestCliReports:
     @pytest.mark.integration
     def test_report_command_from_main_runs_successfully(
@@ -587,7 +588,6 @@ class TestCliReports:
 
         # Ensure AppContext.create.return_value is readily available for later assertions
         assert AppContext.create.return_value == app_context_instance
-
 
         checkconnect_instance = mock_checkconnect_class.return_value
         checkconnect_instance.run_all_checks.side_effect = RuntimeError("Something went wrong")
