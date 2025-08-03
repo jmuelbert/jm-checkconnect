@@ -6,6 +6,7 @@ from checkconnect.config.appcontext import AppContext
 
 
 def assert_common_initialization(
+    *,
     settings_manager_instance: MagicMock,
     logging_manager_instance: MagicMock,
     translation_manager_instance: MagicMock,
