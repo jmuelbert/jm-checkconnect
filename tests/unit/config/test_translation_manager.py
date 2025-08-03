@@ -15,9 +15,8 @@ from __future__ import annotations
 import gettext
 import locale
 import os
-from collections.abc import Generator
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Final
 from unittest.mock import MagicMock, call, patch
 
 import pytest
@@ -32,13 +31,15 @@ from checkconnect import __about__
 from checkconnect.config.translation_manager import TranslationManager, TranslationManagerSingleton
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Generator
+
     from pytest_mock import MockerFixture
 
 # --- Fixtures ---
 
 
 @pytest.fixture
-def mock_gettext_translation(mocker: Any) -> Generator[Any, Any, Any]:
+def mock_gettext_translation(mocker: MockerFixture) -> Generator[tuple[MagicMock, MagicMock, MagicMock, MagicMock]]:
     """
     Fixture to mock gettext.translation.
 
@@ -80,7 +81,7 @@ def mock_gettext_translation(mocker: Any) -> Generator[Any, Any, Any]:
 
 
 @pytest.fixture
-def assert_translation_called_with():
+def assert_translation_called_with() -> Callable[..., None]:
     """
     Helper fixture to assert gettext.translation mock calls flexibly.
 
@@ -105,6 +106,8 @@ def assert_translation_called_with():
         languages: list[str],
         fallback: bool,
     ) -> None:
+        expected_args:Final[int] = 2
+
         mock_trans_func.assert_called_once()
         args, kwargs = mock_trans_func.call_args
 
@@ -115,7 +118,7 @@ def assert_translation_called_with():
         actual_localedir = kwargs.get("localedir") or (args[1] if len(args) > 1 else None)
         assert str(actual_localedir).endswith("locales"), f"Expected localedir '{localedir}', got '{actual_localedir}'"
 
-        actual_languages = kwargs.get("languages") or (args[2] if len(args) > 2 else None)
+        actual_languages = kwargs.get("languages") or (args[2] if len(args) > expected_args else None)
         assert actual_languages == languages, f"Expected languages '{languages}', got '{actual_languages}'"
 
         actual_fallback = kwargs.get("fallback")
@@ -125,7 +128,7 @@ def assert_translation_called_with():
 
 
 @pytest.fixture
-def mock_locale_functions(mocker: MockerFixture) -> None:
+def mock_locale_functions(mocker: MockerFixture) -> Generator[tuple[MagicMock, MagicMock]]:
     """
     Mocks locale.setlocale, locale.getlocale, and relevant os.getenv calls
     to provide a controlled environment for locale-dependent tests.
@@ -171,14 +174,15 @@ def mock_locale_functions(mocker: MockerFixture) -> None:
     #     "LANGUAGE": "", "LC_ALL": "", "LC_MESSAGES": "", "LANG": ""
     # })
 
-    # Yielding the mocks allows tests to make assertions on them if needed
+    #
+    #  Yielding the mocks allows tests to make assertions on them if needed
     return mock_set_locale, mock_get_locale
 
     # No cleanup specifically needed for mocks as mocker handles it.
 
 
 @pytest.fixture
-def mock_pathlib_path() -> Generator[MagicMock, None, None]:
+def mock_pathlib_path() -> Generator[tuple[MagicMock, Path], None, None]:
     """
     Mocks Path(__file__).parent / 'locales' to return a real path with exists mocked.
     """
@@ -187,7 +191,7 @@ def mock_pathlib_path() -> Generator[MagicMock, None, None]:
     within the project structure (src/checkconnect/config/locales), but controls
     .exists() via patching. Also returns the mocked initial Path instance and the final expected path.
     """
-    # Dynamisch: src/checkconnect/config/locales relativ zu diesem Testfile
+    # Dynamic: src/checkconnect/config/locales relative to this test file
     current_test_file = Path(__file__)
     project_root = current_test_file.parent.parent.parent.parent  # -> bis src/
 
@@ -205,7 +209,7 @@ def mock_pathlib_path() -> Generator[MagicMock, None, None]:
 
 
 @pytest.fixture
-def mock_settings_manager_singleton():
+def mock_settings_manager_singleton() ->  Generator[tuple[MagicMock, Any], None, None]:
     """
     Mocks SettingsManagerSingleton.get_instance().get_setting()
     for default language lookup.
@@ -250,20 +254,22 @@ class TestTranslationManager:
     @pytest.mark.unit
     def test_init_and_set_language(
         self,
-        input_language: str,
+        input_language: str | None,
         expected_language: str,
-        settings_lang: str,
-        system_lang: str,
-        mocker: Any,
-        mock_gettext_translation: Generator[Any, Any, Any],
+        settings_lang: str | None,
+        system_lang: str | None,
+        mocker: MagicMock,
+        mock_gettext_translation: Generator[tuple[MagicMock, MagicMock, MagicMock, MagicMock]],
         mock_pathlib_path: Generator[tuple[MagicMock, Path], None, None],
-        mock_locale_functions: Generator[Any, Any, Any],
-        mock_settings_manager_singleton: MagicMock,
-        assert_translation_called_with,
+        mock_locale_functions: Generator[tuple[MagicMock, MagicMock]],
+        mock_settings_manager_singleton: Generator[tuple[MagicMock, Any], None, None],
+        assert_translation_called_with: Callable[..., None],
     ) -> None:
         """
         Tests initialization and the _set_language method's logic for determining language.
         """
+        expected_calls:Final[int] = 2
+
         mock_initial_path, expected_locale_dir = mock_pathlib_path
 
         # Unpack the yielded mocks
@@ -275,9 +281,6 @@ class TestTranslationManager:
         # Configure mocks based on test parameters
         mock_settings_manager.get_setting.return_value = settings_lang
         mock_getlocale.return_value = (system_lang, "UTF-8")
-
-        # Determine if we're simulating system locale fallback via os.getenv
-        should_mock_env = input_language is None and settings_lang is None and system_lang is not None
 
         # Patch os.getenv based on fallback path
         if input_language is None and settings_lang is None:
@@ -302,7 +305,7 @@ class TestTranslationManager:
         assert manager.locale_dir == expected_locale_dir
         assert manager.current_language == expected_language
         assert manager.translation is mock_translations_obj
-        assert manager._ is mock_translations_obj.gettext
+        assert manager.gettext is mock_translations_obj.gettext
 
         # Assert that _set_language logic was called correctly
         # locale.setlocale should be called with the determined language
@@ -312,14 +315,14 @@ class TestTranslationManager:
                 call(locale.LC_ALL, ""),  # From _get_system_language
                 call(locale.LC_ALL, expected_language),  # From _set_language
             ])
-            assert mock_setlocale.call_count == 2
+            assert mock_setlocale.call_count == expected_calls
         else:
             # In all other cases only _set_language calls setlocale
             mock_setlocale.assert_called_once_with(locale.LC_ALL, expected_language)
 
         # gettext.translation should be called with the correct args
 
-        # Nutze Helper zum Prüfen der Aufrufe
+        # Use helper to check calls
         assert_translation_called_with(
             mock_trans_func,
             domain="mock_app_name",
@@ -339,16 +342,17 @@ class TestTranslationManager:
                 else:
                     # force env vars to return None → expect getlocale()
                     mock_getlocale.assert_has_calls([call(locale.LC_ALL), call(locale.LC_CTYPE)])
-                    assert mock_getlocale.call_count == 2
+                    assert mock_getlocale.call_count == expected_calls
 
     @pytest.mark.unit
     def test_init_custom_args(
         self,
-        mock_gettext_translation: Generator[Any, Any, Any],
-        mock_locale_functions: Generator[Any, Any, Any],
-        assert_translation_called_with,
+        mocker: MagicMock,
+        mock_gettext_translation: Generator[tuple[MagicMock, MagicMock, MagicMock, MagicMock]],
+        mock_locale_functions: Generator[tuple[MagicMock, MagicMock]],
+        assert_translation_called_with: Callable[..., None],
         tmp_path: Path,
-        mocker: Any,
+
     ) -> None:
         """
         Test initialization with custom language, domain, and locale_dir.
@@ -391,24 +395,25 @@ class TestTranslationManager:
             languages=[expected_language],
             fallback=True,
         )
-        assert manager._ is mock_trans_func.return_value.gettext
+        assert manager.gettext is mock_trans_func.return_value.gettext
         assert manager.translation is mock_trans_func.return_value
 
     @pytest.mark.unit
-    def test_default_locale_dir_exists(self, mock_pathlib_path: Generator[tuple[MagicMock, Path], None, None]) -> None:
+    def test_default_locale_dir_exists(
+        self,
+        mock_pathlib_path: Generator[tuple[MagicMock, Path], None, None],
+    ) -> None:
         mock_initial_path, expected_path = mock_pathlib_path
 
         manager = TranslationManager()
 
-        result = manager._default_locale_dir()
-        print("DEBUG: result", result)
-        print("DEBUG: expected_path", expected_path)
+        result = manager._default_locale_dir()  # noqa: SLF001
 
         assert result == expected_path
         assert result.exists()
 
     @pytest.mark.unit
-    def test_package_locale_dir(self, mocker: Any) -> None:
+    def test_package_locale_dir(self, mocker: MagicMock) -> None:
         """
         Test that _package_locale_dir returns the correct fallback path
         using importlib.resources.files().
@@ -432,7 +437,7 @@ class TestTranslationManager:
         # WHEN
         manager = TranslationManager()
         manager.configure(language="en")
-        result = manager._package_locale_dir()
+        result = manager._package_locale_dir()  # noqa: SLF001
 
         # THEN
         assert result == mock_final_path_str
@@ -442,10 +447,10 @@ class TestTranslationManager:
     @pytest.mark.unit
     def test_set_language_fallback_on_file_not_found(
         self,
-        mock_gettext_translation: MagicMock,
-        mock_locale_functions: Generator[Any, Any, Any],
-        mocker: Any,
-        assert_translation_called_with,
+        mocker: MagicMock,
+        mock_gettext_translation: Generator[tuple[MagicMock, MagicMock, MagicMock, MagicMock]],
+        mock_locale_functions: Generator[tuple[MagicMock, MagicMock]],
+        assert_translation_called_with: Callable[..., None],
         caplog: pytest.LogCaptureFixture,
     ) -> None:
         """
@@ -487,13 +492,12 @@ class TestTranslationManager:
             manager.current_language == "fr"
         )  # current_language is still the requested one, but the actual translation object is for fallback.
 
-        assert manager._("Hello") == "Fallback: Hello"
+        assert manager.translate("Hello") == "Fallback: Hello"
 
     @pytest.mark.unit
     def test_get_system_language_success(
         self,
-        mock_locale_functions: Generator[Any, Any, Any],
-        mocker: Any,
+        mock_locale_functions: Generator[tuple[MagicMock, MagicMock]],
     ) -> None:
         """
         Test _get_system_language returns the correct system language code.
@@ -515,8 +519,8 @@ class TestTranslationManager:
     @pytest.mark.unit
     def test_get_system_language_locale_error_fallback(
         self,
-        mock_locale_functions: Generator[Any, Any, Any],
-        mocker: Any,
+        mocker: MagicMock,
+        mock_locale_functions: Generator[tuple[MagicMock, MagicMock]],
     ) -> None:
         """
         Test _get_system_language falls back to "en" on locale.Error.
@@ -537,8 +541,7 @@ class TestTranslationManager:
     @pytest.mark.unit
     def test_get_system_language_none_fallback(
         self,
-        mock_locale_functions: Generator[Any, Any, Any],
-        mocker: Any,
+        mock_locale_functions: Generator[tuple[MagicMock, MagicMock]],
     ) -> None:
         """
         Test _get_system_language falls back to "en" if locale.getlocale returns None.
@@ -555,7 +558,7 @@ class TestTranslationManager:
     @pytest.mark.unit
     def test_gettext_method_delegation(
         self,
-        mock_gettext_translation: MagicMock,
+        mock_gettext_translation: Generator[tuple[MagicMock, MagicMock, MagicMock, MagicMock]],
     ) -> None:
         """
         Tests that the gettext() method delegates to the underlying translation object.
@@ -576,8 +579,7 @@ class TestTranslationManager:
     @pytest.mark.unit
     def test_gettext_method(
         self,
-        mock_gettext_translation: MagicMock,
-        mocker: Any,
+        mock_gettext_translation: Generator[tuple[MagicMock, MagicMock, MagicMock, MagicMock]],
     ) -> None:
         """
         Test gettext method calls the underlying translation object's gettext.
@@ -587,7 +589,7 @@ class TestTranslationManager:
 
         manager = TranslationManager()
         manager.configure(language="en")
-        text: str = "Hello"
+        text = "Hello"
         translated_text = manager.gettext(text)
         assert translated_text == "Translated text"
         mock_trans_func.return_value.gettext.assert_called_once_with(text)
@@ -595,8 +597,7 @@ class TestTranslationManager:
     @pytest.mark.unit
     def test_translate_method(
         self,
-        mock_gettext_translation: MagicMock,
-        mocker: Any,
+        mock_gettext_translation: Generator[tuple[MagicMock, MagicMock, MagicMock, MagicMock]],
     ) -> None:
         """
         Test translate method calls the underlying translation object's gettext.
@@ -627,8 +628,8 @@ class TestTranslationManager:
         count: int,
         expected_ngettext_return: str,
         expected_translate_plural_return: str,
-        mock_gettext_translation: Generator[Any, Any, Any],  # Use Generator for type hint consistency
-        mocker: Any,
+        mocker: MagicMock,
+        mock_gettext_translation: Generator[tuple[MagicMock, MagicMock, MagicMock, MagicMock]],
     ) -> None:
         """
         Test translate_plural method calls ngettext and formats the result.
@@ -669,7 +670,7 @@ class TestTranslationManager:
     @pytest.mark.unit
     def test_translate_context_method(
         self,
-        mock_gettext_translation: MagicMock,
+        mock_gettext_translation: Generator[tuple[MagicMock, MagicMock, MagicMock, MagicMock]],
     ) -> None:
         """
         Test translate_context method formats the input and calls gettext.
@@ -689,8 +690,8 @@ class TestTranslationManager:
     @pytest.mark.unit
     def test_set_language_method(
         self,
-        mock_gettext_translation: MagicMock,
-        assert_translation_called_with,
+        mock_gettext_translation: Generator[tuple[MagicMock, MagicMock, MagicMock, MagicMock]],
+        assert_translation_called_with: Callable[..., None],
     ) -> None:
         """
         Test set_language method updates current_language and reloads translations.
@@ -722,28 +723,25 @@ class TestTranslationManager:
     @pytest.mark.unit
     def test_get_current_language(
         self,
-        mocker: Any,
     ) -> None:
         """
         Test get_current_language returns the active language.
         """
         manager = TranslationManager()
         manager.configure(language="fr")
-        assert manager.get_current_language() == "fr"
+        assert manager.current_language == "fr"
 
         manager.set_language("es")
-        assert manager.get_current_language() == "es"
+        assert manager.current_language == "es"
 
     @pytest.mark.unit
     @pytest.mark.usefixtures("mock_about_app_name")
     def test_init_with_explicit_domain_and_locale_dir(
         self,
-        mock_gettext_translation: Generator[Any, Any, Any],
-        mock_locale_functions: Generator[Any, Any, Any],
-        mock_pathlib_path,  # Still needed for default path calculation if locale_dir is None
-        mock_settings_manager_singleton,
-        assert_translation_called_with,
-    ):
+        mock_gettext_translation: Generator[tuple[MagicMock, MagicMock, MagicMock, MagicMock]],
+        mock_pathlib_path: Generator[tuple[MagicMock, Path], None, None],
+        assert_translation_called_with: Callable[..., None],
+    ) -> None:
         """
         Tests that explicit translation_domain and locale_dir are used.
         """
@@ -848,7 +846,10 @@ class TestTranslationManagerSingleton:
 
     @pytest.mark.unit
     @patch("checkconnect.config.translation_manager.TranslationManager")
-    def test_reset_and_new_instance(self, mock_translation_manager_cls: MagicMock) -> None:
+    def test_reset_and_new_instance(
+        self,
+        mock_translation_manager_cls: MagicMock
+    ) -> None:
         """
         Test reset method clears the singleton instance.
         """
@@ -907,15 +908,13 @@ class TestTranslationManagerSingleton:
         """
         Test that reset clears any accumulated initialization errors.
         """
+        expected_length:Final[int] = 2
+
         # Manually add an error to simulate a previous failed initialization
         TranslationManagerSingleton._initialization_errors.append("Simulated init error 1")  # noqa: SLF001
         TranslationManagerSingleton._initialization_errors.append("Simulated init error 2")  # noqa: SLF001
 
-        for sim_error in TranslationManagerSingleton._initialization_errors:
-            # Verify errors are present before reset
-            print(f"Error: {sim_error}")
-
-        assert len(TranslationManagerSingleton.get_initialization_errors()) == 2
+        assert len(TranslationManagerSingleton.get_initialization_errors()) == expected_length
 
         # Call the reset method
         TranslationManagerSingleton.reset()

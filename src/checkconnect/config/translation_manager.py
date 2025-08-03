@@ -26,12 +26,15 @@ import importlib.resources
 import locale
 import logging
 import os
-from collections.abc import Callable
+from contextlib import suppress
 from pathlib import Path
-from typing import ClassVar, Final
+from typing import TYPE_CHECKING, ClassVar, Final
 
 from checkconnect.__about__ import __app_name__
 from checkconnect.config.settings_manager import SettingsManagerSingleton
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +64,9 @@ class TranslationManager:
 
     _internal_errors: list[str]
 
+    # Type definition for the translation function
+    _translate_func: Callable[[str], str]
+
     APP_NAME: Final[str] = __app_name__.lower()
     LOCALES_DIR_NAME: Final[str] = "locales"
 
@@ -71,13 +77,11 @@ class TranslationManager:
         Does NOT load translations yet.
         Call .configure() to set up translations.
         """
-        print("[DEBUG] TranslationManager instance created (lightweight init)")
-
         self.translation_domain: str = self.APP_NAME
         self.locale_dir: Path | None = None
-        self.current_language: str | None = None
+        self._current_language: str | None = None
         self.translation: gettext.NullTranslations = gettext.NullTranslations()
-        self._: Callable[[str], str] = self.translation.gettext
+        self._translate_func = self.translation.gettext
         self._internal_errors: list[str] = []  # Errors specific to this instance's setup
 
     @property
@@ -109,16 +113,11 @@ class TranslationManager:
         Configures and loads translations for the TranslationManager.
         This method should be called by the Singleton manager.
         """
-        if self.current_language is not None and self.current_language == language:
+        if self._current_language is not None and self._current_language == language:
             # Already configured with the same language, possibly skip or log
-            print(f"[DEBUG] TranslationManager already configured for language: {language}")
             return
 
         self._internal_errors.clear()  # Clear errors for fresh configuration attempt
-
-        print(f"[DEBUG] Configuring TranslationManager with language: {language}")
-        print(f"[DEBUG] Translation domain (initial): {translation_domain}")
-        print(f"[DEBUG] Locale directory (initial): {locale_dir}")
 
         self.translation_domain = translation_domain or self.APP_NAME
         self.locale_dir = Path(locale_dir) if locale_dir else self._default_locale_dir()
@@ -134,13 +133,10 @@ class TranslationManager:
                 else:
                     system_lang = self._get_system_language()
                     resolved_language = system_lang or "en"
-            except Exception as e:
+            except locale.Error as e:
                 self._internal_errors.append(f"Could not retrieve default language from settings/system: {e}")
                 resolved_language = "en"  # Fallback
-            print(f"[DEBUG] resolved language: {resolved_language}")
 
-        print(f"[DEBUG] Final locale directory: {self.locale_dir}")
-        print(f"[DEBUG] Final translation domain: {self.translation_domain}")
 
         try:
             self.translation = gettext.translation(
@@ -149,20 +145,36 @@ class TranslationManager:
                 languages=[resolved_language],
                 fallback=True,
             )
-            self._ = self.translation.gettext
-            self.current_language = resolved_language
+            self._translate_func= self.translation.gettext
+            self._current_language = resolved_language
             # It's generally better to setlocale once globally at app startup
             # if possible, or be very mindful of its thread-safety implications.
             # For now, keeping it here but be aware.
             locale.setlocale(locale.LC_ALL, resolved_language)
-            print(f"[DEBUG] Locale set to: {resolved_language}")
-        except Exception as e:
+        except locale.Error as e:
             msg = f"Translation for '{resolved_language}' failed to load from '{self.locale_dir}': {e}"
             logger.warning(msg)
-            print(f"[DEBUG] {msg}")
             self._internal_errors.append(msg)
-            self.current_language = resolved_language  # Still track what we tried to set
-            self._ = gettext.gettext  # Fallback to default gettext (returns original string)
+            self._current_language = resolved_language  # Still track what we tried to set
+            self._translate_func= gettext.gettext  # Fallback to default gettext (returns original string)
+        except OSError as e:
+            msg = f"Translation for '{resolved_language}' failed to load from '{self.locale_dir}': {e}"
+            logger.warning(msg)
+            self._internal_errors.append(msg)
+            self._current_language = resolved_language  # Still track what we tried to set
+            self._translate_func= gettext.gettext  # Fallback to default gettext (returns original string)
+        except UnicodeDecodeError as e:
+            msg = f"Translation for '{resolved_language}' failed to load from '{self.locale_dir}': {e}"
+            logger.warning(msg)
+            self._internal_errors.append(msg)
+            self._current_language = resolved_language  # Still track what we tried to set
+            self._translate_func= gettext.gettext  # Fallback to default gettext (returns original string)
+        except TypeError as e:
+            msg = f"Translation for '{resolved_language}' failed to load from '{self.locale_dir}': {e}"
+            logger.warning(msg)
+            self._internal_errors.append(msg)
+            self._current_language = resolved_language  # Still track what we tried to set
+            self._translate_func= gettext.gettext  # Fallback to default gettext (returns original string)
 
     def _default_locale_dir(self) -> Path:
         """
@@ -181,12 +193,20 @@ class TranslationManager:
         return Path(self._package_locale_dir())
 
     def _package_locale_dir(self) -> str:
-        """Fallback: Lokale Übersetzungen aus dem PyPI-Package verwenden."""
+        """Fallback: use the translations from PyPI-Package."""
         try:
             return str(
                 importlib.resources.files(self.APP_NAME) / self.LOCALES_DIR_NAME,
             )
-        except Exception as e:
+        except OSError as e:
+            self._internal_errors.append(f"Failed to resolve package locale directory for '{self.APP_NAME}': {e}")
+            # Fallback for when importlib.resources.files might fail
+            return str(Path(__file__).parent.parent / self.LOCALES_DIR_NAME)
+        except ValueError as e:
+            self._internal_errors.append(f"Failed to resolve package locale directory for '{self.APP_NAME}': {e}")
+            # Fallback for when importlib.resources.files might fail
+            return str(Path(__file__).parent.parent / self.LOCALES_DIR_NAME)
+        except TypeError as e:
             self._internal_errors.append(f"Failed to resolve package locale directory for '{self.APP_NAME}': {e}")
             # Fallback for when importlib.resources.files might fail
             return str(Path(__file__).parent.parent / self.LOCALES_DIR_NAME)
@@ -198,7 +218,7 @@ class TranslationManager:
         Tries (1) explicit language, (2) config setting, (3) system locale, (4) fallback to 'en'.
 
         """
-        lang = self.current_language
+        lang = self._current_language
 
         if not lang:
             settings_lang = SettingsManagerSingleton.get_instance().get_setting("general", "default_language")
@@ -207,10 +227,6 @@ class TranslationManager:
             else:
                 system_lang = self._get_system_language()
                 lang = system_lang or "en"
-                print(f"[DEBUG] systemlanguage   : {system_lang}")
-
-        print(f"[DEBUG] resolved language: {lang}")
-        print(f"[DEBUG] translation domain: {self.translation_domain}")
 
         try:
             self.translation = gettext.translation(
@@ -219,15 +235,20 @@ class TranslationManager:
                 languages=[lang],
                 fallback=True,
             )
-            self._ = self.translation.gettext
-            self.current_language = lang
+            self._translate_func= self.translation.gettext
+            self._current_language = lang
             locale.setlocale(locale.LC_ALL, lang)
-            print(f"[DEBUG] locale set to: {lang}")
-        except Exception as e:
+        except OSError as e:
             logger.warning("Translation for '%s' failed: %s", lang, e)
-            print("[DEBUG] locale set failed", e)
-            self.current_language = lang
-            self._ = gettext.gettext
+            self._internal_errors.append(f"Translation for '{lang}' failed: {e}")
+            self._current_language = lang
+            self._translate_func= gettext.gettext
+        except TypeError  as e:
+            logger.warning("Translation for '%s' failed: %s", lang, e)
+            self._internal_errors.append(f"Translation for '{lang}' failed: {e}")
+            self._current_language = lang
+            self._translate_func= gettext.gettext
+
 
     def _get_system_language(self) -> str:
         """
@@ -239,7 +260,6 @@ class TranslationManager:
             ISO 639-1 language code (e.g., "en", "de"). Defaults to "en" if
             locale detection fails.
         """
-        print("DEBUG: _get_system_language()")
         # Try to get the language from environment variables first,
         # which is often what getdefaultlocale() would have done.
         # Common environment variables: LANGUAGE, LC_ALL, LC_MESSAGES, LANG
@@ -251,7 +271,6 @@ class TranslationManager:
                 # We want the first two-letter code.
                 lang_code = lang_env.split(":")[0].split("_")[0].split(".")[0]
                 if lang_code:
-                    print(f"DEBUG: Found language code from {env_var}: {lang_code}")
                     return lang_code.lower()  # Ensure consistent lowercase
 
         # If environment variables don't yield a result, try locale.getlocale()
@@ -273,40 +292,42 @@ class TranslationManager:
             lang, _ = locale.getlocale(locale.LC_CTYPE)
             if lang:
                 # Extract the base language code (e.g., "en_US" -> "en")
-                print("DEBUG: Retrieved locale", lang)
                 return lang.split("_")[0].lower()
         except locale.Error as e:
+            self._internal_errors.append(f"Failed to get system default locale: {e}")
             # Handle cases where locale operations might fail
-            print("DEBUG: Failed to retrieve locale", e)
+            msg = "Failed to get system default locale"
+            raise ValueError(msg) from e
+
         finally:
             # Always restore the original locale
             if "original_locale" in locals() and original_locale[0] is not None:
-                try:
-                    locale.setlocale(locale.LC_ALL, original_locale)
-                except locale.Error:
+                with suppress(locale.Error):
                     # If restoring fails, it's a minor issue for this specific function,
                     # but might indicate a deeper problem with locale setup.
-                    pass
-
+                    locale.setlocale(locale.LC_ALL, original_locale)
         return "en"  # Fallback to English
 
-    def translate(self, text: str) -> str:
-        """Übersetzt einen Text."""
-        return self.translation.gettext(text)
+
 
     def translate_plural(self, singular: str, plural: str, count: int) -> str:
-        """Übersetzt mit Singular- und Pluralformen."""
+        """Translate a given string with plural forms."""
         if not self.translation:
-            raise AttributeError("Translation object not initialized.")
+            msg = "Translation object not initialized."
+            raise AttributeError(msg)
         return self.translation.ngettext(singular, plural, count) % count
 
     def translate_context(self, context: str, text: str) -> str:
         """
         Translate the context (like pgettext).
 
-        Convention: Context and text are separeatd with a `|` in the .po-files.
+        Convention: Context and text are separeated with a `|` in the .po-files.
         """
         return self.translation.gettext(f"{context}|{text}")
+
+    def translate(self, text: str) -> str:
+        """Translate a given string."""
+        return self.translation.gettext(text)
 
     def gettext(self, message: str) -> str:
         """
@@ -323,7 +344,7 @@ class TranslationManager:
             The translated string based on current language settings.
 
         """
-        return self._(message)
+        return self._translate_func(message)
 
     def set_language(self, language: str) -> None:
         """
@@ -335,12 +356,13 @@ class TranslationManager:
             New language code to activate (e.g., "fr", "de").
 
         """
-        self.current_language = language
+        self._current_language = language
         self._set_language()
 
-    def get_current_language(self) -> str:
-        """Gibt die aktuelle Sprache zurück."""
-        return self.current_language
+    @property
+    def current_language(self) -> str:
+        """Return the current language code."""
+        return self._current_language
 
 
 class TranslationManagerSingleton:
@@ -386,12 +408,11 @@ class TranslationManagerSingleton:
         """
         if cls._is_configured:
             # Optional: Decide if you want to allow re-configuration or log a warning
-            print("[DEBUG] TranslationManagerSingleton already configured. Skipping re-configuration.")
             # For now, let's allow it to potentially re-run configure on the instance
             # but clear singleton errors for this attempt.
             # If you want strict single-time configuration for the app lifecycle:
-            # cls._initialization_errors.append("TranslationManagerSingleton already configured. Cannot re-configure.")
-            # return
+            cls._initialization_errors.append("TranslationManagerSingleton already configured. Cannot re-configure.")
+            return
 
         instance = cls.get_instance()  # Ensure instance exists
 
@@ -408,7 +429,6 @@ class TranslationManagerSingleton:
         except Exception as e:
             msg = f"Critical error during TranslationManager configuration: {e}"
             cls._initialization_errors.append(msg)
-            print(f"[DEBUG] {msg}")
             raise  # Re-raise if configuration failed critically
 
     @classmethod
