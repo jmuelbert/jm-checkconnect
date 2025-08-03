@@ -160,7 +160,7 @@ class LoggingManager:
 
         Full logging configuration is deferred until `apply_configuration()` is called.
         """
-        self._internal_errors = []
+        self._internal_errors: list[str] = []
         self._logger = None  # Will be set after structlog is fully configured
 
         # Attributes that will be set by apply_configuration
@@ -174,6 +174,11 @@ class LoggingManager:
         # Set a temporary structlog logger for messages *during* the initial setup phase
         # This logger will output to the pre-configured basic logging.
         self._logger = structlog.get_logger("LoggingManagerInit")
+
+    @property
+    def internal_errors(self) -> list[str]:
+        """Return the list of internal errors."""
+        return self._internal_errors
 
     def apply_configuration(
         self,
@@ -688,7 +693,7 @@ class LoggingManagerSingleton:
             )
 
             # Collect any non-critical setup errors from the instance
-            cls._initialization_errors.extend(cls._instance.get_instance_errors())
+            cls._initialization_errors.extend(cls._instance.internal_errors)
             cls._is_configured = True  # Mark as configured only on success
 
         except (LogHandlerError, InvalidLogLevelError) as e:
@@ -711,7 +716,7 @@ class LoggingManagerSingleton:
         """
         errors = list(cls._initialization_errors)
         if cls._instance:
-            errors.extend(cls._instance.get_instance_errors())
+            errors.extend(cls._instance.internal_errors)
         return list(set(errors))  # Return unique errors
 
     @classmethod

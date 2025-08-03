@@ -80,6 +80,11 @@ class TranslationManager:
         self._: Callable[[str], str] = self.translation.gettext
         self._internal_errors: list[str] = []  # Errors specific to this instance's setup
 
+    @property
+    def internal_errors(self) -> list[str]:
+        """Return the list of internal errors."""
+        return self._internal_errors
+
     def configure(
         self,
         language: str | None = None,
@@ -337,10 +342,6 @@ class TranslationManager:
         """Gibt die aktuelle Sprache zurück."""
         return self.current_language
 
-    def get_instance_errors(self) -> list[str]:
-        """Exposes internal errors encountered during configuration."""
-        return list(self._internal_errors)
-
 
 class TranslationManagerSingleton:
     """
@@ -402,7 +403,7 @@ class TranslationManagerSingleton:
                 locale_dir=locale_dir,
             )
             # Add errors reported by the instance itself
-            cls._initialization_errors.extend(instance.get_instance_errors())
+            cls._initialization_errors.extend(instance.internal_errors)
             cls._is_configured = True
         except Exception as e:
             msg = f"Critical error during TranslationManager configuration: {e}"
@@ -415,7 +416,7 @@ class TranslationManagerSingleton:
         """Exposes initialization errors for testing/debugging."""
         errors = list(cls._initialization_errors)
         if cls._instance:
-            errors.extend(cls._instance.get_instance_errors())  # Now calling public method
+            errors.extend(cls._instance.internal_errors)  # Now calling public method
         return list(set(errors))  # Return unique errors
 
     @classmethod
