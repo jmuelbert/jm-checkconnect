@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import tomllib
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Final
 from unittest.mock import MagicMock, call, mock_open, patch
 
 import pytest
@@ -23,7 +23,6 @@ import tomli_w
 # Assuming SettingsManager and its exceptions are in a file named `settings_manager.py`
 # Adjust the import path if your file structure is different.
 from checkconnect.config.settings_manager import (
-    SettingsConfigurationError,
     SettingsManager,
     SettingsManagerSingleton,
 )
@@ -100,7 +99,6 @@ class TestSettingsManager:
         tmp_path: Path,
         mock_platformdirs_paths: dict[str, Path],
         mock_importlib_files: Path,
-        mocker: Any,
     ) -> None:
         """
         Set up the CONFIG_LOCATIONS for each test to use temporary paths.
@@ -121,7 +119,6 @@ class TestSettingsManager:
     @pytest.mark.usefixtures("cleanup_singletons", "structlog_base_config")
     def test_init_loads_default_if_no_file_found(
         self,
-        tmp_path: Path,
         caplog_structlog: list[EventDict],
     ) -> None:
         """
@@ -132,7 +129,7 @@ class TestSettingsManager:
         manager.load_settings()
 
         # Assert that the loaded configuration is indeed the default one
-        assert manager._settings == SettingsManager.DEFAULT_CONFIG
+        assert manager._settings == SettingsManager.DEFAULT_CONFIG  # noqa: SLF001
 
         assert str(SettingsManager.DEFAULT_SETTINGS_LOCATIONS[0]) == str(manager.loaded_config_file)
 
@@ -179,7 +176,7 @@ class TestSettingsManager:
         manager = SettingsManager()
         manager.load_settings(config_path_from_cli=test_config_path)
 
-        assert manager._settings == {"test": {"key": "value"}}
+        assert manager._settings == {"test": {"key": "value"}}  # noqa: SLF001
         mock_toml_libs["load"].assert_called_once()
 
         assert any(
@@ -243,7 +240,8 @@ class TestSettingsManager:
 
         def patched_write_text(self: Path, *args: Any, **kwargs: Any) -> None:
             if self == first_location:
-                raise PermissionError("Mocked permission denied")
+                msg = "Mocked permission denied"
+                raise PermissionError(msg)
             return original_write_text(self, *args, **kwargs)
 
         mocker.patch("pathlib.Path.write_text", side_effect=patched_write_text)
@@ -255,11 +253,8 @@ class TestSettingsManager:
         assert "Unable to write default configuration to this location." in str(excinfo.value)
 
         # Config should still be the default, even if writing failed
-        assert manager._settings == {}
-        assert manager.loaded_config_file == None
-
-        for entry in caplog_structlog:
-            print(entry)  # Verify specific error logging
+        assert manager._settings == {}  # noqa: SLF001
+        assert manager.loaded_config_file is None
 
         assert any(
             entry["log_level"] == "debug" and "Attempting to load config from predefined paths" in entry["event"]
@@ -278,21 +273,28 @@ class TestSettingsManager:
             for entry in caplog_structlog
         )
 
+        expected_error_no:Final[int] = 30
+
         assert any(
             entry["log_level"] == "error"
             and "Unable to write default configuration to this location." in entry["event"]
-            and entry["path"] == str(SettingsManager.DEFAULT_SETTINGS_LOCATIONS[0])
-            and "[Errno 30] Read-only file system:" in entry["error"]
+            and entry.get("log_level") == "error"
+            and entry.get("path") == "/unwritable/config.toml"
+            # New assertions for the exception:
+            and isinstance(entry["exc_info"], OSError)  # First, check the type
+            and entry["exc_info"].errno == expected_error_no         # Second, check the specific error number
+            and "Read-only file system" in str(entry["exc_info"])
             for entry in caplog_structlog
         )
 
         assert any(
-            entry["log_level"] == "error"
+            "exc_info" in entry
             and "Failed to save default configuration after falling back to defaults." in entry["event"]
-            and "Unable to write default configuration to this location." in entry["error"]
+            and isinstance(entry.get("exc_info"), SettingsWriteConfigurationError)
+            and str(entry.get("exc_info")) == "Unable to write default configuration to this location."
+            and entry.get("log_level") == "error"
             for entry in caplog_structlog
         )
-
         # Verify no success message about writing the default
         assert not any("Default configuration written to" in entry["event"] for entry in caplog_structlog)
 
@@ -315,10 +317,7 @@ class TestSettingsManager:
         manager = SettingsManager()
         manager.load_settings()
 
-        assert manager._settings == {"user": {"setting": "user_value"}}
-
-        for entry in caplog_structlog:
-            print(entry)
+        assert manager._settings == {"user": {"setting": "user_value"}}  # noqa: SLF001
 
         assert any(
             entry.get("event") == "Attempting to load config from predefined paths"
@@ -358,10 +357,11 @@ class TestSettingsManager:
         # Ensure your SettingsManager uses pathlib.Path.open() internally
         mocker.patch("pathlib.Path.open", side_effect=OSError("No such file or directory"))
 
+        manager = SettingsManager()
+
         # Now, when SettingsManager tries to open `non_existent_path`, its `open` method will
         # raise the OSError, simulating the "file not found" condition at the IO level.
         with pytest.raises(SettingsWriteConfigurationError) as excinfo:
-            manager = SettingsManager()
             manager.load_settings(config_path_from_cli=non_existent_path)
 
         assert "Unable to write default configuration to this location." in str(excinfo.value)
@@ -387,18 +387,24 @@ class TestSettingsManager:
             and entry.get("event") == "No valid configuration file found; using default settings."
             for entry in caplog_structlog
         )
+
         # You might also want to check for the path in the log context if your logger adds it.
         assert any(
-            entry.get("log_level") == "error"
+            "exc_info" in entry
             and entry.get("event") == "Unable to write default configuration to this location."
-            and entry.get("error") == "No such file or directory"
+            and isinstance(entry.get("exc_info"), OSError)
+            and str(entry.get("exc_info")) == "No such file or directory"
+            and entry.get("log_level") == "error"
             for entry in caplog_structlog
         )
 
+        # You might also want to check for the path in the log context if your logger adds it.
         assert any(
-            entry.get("log_level") == "error"
+            "exc_info" in entry
             and entry.get("event") == "Failed to save default configuration after falling back to defaults."
-            and entry.get("error") == "Unable to write default configuration to this location."
+            and isinstance(entry.get("exc_info"), SettingsWriteConfigurationError)
+            and str(entry.get("exc_info")) == "Unable to write default configuration to this location."
+            and entry.get("log_level") == "error"
             for entry in caplog_structlog
         )
 
@@ -406,7 +412,6 @@ class TestSettingsManager:
     @pytest.mark.usefixtures("cleanup_singletons", "structlog_base_config")
     def test_init_raises_settings_configuration_error_on_toml_decode_error(
         self,
-        mocker: Any,
         tmp_path: Path,
         mock_toml_libs: dict[str, MagicMock],
         caplog_structlog: list[EventDict],
@@ -429,6 +434,8 @@ class TestSettingsManager:
         with pytest.raises(SettingsConfigurationError) as excinfo:
             manager.load_settings(config_path_from_cli=invalid_toml_path)
 
+        assert excinfo.value.args[0] == "Invalid TOML syntax in configuration file"
+
         # Assert that an exception log message indicates the configuration file was not found.
         # If you're using caplog_structlog for all log assertions, it's better to use it consistently:
         assert any(
@@ -442,7 +449,6 @@ class TestSettingsManager:
     @pytest.mark.usefixtures("cleanup_singletons", "structlog_base_config")
     def test_init_raises_settings_configuration_error_on_generic_load_error(
         self,
-        mocker: Any,
         tmp_path: Path,
         caplog_structlog: list[EventDict],  # Correct type hint for structlog events
     ) -> None:
@@ -469,32 +475,29 @@ class TestSettingsManager:
         with pytest.raises(SettingsConfigurationError) as excinfo:
             manager.load_settings(config_path_from_cli=error_path)
 
-        # 2. Assert the message of the raised exception
-        # (Optional, but good practice to verify the specific error)
-        assert "Malformed TOML file:" in str(excinfo.value)
-        assert str(error_path) in str(excinfo.value)
+        assert excinfo.value.args[0] == "Invalid TOML syntax in configuration file"
 
-        # 3. Now that the exception is handled, you can inspect the logs that were generated
-        # during the execution of the 'manager.load_settings' call.
-
-        # Assert the specific error log from _load_from_file
+        # 2
         # {'path': ..., 'exc_info': True, 'event': 'TOML decoding failed for configuration file', 'log_level': 'error'}
         assert any(
-            entry.get("log_level") == "error"
+            "exc_info" in entry
+            and entry.get("log_level") == "error"
             and entry.get("event") == "TOML decoding failed for configuration file"
             and entry.get("path") == str(error_path)
-            and entry.get("exc_info") is True  # Ensure exception info was logged
+            and isinstance(entry.get("exc_info"), tomllib.TOMLDecodeError)
+            and str(entry.get("exc_info")) == "Expected '=' after a key in a key/value pair (at line 1, column 6)"
             for entry in caplog_structlog
         )
 
-        # Assert the warning log from _load_config_from_paths
-        # {'path': ..., 'error': 'Invalid TOML syntax...', 'event': 'Failed to load config from CLI path...', 'log_level': 'warning'}
+        # 3
+        # {'path': ..., 'exc_info': True, 'event': 'TOML decoding failed for configuration file', 'log_level': 'error'}
         assert any(
-            entry.get("log_level") == "warning"
-            and entry.get("event")
-            == "Failed to load config from CLI path (malformed or access error), trying default locations."
+            "exc_info" in entry
+            and entry.get("log_level") == "error"
+            and entry.get("event") == "Failed to load config from CLI path (malformed or access error), trying default locations."
             and entry.get("path") == str(error_path)
-            and "Malformed TOML file" in entry.get("error", "")  # Verify the specific error message propagated
+            and isinstance(entry.get("exc_info"), SettingsConfigurationError)
+            and str(entry.get("exc_info")) == "Invalid TOML syntax in configuration file"
             for entry in caplog_structlog
         )
 
@@ -512,7 +515,7 @@ class TestSettingsManager:
         """
         manager = SettingsManager()
         manager.load_settings(config_path_from_cli=None)  # Use default config
-        manager._settings = {"section": {"key": "value"}}  # Override for test
+        manager._settings = {"section": {"key": "value"}}  # noqa: SLF001   Override for test
 
         assert manager.get("section", "key") == "value"
 
@@ -524,7 +527,7 @@ class TestSettingsManager:
         """
         manager = SettingsManager()
         manager.load_settings(config_path_from_cli=None)  # Use default config
-        manager.config = {"section": {"key": "value"}}
+        manager._settings = {"section": {"key": "value"}}  # noqa: SLF001
 
         assert manager.get("section", "non_existent_key", default="default_value") == "default_value"
 
@@ -536,7 +539,7 @@ class TestSettingsManager:
         """
         manager = SettingsManager()
         manager.load_settings(config_path_from_cli=None)  # Use default config
-        manager._settings = {"section": {"key": "value"}}
+        manager._settings = {"section": {"key": "value"}}  # noqa: SLF001
 
         assert manager.get("section", "non_existent_key") is None
 
@@ -548,7 +551,7 @@ class TestSettingsManager:
         """
         manager = SettingsManager()
         manager.load_settings(config_path_from_cli=None)  # Use default config
-        manager._settings = {"section": {"key": "value", "another_key": 123}}
+        manager._settings = {"section": {"key": "value", "another_key": 123}}  # noqa: SLF001
 
         assert manager.get_section("section") == {"key": "value", "another_key": 123}
 
@@ -560,9 +563,10 @@ class TestSettingsManager:
         """
         manager = SettingsManager()
         manager.load_settings(config_path_from_cli=None)  # Use default config
-        manager._settings = {"section": {"key": "value"}}
+        manager._settings = {"section": {"key": "value"}}  # noqa: SLF001
 
         assert manager.get_section("non_existent_section") == {}
+
 
     @pytest.mark.unit
     @pytest.mark.usefixtures("cleanup_singletons", "structlog_base_config")
@@ -573,20 +577,20 @@ class TestSettingsManager:
         manager = SettingsManager()
         manager.load_settings(config_path_from_cli=None)  # Use default config
         # Set the config *after* initialization to ensure it's the specific dict you want to test
-        manager._settings = {"section": {"key": "value"}}
+        manager._settings = {"section": {"key": "value"}}  # noqa: SLF001
 
         # First, assert that the *contents* are equal
         assert manager.as_dict() == {"section": {"key": "value"}}
 
         # Second, assert that the returned object is *not* the same object in memory
         # as the internal 'config' attribute. This verifies it's a copy.
-        assert manager.as_dict() is not manager._settings
+        assert manager.as_dict() is not manager._settings  # noqa: SLF001
 
         # Optional: Verify that modifying the returned dict does not modify the internal config
         returned_dict = manager.as_dict()
         returned_dict["section"]["new_key"] = "new_value"
 
-        assert "new_key" not in manager._settings["section"]  # This works with shallow copy for top-level keys
+        assert "new_key" not in manager._settings["section"]  # noqa: SLF001  This works with shallow copy for top-level keys
 
         # If you changed a nested dict:
         returned_dict["section"]["key"] = "modified_value"
@@ -608,21 +612,21 @@ class TestSettingsManager:
         """
         manager = SettingsManager()
         manager.load_settings(config_path_from_cli=None)  # Use default config
-        manager._settings = {"section": {"key": "value", "list_key": [1, 2]}}
+        manager._settings = {"section": {"key": "value", "list_key": [1, 2]}}  # noqa: SLF001
 
         copied_config = manager.copy()
-        assert copied_config == manager._settings
-        assert copied_config is not manager._settings  # Not the same object
-        assert copied_config["section"] is not manager._settings["section"]  # Not the same nested dict
+        assert copied_config == manager._settings  # noqa: SLF001
+        assert copied_config is not manager._settings  # noqa: SLF001   Not the same object
+        assert copied_config["section"] is not manager._settings["section"]  # noqa: SLF001    Not the same nested dict
         assert (
-            copied_config["section"]["list_key"] is not manager._settings["section"]["list_key"]
+            copied_config["section"]["list_key"] is not manager._settings["section"]["list_key"]  # noqa: SLF001
         )  # Not the same nested list
 
         # Modify copy and ensure original is unchanged
         copied_config["section"]["key"] = "new_value"
         copied_config["section"]["list_key"].append(3)
-        assert manager._settings["section"]["key"] == "value"
-        assert manager._settings["section"]["list_key"] == [1, 2]
+        assert manager._settings["section"]["key"] == "value"  # noqa: SLF001
+        assert manager._settings["section"]["list_key"] == [1, 2]  # noqa: SLF001
 
     @pytest.mark.unit
     @pytest.mark.usefixtures("cleanup_singletons", "structlog_base_config")
@@ -650,12 +654,13 @@ class TestSettingsManager:
         mock_toml_libs["load"].return_value = initial_data
 
         # Patch pathlib.Path.open (all Path.open calls!)
-        def path_open_side_effect(self, mode="r", *args, **kwargs):
+        def path_open_side_effect(self, mode="r", *args, **kwargs):  # noqa: ARG001
             if mode == "rb":
                 return mock_file_read()
             if mode == "wb":
                 return mock_file_write()
-            raise ValueError(f"Unexpected open mode: {mode}")
+            msg = f"Unexpected open mode: {mode}"
+            raise ValueError(msg)
 
         mocker.patch("pathlib.Path.open", path_open_side_effect)
         mocker.patch("pathlib.Path.mkdir", return_value=None)
@@ -667,7 +672,7 @@ class TestSettingsManager:
         manager.set("section", "key", "new")
 
         # Assert
-        assert manager._settings == {"section": {"key": "new"}}
+        assert manager._settings == {"section": {"key": "new"}}  # noqa: SLF001
 
         dumped_data, file_obj = mock_toml_libs["dump"].call_args[0]
         assert dumped_data == {"section": {"key": "new"}}
@@ -736,7 +741,7 @@ class TestSettingsManager:
         manager.load_settings(config_path_from_cli=mock_config_path)
 
         # The in-memory settings should reflect the initial content
-        assert manager._settings == {"test-value": {"setting": "value"}}
+        assert manager._settings == {"test-value": {"setting": "value"}}  # noqa: SLF001
 
         # --- Simulate change on disk for the reload ---
         updated_content = '[test-value]\nsetting = "new-value"'
@@ -747,7 +752,7 @@ class TestSettingsManager:
         manager.reload()
 
         # After reload, the in-memory settings should reflect the *updated* content from disk
-        assert manager._settings == {"test-value": {"setting": "new-value"}}
+        assert manager._settings == {"test-value": {"setting": "new-value"}}  # noqa: SLF001
 
     @pytest.mark.unit
     @pytest.mark.usefixtures("cleanup_singletons", "structlog_base_config")
@@ -760,6 +765,8 @@ class TestSettingsManager:
         """
         Test that save() persists the in-memory config to disk.
         """
+        expected_calls:Final[int] = 2
+
         # Prepare path and initial config
         mock_config_path = Path("mock_config.toml")
         initial_data = {"test": {"key": "value"}}
@@ -776,13 +783,13 @@ class TestSettingsManager:
         manager.loaded_config_file = mock_config_path
 
         # Modify config directly
-        manager._settings = {"test": {"key": "modified_value"}}
+        manager._settings = {"test": {"key": "modified_value"}}  # noqa: SLF001
 
         # Call save
         manager.save()
 
         # Assert that dump was called twice
-        assert mock_toml_libs["dump"].call_count == 2
+        assert mock_toml_libs["dump"].call_count == expected_calls
 
         # Define the expected arguments for each call
         expected_first_call_args = (
@@ -830,7 +837,7 @@ class TestSettingsManager:
             # Explicitly remove loaded_config_file to trigger writable search fallback
             manager.save()
 
-        assert "Location not writable for saving configuration" in str(excinfo.value)
+        assert "No writable location available for saving configuration." in str(excinfo.value)
 
         # Confirm: tomli_w.dump should not be called
         mock_toml_libs["dump"].assert_not_called()
@@ -842,9 +849,61 @@ class TestSettingsManager:
             for record in caplog_structlog
         )
 
+        # Check for try access first path (local directory)
         assert any(
-            record["event"] == "Location not writable for saving configuration"
-            and record["error"] == "No write access"
+            "exc_info" in record
+            and record["event"] == "Path is not writable."
+            and isinstance(record.get("exc_info"), PermissionError)
+            and str(record.get("exc_info")) == "No write access"
+            and "/config.toml" in record["path"]
+            and record["log_level"] == "error"
+            for record in caplog_structlog
+        )
+
+        # Check for try access second path (user_config directory)
+        assert any(
+            "exc_info" in record
+            and record["event"] == "Path is not writable."
+            and isinstance(record.get("exc_info"), PermissionError)
+            and str(record.get("exc_info")) == "No write access"
+            and "/user_config/config.toml" in record["path"]
+            and record["log_level"] == "error"
+            for record in caplog_structlog
+        )
+
+        # Check for try access third path (site_config directory)
+        assert any(
+            "exc_info" in record
+            and record["event"] == "Path is not writable."
+            and isinstance(record.get("exc_info"), PermissionError)
+            and str(record.get("exc_info")) == "No write access"
+            and "/site_config/config.toml" in record["path"]
+            and record["log_level"] == "error"
+            for record in caplog_structlog
+        )
+
+        # Check for try access fourth path (resources directory)
+        assert any(
+            "exc_info" in record
+            and record["event"] == "Path is not writable."
+            and isinstance(record.get("exc_info"), PermissionError)
+            and str(record.get("exc_info")) == "No write access"
+            and "/resources/config.toml" in record["path"]
+            and record["log_level"] == "error"
+            for record in caplog_structlog
+        )
+
+        assert any(
+            "exc_info" in record
+            and record["event"] == "Path is not writable."
+            and isinstance(record.get("exc_info"), PermissionError)
+            and str(record.get("exc_info")) == "No write access"
+            and record["log_level"] == "error"
+            for record in caplog_structlog
+        )
+
+        assert any(
+            record["event"] == "No writable location available for saving configuration."
             and record["log_level"] == "error"
             for record in caplog_structlog
         )
@@ -853,7 +912,6 @@ class TestSettingsManager:
     @pytest.mark.usefixtures("cleanup_singletons", "structlog_base_config")
     def test_save_default_config_success(
         self,
-        mocker: Any,
         mock_toml_libs: dict[str, MagicMock],
         caplog_structlog: list[EventDict],
     ) -> None:
@@ -869,7 +927,7 @@ class TestSettingsManager:
 
         manager = SettingsManager()  # This will trigger _save_default_config
         manager.load_settings()
-        manager._save_default_config()
+        manager._save_default_config()  # noqa: SLF001
 
         mock_toml_libs["dump"].assert_called()
 
@@ -900,16 +958,17 @@ class TestSettingsManager:
         manager = SettingsManager()
 
         with pytest.raises(SettingsWriteConfigurationError) as excinfo:
-            manager._save_default_config()
+            manager._save_default_config()  # noqa: SLF001
 
         assert "Unable to write default configuration to this location." in str(excinfo.value)
 
         assert any(
-            record["log_level"] == "error"
-            and "Unable to write default configuration to this location." in record["event"]
-            and record["path"] == str(manager.DEFAULT_SETTINGS_LOCATIONS[0])
-            and record["error"] == "Cannot create dir"
-            for record in caplog_structlog
+            "exc_info" in e
+            and e.get("event") == "Unable to write default configuration to this location."
+            and isinstance(e.get("exc_info"), OSError)
+            and str(e.get("exc_info")) == "Cannot create dir"
+            and e.get("log_level") == "error"
+            for e in caplog_structlog
         )
 
 
@@ -1012,12 +1071,14 @@ class TestSettingsManagerSingleton:
         """
         Test that reset clears any accumulated initialization errors.
         """
+        expected_errors:Final[int] = 2
+
         # Manually add an error to simulate a previous failed initialization
         SettingsManagerSingleton._initialization_errors.append("Simulated init error 1")  # noqa: SLF001
         SettingsManagerSingleton._initialization_errors.append("Simulated init error 2")  # noqa: SLF001
 
         # Verify errors are present before reset
-        assert len(SettingsManagerSingleton.get_initialization_errors()) == 2
+        assert len(SettingsManagerSingleton.get_initialization_errors()) == expected_errors
 
         # Call the reset method
         SettingsManagerSingleton.reset()
