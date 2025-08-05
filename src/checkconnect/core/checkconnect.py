@@ -34,7 +34,7 @@ from checkconnect.core.url_checker import URLChecker, URLCheckerConfig
 from checkconnect.reports.report_manager import ReportManager
 
 if TYPE_CHECKING:
-    from abc.collections import Callable
+    from collections.abc import Callable
 
     from checkconnect.config.appcontext import AppContext
 
@@ -66,7 +66,7 @@ class CheckConnect:
                           to the CheckConnect operations.
     translator (TranslationManager): The translation manager for internationalization support.
     config (SettingsManager): The settings manager providing access to application configuration.
-    _ (Callable): A shortcut for the `gettext` translation function.
+    _translate_func (Callable): A shortcut for the `gettext` translation function.
     report_dir (str): The configured directory path for storing generated reports.
     report_manager (ReportManager): An instance of `ReportManager` for handling test result data.
     ntp_checker (NTPChecker): An instance of `NTPChecker` configured for NTP connectivity tests.
@@ -95,7 +95,7 @@ class CheckConnect:
         self.context = context
         self.translator = context.translator
         self.config = context.settings
-        self._translate_func = context.translator
+        self._translate_func = context.translator.gettext
 
         self.report_dir = self.config.get("reports", "directory", "reports")
 
