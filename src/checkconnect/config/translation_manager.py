@@ -142,7 +142,7 @@ class TranslationManager:
             self._translate_func = self._translation.gettext
             self._current_language = resolved_language
         except OSError as error:
-            logger.exception("Translation files not found. Using fallback.", exc_info=error)
+            log.exception("Translation files not found. Using fallback.", exc_info=error)
             self._translator = gettext.NullTranslations()
             self._translator.install()
             # Add this:
@@ -174,8 +174,8 @@ class TranslationManager:
             lang, _ = locale.getlocale(locale.LC_MESSAGES)
 
         except locale.Error as e:
-            logger.exception("Failed to determine default language. Going back to English.", exc_info=e)
-            return "en"
+           log.exception("Failed to determine default language. Going back to English.", exc_info=e)
+           return "en"
         else:
             return lang if lang else "en"
 
@@ -191,14 +191,14 @@ class TranslationManager:
             return settings_lang or self._get_system_language() or "en"
         except (ImportError, AttributeError, KeyError, RuntimeError) as e:
             self._internal_errors.append(f"Could not resolve language: {e}")
-            logger.exception("Language resolution failed", exc_info=e)
+            log.exception("Language resolution failed", exc_info=e)
             return "en"
 
     def _handle_translation_error(self, error: Exception, language: str) -> None:
         """Handle translation setup errors."""
         msg = f"Failed to load translations for '{language}': {error}"
         self._internal_errors.append(msg)
-        logger.exception(msg, exc_info=error)
+        log.exception(msg, exc_info=error)
 
     def _default_locale_dir(self) -> Path:
         """
@@ -224,17 +224,17 @@ class TranslationManager:
             )
         except OSError as e:
             self._internal_errors.append(f"Failed to resolve package locale directory for '{self.APP_NAME}': {e}")
-            logger.exception("Failed to resolve package locale directory", app_name=self.APP_NAME, exc_info=e)
+            log.exception("Failed to resolve package locale directory", app_name=self.APP_NAME, exc_info=e)
             # Fallback for when importlib.resources.files might fail
             return str(Path(__file__).parent.parent / self.LOCALES_DIR_NAME)
         except ValueError as e:
             self._internal_errors.append(f"Failed to resolve package locale directory for '{self.APP_NAME}': {e}")
-            logger.exception("Failed to resolve package locale directory", app_name=self.APP_NAME, exc_info=e)
+            log.exception("Failed to resolve package locale directory", app_name=self.APP_NAME, exc_info=e)
             # Fallback for when importlib.resources.files might fail
             return str(Path(__file__).parent.parent / self.LOCALES_DIR_NAME)
         except TypeError as e:
             self._internal_errors.append(f"Failed to resolve package locale directory for '{self.APP_NAME}': {e}")
-            logger.exception("Failed to resolve package locale directory", app_name=self.APP_NAME, exc_info=e)
+            log.exception("Failed to resolve package locale directory", app_name=self.APP_NAME, exc_info=e)
             # Fallback for when importlib.resources.files might fail
             return str(Path(__file__).parent.parent / self.LOCALES_DIR_NAME)
 
@@ -315,9 +315,9 @@ class TranslationManager:
                 if lang_code:
                     return f"{lang_code}.{encoding}" if encoding else f"{lang_code}.UTF-8"
         except locale.Error as e:
-            logger.warning("Initial locale.getlocale attempts failed: %s", e)
+           log.warning("Initial locale.getlocale attempts failed: %s", e)
         except Exception as e:
-            logger.exception("Unexpected error during initial locale attempts.", exc_info=e)
+           log.exception("Unexpected error during initial locale attempts.", exc_info=e)
         return None
 
     @staticmethod
@@ -334,10 +334,10 @@ class TranslationManager:
         if sys.platform == "darwin":
             try:
                 locale.setlocale(locale.LC_ALL, "en_US.UTF-8")
-                logger.info("Successfully set locale to en_US.UTF-8 as macOS workaround.")
+                log.info("Successfully set locale to en_US.UTF-8 as macOS workaround.")
 
             except locale.Error as e:
-                logger.exception(
+               log.exception(
                     "macOS specific locale workaround 'en_US.UTF-8' also failed.", exc_info=e
                 )
             else:
@@ -390,7 +390,7 @@ class TranslationManager:
         if system_locale:
             return system_locale
 
-        logger.warning("Could not determine system default language from any source.")
+        log.warning("Could not determine system default language from any source.")
         return None # If no locale can be determined by any strategy
 
     def _set_language(self) -> None:
@@ -446,7 +446,7 @@ class TranslationManager:
 
         except locale.Error as e:
             msg = f"Failed to set system locale to '{full_locale_string_for_setlocale}': {e}. Falling back to default gettext."
-            logger.exception(
+            log.exception(
                 "Failed to set system locale.",
                 full_locale_string_for_setlocale=full_locale_string_for_setlocale,
                 exc_info=e,
@@ -455,7 +455,7 @@ class TranslationManager:
             raise
         except OSError as e:
             msg = f"Translation for '{lang_for_gettext}' failed to load from '{self.locale_dir}': {e}. Falling back to default gettext."
-            logger.exception(
+            log.exception(
                 "Translation failed to load from locel directory. Falling back to default gettext.",
                 locale_dir=self.locale_dir,
                 exc_info=e,
@@ -464,7 +464,7 @@ class TranslationManager:
             raise
         except TypeError as e:
             msg = f"Translation configuration for '{lang_for_gettext}' failed due to type error: {e}. Falling back to default gettext."
-            logger.exception(
+            log.exception(
                 "Translation configuration failed due to type error. Falling back to default gettext.",
                 lang_for_gettext=lang_for_gettext,
                 exc_info=e,
@@ -473,7 +473,7 @@ class TranslationManager:
             self._translate_func = gettext.gettext
         except Exception as e:
             msg = f"An unexpected error occurred during translation setup for '{lang_for_gettext}': {e}. Falling back to default gettext."
-            logger.exception(
+            log.exception(
                 "An unexpected error occurred during translation setup. Falling back to default gettext.",
                 lang_for_gettext=lang_for_gettext,
                 exc_info=e,
