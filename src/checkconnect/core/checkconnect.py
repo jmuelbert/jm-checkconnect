@@ -34,14 +34,17 @@ from checkconnect.core.url_checker import URLChecker, URLCheckerConfig
 from checkconnect.reports.report_manager import ReportManager
 
 if TYPE_CHECKING:
-    from checkconnect.config.appcontext import AppContext
+    from abc.collections import Callable
 
+    from checkconnect.config.appcontext import AppContext
 
 # Define a TypeVar for checker classes, constrained to NTPChecker or URLChecker.
 CheckerT = TypeVar("CheckerT", bound="NTPChecker | URLChecker")
 # Define a TypeVar for configuration classes, constrained to NTPCheckerConfig or URLCheckerConfig.
 ConfigT = TypeVar("ConfigT", bound="NTPCheckerConfig | URLCheckerConfig")
 
+# Global logger for main.py (will be reconfigured by LoggingManagerSingleton)
+log: structlog.stdlib.BoundLogger
 log = structlog.get_logger(__name__)
 
 
@@ -72,6 +75,9 @@ class CheckConnect:
     url_results (list[str]): A list to store the results of URL checks after execution.
     """
 
+    # Type definition for the translation function
+    _translate_func: Callable[[str], str]
+
     def __init__(self, context: AppContext) -> None:
         """
         Initialize the CheckConnect instance.
@@ -87,14 +93,11 @@ class CheckConnect:
                                   to logging, translation, and configuration settings.
         """
         self.context = context
-        self.logger = log
         self.translator = context.translator
         self.config = context.settings
-        self._ = context.gettext
+        self._translate_func = context.translator
 
         self.report_dir = self.config.get("reports", "directory", "reports")
-
-        print("DEBUG: CheckConnect initialized with report directory:", self.report_dir)
 
         self.report_manager = ReportManager.from_context(context=self.context)
 
@@ -143,14 +146,11 @@ class CheckConnect:
 
         """
         network_config = self.config.get_section("network")
-        print("DEBUG: Network Configuration", network_config)
 
         # Get values that will be passed to Pydantic config_cls
         ntp_or_url_list = network_config.get(key, [])
-        print("DEBUG: NTP or URL List", ntp_or_url_list)
 
         timeout_value = network_config.get("timeout", 5)
-        print("DEBUG: Timeout Value", timeout_value)
 
         try:
             config_dict = {
@@ -162,24 +162,28 @@ class CheckConnect:
 
             return checker_cls(config=config)
 
-        except Exception:
-            msg: str = self.context.gettext(f"Error configuring {checker_cls.__name__}")
-            self.logger.exception(msg)
+        except Exception as e:
+            msg: str = self._translate_func("Error configuring {}")
+            log.exception(msg, name=checker_cls.__name__, exc_info=e)
             raise
 
-    def get_ntp_results(self) -> list[str]:
+    @property
+    def ntp_results(self) -> list[str]:
         """Get the results of the NTP checks."""
         return self._ntp_results
 
-    def set_ntp_results(self, ntp_data: list[str]) -> None:
+    @ntp_results.setter
+    def ntp_results(self, ntp_data: list[str]) -> None:
         """Set the results of the NTP checks."""
         self._ntp_results = ntp_data
 
-    def get_url_results(self) -> list[str]:
+    @property
+    def url_results(self) -> list[str]:
         """Get the results of the URL checks."""
         return self._url_results
 
-    def set_url_results(self, url_data: list[str]) -> None:
+    @url_results.setter
+    def url_results(self, url_data: list[str]) -> None:
         """Set the results of the NTP checks."""
         self._url_results = url_data
 
@@ -192,15 +196,15 @@ class CheckConnect:
         any exceptions that occur during their execution by logging them and
         re-raising.
         """
-        self.logger.info(self.context.gettext("Starting all checks..."))
+        log.info(self._translate_func("Starting all checks..."))
         try:
             self.run_url_checks()
             self.run_ntp_checks()
-        except Exception:
-            self.logger.exception("Error running all checks")
+        except Exception as e:
+            log.exception("Error running all checks", exc_info=e)
             raise
 
-        self.logger.info(self.context.gettext("All checks completed successfully."))
+        log.info(self._translate_func("All checks completed successfully."))
 
     def run_url_checks(self) -> None:
         """
@@ -215,14 +219,14 @@ class CheckConnect:
             Exception: If an error occurs during the URL connectivity checks.
         """
         urls_text = self.config.get("network", "urls")
-        msg = self.context.gettext(f"Starting URL checks with {urls_text}")
-        self.logger.info(msg)
+        msg = self._translate_func("Starting URL checks. with")
+        log.info(msg, urls_text=urls_text)
         try:
             self._url_results = self.url_checker.run_url_checks()
             self.report_manager.save_url_results(self._url_results)
-            self.logger.info(self.context.gettext("URL checks completed successfully."))
-        except Exception:
-            self.logger.exception(self.context.gettext("Error url checks."))
+            log.info(self._translate_func("URL checks completed successfully."))
+        except Exception as e:
+            log.exception(self._translate_func("Error url checks."), exc_info=e)
             raise
 
     def run_ntp_checks(self) -> None:
@@ -237,12 +241,12 @@ class CheckConnect:
         ------
             Exception: If an error occurs during the NTP connectivity checks.
         """
-        self.logger.info(self.context.gettext("Starting NTP checks..."))
+        log.info(self._translate_func("Starting NTP checks..."))
 
         try:
             self._ntp_results = self.ntp_checker.run_ntp_checks()
             self.report_manager.save_ntp_results(self._ntp_results)
-            self.logger.info(self.context.gettext("NTP checks completed successfully."))
-        except Exception:
-            self.logger.exception(self.context.gettext("Error during NTP checks."))
+            log.info(self._translate_func("NTP checks completed successfully."))
+        except Exception as e:
+            log.exception(self._translate_func("Error during NTP checks."), exc_info=e  )
             raise

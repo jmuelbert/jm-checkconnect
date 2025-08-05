@@ -92,7 +92,7 @@ class TestCheckConnect:
 
         # Assert that internal methods were called as expected
         mock_run_ntp_checks.assert_called_once_with()
-        assert checker.get_ntp_results() == mock_results
+        assert checker.ntp_results == mock_results
         mock_save_ntp_results.assert_called_once_with(mock_results)
 
     @pytest.mark.unit
@@ -160,7 +160,7 @@ class TestCheckConnect:
 
         # Assert that internal methods were called as expected
         mock_run_url_checks.assert_called_once_with()
-        assert checker.get_url_results() == mock_url_results
+        assert checker.url_results == mock_url_results
         mock_save_url_results.assert_called_once_with(mock_url_results)
 
     @pytest.mark.unit
