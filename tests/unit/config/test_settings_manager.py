@@ -14,7 +14,8 @@ from __future__ import annotations
 
 import tomllib
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Final
+
+, Any, Final
 from unittest.mock import MagicMock, call, mock_open, patch
 
 import pytest

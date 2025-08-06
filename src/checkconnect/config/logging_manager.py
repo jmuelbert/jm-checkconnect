@@ -414,7 +414,7 @@ class LoggingManager:
                 console_handler = logging.StreamHandler(sys.stdout)
                 # ProcessorFormatter uses structlog's processors for formatting
                 console_formatter = ProcessorFormatter(
-                    processor=structlog.dev.ConsoleRenderer(),  # Formats for human readability in console
+                    processor=structlog.dev.ConsoleRenderer(colors=True),  # Formats for human readability in console
                     foreign_pre_chain=[
                         *pre_chain_processors,
                         structlog.stdlib.PositionalArgumentsFormatter(),  # For standard log messages with args

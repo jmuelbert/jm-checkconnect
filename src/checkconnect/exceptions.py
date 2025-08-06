@@ -66,7 +66,7 @@ class SettingsConfigurationError(Exception):
     """Base exception for logger configuration errors."""
 
     def __init__(self, path: Path) -> None:
-        super().__init__(f"Invalid TOML syntax in configuration file {path}")
+        super().__init__("Invalid TOML syntax in configuration file")
 
 
 class SettingsWriteConfigurationError(Exception):
@@ -82,7 +82,7 @@ class ConfigFileNotFoundError(SettingsConfigurationError, FileNotFoundError):
     """Raised when the configuration file is not found."""
 
     def __init__(self, path: Path) -> None:
-        super().__init__(f"Configuration file not found {path}")
+        super().__init__(f"Configuration file not found")
 
 
 # class InvalidConfigFileError(SettingsConfigurationError, ValueError):

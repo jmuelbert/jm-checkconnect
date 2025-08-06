@@ -86,8 +86,8 @@ def reports(
         else:
             checker = CheckConnect(context=app_context)
             checker.run_all_checks()
-            ntp_results = checker.get_ntp_results()
-            url_results = checker.get_url_results()
+            ntp_results = checker.ntp_results
+            url_results = checker.url_results
 
         report_generator = ReportGenerator.from_params(context=app_context, arg_reports_dir=reports_dir)
         report_generator.generate_reports(

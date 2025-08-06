@@ -280,7 +280,8 @@ class TestIntegration:
             capture_output=True,
             text=True,
             # check=True,
-            cwd=test_env, check=False,
+            cwd=test_env,
+            check=False,
         )
 
         assert result.returncode == 1, f"Command failed:\n{result.stdout}"

@@ -25,8 +25,10 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from checkconnect.config.appcontext import AppContext  # noqa: TC001
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Callable, Mapping
 
+# Global logger for main.py (will be reconfigured by LoggingManagerSingleton)
+log: structlog.stdlib.BoundLogger
 log = structlog.get_logger(__name__)
 
 # Regular expression for DNS-compliant hostnames
@@ -166,12 +168,15 @@ class NTPChecker:
         Logger instance for logging messages.
     translator (Any):
         Translator instance from the context, used for localization of messages.
-    _ (Callable[[str], str]):
+    __translate_func (Callable[[str], str]):
         A shortcut to the translation function `translator.gettext`.
     results (list[str]):
         A list to store the results of each NTP check.
 
     """
+
+    # Type definition for the translation function
+    _translate_func: Callable[[str], str]
 
     def __init__(self, config: NTPCheckerConfig) -> None:
         """
@@ -189,14 +194,13 @@ class NTPChecker:
             msg = config.context.translator.gettext("NTPCheckerConfig.context must not be None")
             raise ValueError(msg)
         self.config: NTPCheckerConfig = config
-        self.logger = log
         self.translator = config.context.translator
-        self._ = self.translator.gettext
+        self._translate_func = config.context.translator.gettext
 
         self.results: list[str] = []
 
         if not self.config.ntp_servers:
-            msg = self._("No NTP servers provided in configuration.")
+            msg = self._translate_func("No NTP servers provided in configuration.")
             raise ValueError(msg)
 
     @classmethod
@@ -258,11 +262,10 @@ class NTPChecker:
                 A list of strings summarizing the synchronization result
                 or error for each NTP server.
         """
-        self.logger.info(self._("Checking NTP servers..."))
+        log.info(self._translate_func("Checking NTP servers..."))
 
         for server in self.config.ntp_servers:
-            msg: str = self._(f"Checking NTP server: {server}")
-            self.logger.debug(msg)
+            log.debug(self._translate_func("Checking NTP server"), server=server)
             try:
                 client = ntplib.NTPClient()
                 response = client.request(
@@ -277,23 +280,34 @@ class NTPChecker:
 
                 difference = (ntp_time - local_time).total_seconds()
 
-                result: str = self._(
+                result: str = self._translate_func(
                     f"Successfully retrieved time from {server} - Time: {time.ctime(response.tx_time)} - Difference: {difference:.2f}s",
                 )
-                self.logger.debug(result)
                 self.results.append(result)
+                log.debug(self._translate_func("Successfully retrieved time from server"),
+                    server=server,
+                    time=time.ctime(response.tx_time),
+                    difference=difference
+                )
+
             except ntplib.NTPException as e:
-                error_message = self._(
+                error_message = self._translate_func(
                     f"Error retrieving time from NTP server {server}: {e}",
                 )
-                self.logger.exception(error_message)
                 self.results.append(error_message)
-            except Exception as e:
-                error_message = self._(f"An unexpected error occurred while checking NTP server {server}: {e}")
-                self.logger.exception(error_message)
-                self.results.append(error_message)
+                log.exception(self._translate_func("Error retrieving time from NTP server"),
+                    server=server,
+                    exc_info=e)
 
-        self.logger.info(self._("All NTP servers checked."))
+            except Exception as e:
+                error_message = self._translate_func(f"An unexpected error occurred while checking NTP server {server}: {e}")
+                self.results.append(error_message)
+                log.exception(self._translate_func("An unexpected error occurred while checking NTP server"),
+                    server=server,
+                    exc_info=e)
+
+
+        log.info(self._translate_func("All NTP servers checked."))
         return self.results
 
 
