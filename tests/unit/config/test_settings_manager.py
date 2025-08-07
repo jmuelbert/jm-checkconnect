@@ -15,7 +15,7 @@ from __future__ import annotations
 import tomllib
 from pathlib import Path
 
-, Any, Final
+from typing import TYPE_CHECKING, Any, Final
 from unittest.mock import MagicMock, call, mock_open, patch
 
 import pytest
@@ -274,16 +274,15 @@ class TestSettingsManager:
             for entry in caplog_structlog
         )
 
-        expected_error_no:Final[int] = 30
+        expected_error_no: Final[int] = 30
 
         assert any(
-            entry["log_level"] == "error"
+            "exc_info" in entry
             and "Unable to write default configuration to this location." in entry["event"]
             and entry.get("log_level") == "error"
             and entry.get("path") == "/unwritable/config.toml"
-            # New assertions for the exception:
-            and isinstance(entry["exc_info"], OSError)  # First, check the type
-            and entry["exc_info"].errno == expected_error_no         # Second, check the specific error number
+            and isinstance(entry["exc_info"], OSError)
+            and entry["exc_info"].errno == expected_error_no
             and "Read-only file system" in str(entry["exc_info"])
             for entry in caplog_structlog
         )
