@@ -14,7 +14,7 @@ including handling various success and failure scenarios.
 from __future__ import annotations
 
 import time
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Final
 
 import ntplib
 import pytest
@@ -23,8 +23,8 @@ from pydantic import ValidationError
 from checkconnect.core.ntp_checker import NTPChecker, NTPCheckerConfig
 
 if TYPE_CHECKING:
-    from pytest.logging import LogCaptureFixture
     from pytest_mock import MockerFixture
+    from structlog.typing import EventDict
 
     from checkconnect.config.appcontext import AppContext
 
@@ -91,12 +91,15 @@ class TestNTPCheckerConfig:
         Args:
             valid_ntp_config (NTPCheckerConfig): A pytest fixture providing a valid config.
         """
+        expected_timeout: Final[int] = 5
+        expected_servers_count: Final[int] = 2
+
         checker = NTPChecker(config=valid_ntp_config)
         assert isinstance(checker, NTPChecker)
 
-        assert len(checker.config.ntp_servers) == 2
+        assert len(checker.config.ntp_servers) == expected_servers_count
         assert checker.config.ntp_servers == ["time.google.com", "8.8.8.8"]
-        assert checker.config.timeout == 5
+        assert checker.config.timeout == expected_timeout
 
     @pytest.mark.unit
     @pytest.mark.parametrize("app_context_fixture", ["simple"], indirect=True)
@@ -113,14 +116,16 @@ class TestNTPCheckerConfig:
         Args:
             app_context_fixture (AppContext): A pytest fixture providing an `AppContext`.
         """
+        expected_timeout: Final[int] = 10
+
         config = NTPCheckerConfig(
             ntp_servers=["time.cloudflare.com"],
-            timeout=10,
+            timeout=expected_timeout,
             context=app_context_fixture,
         )
         assert isinstance(config, NTPCheckerConfig)
         assert config.ntp_servers == ["time.cloudflare.com"]
-        assert config.timeout == 10
+        assert config.timeout == expected_timeout
         assert config.context == app_context_fixture
 
     @pytest.mark.unit
@@ -263,7 +268,7 @@ class TestNTPChecker:
         self,
         app_context_fixture: AppContext,
         mocker: MockerFixture,
-        caplog: LogCaptureFixture,
+        caplog_structlog: list[EventDict],
     ) -> None:
         """
         Test `NTPChecker`'s integration with mocked `ntplib.NTPClient.request`.
@@ -277,7 +282,6 @@ class TestNTPChecker:
             mocker (MockerFixture): The `pytest-mock` fixture for creating mocks.
             caplog (LogCaptureFixture): The `pytest` fixture to capture log messages.
         """
-        caplog.set_level(10)  # Set log level to DEBUG to capture INFO messages
 
         mock_response = mocker.Mock()
         mock_response.tx_time = 1713450000.0
@@ -298,11 +302,29 @@ class TestNTPChecker:
         assert "[mocked] Successfully retrieved time from pool.ntp.org - Time:" in results[0]
 
         # Check logger output for info messages with the '[mocked]' prefix
-        assert any("[mocked] Checking NTP servers.." in record.message for record in caplog.records)
-        assert any("[mocked] Checking NTP server: pool.ntp.org" in record.message for record in caplog.records)
         assert any(
-            "[mocked] Successfully retrieved time from pool.ntp.org" in record.message for record in caplog.records
+            record["event"] == "[mocked] Checking NTP servers..."
+            and record["log_level"] == "info"
+            for record in caplog_structlog
         )
+
+        assert any(
+            record["event"] == "[mocked] Checking NTP server"
+            and record["log_level"] == "debug"
+            and record["server"] == "pool.ntp.org"
+            for record in caplog_structlog
+        )
+
+        assert any(
+            record["event"] == "[mocked] Successfully retrieved time from server"
+            and record["log_level"] == "debug"
+            and record["server"] == "pool.ntp.org"
+            for record in caplog_structlog)
+
+        assert any(
+            record["event"] == "[mocked] All NTP servers checked."
+            and record["log_level"] == "info"
+            for record in caplog_structlog)
 
     @pytest.mark.unit
     @pytest.mark.parametrize("app_context_fixture", ["simple"], indirect=True)
@@ -335,6 +357,7 @@ class TestNTPChecker:
         Args:
             app_context_fixture (AppContext): A pytest fixture providing an `AppContext`.
         """
+        expected_timeout: Final[int] = 5
         checker = NTPChecker.from_params(
             ntp_servers=["pool.ntp.org"],
             timeout=5,
@@ -342,7 +365,7 @@ class TestNTPChecker:
         )
         assert isinstance(checker, NTPChecker)
         assert len(checker.config.ntp_servers) == 1
-        assert checker.config.timeout == 5
+        assert checker.config.timeout == expected_timeout
         assert checker.config.context == app_context_fixture
 
     @pytest.mark.unit
@@ -351,7 +374,7 @@ class TestNTPChecker:
         self,
         mocker: MockerFixture,
         valid_ntp_config: NTPCheckerConfig,
-        caplog: LogCaptureFixture,
+        caplog_structlog: list[EventDict],
     ) -> None:
         """
         Test `run_ntp_checks` when all NTP requests are successful.
@@ -365,7 +388,8 @@ class TestNTPChecker:
             valid_ntp_config (NTPCheckerConfig): A pytest fixture providing a valid config.
             caplog (LogCaptureFixture): The `pytest` fixture to capture log messages.
         """
-        caplog.set_level(10)  # Set log level to DEBUG
+        expected_results_count: Final[int] = 2
+        # caplog.set_level(10)  # Set log level to DEBUG
 
         mock_response = mocker.MagicMock()
         mock_response.tx_time = time.time()
@@ -374,15 +398,47 @@ class TestNTPChecker:
         checker = NTPChecker(config=valid_ntp_config)
         results = checker.run_ntp_checks()
 
-        assert len(results) == 2
+        assert len(results) == expected_results_count
         assert "[mocked] Successfully retrieved time from time.google.com" in results[0]
         assert "[mocked] Successfully retrieved time from 8.8.8.8" in results[1]
 
         # Check logger output
         assert any(
-            "[mocked] Successfully retrieved time from time.google.com" in record.message for record in caplog.records
+            record["event"] == "[mocked] Checking NTP servers..."
+            and record["log_level"] == "info"
+            for record in caplog_structlog
         )
-        assert any("[mocked] Successfully retrieved time from 8.8.8.8" in record.message for record in caplog.records)
+
+        assert any(
+            record["event"] == "[mocked] Checking NTP server"
+            and record["log_level"] == "debug"
+            and record["server"] == "time.google.com"
+            for record in caplog_structlog
+        )
+
+        assert any(
+            record["event"] == "[mocked] Checking NTP server"
+            and record["log_level"] == "debug"
+            and record["server"] == "8.8.8.8"
+            for record in caplog_structlog
+        )
+
+        assert any(
+            record["event"] == "[mocked] Successfully retrieved time from server"
+            and record["log_level"] == "debug"
+            and record["server"] == "time.google.com"
+            for record in caplog_structlog)
+
+        assert any(
+            record["event"] == "[mocked] Successfully retrieved time from server"
+            and record["log_level"] == "debug"
+            and record["server"] == "8.8.8.8"
+            for record in caplog_structlog)
+
+        assert any(
+            record["event"] == "[mocked] All NTP servers checked."
+            and record["log_level"] == "info"
+            for record in caplog_structlog)
 
     @pytest.mark.unit
     @pytest.mark.parametrize("app_context_fixture", ["simple"], indirect=True)
@@ -390,7 +446,7 @@ class TestNTPChecker:
         self,
         mocker: MockerFixture,
         valid_ntp_config: NTPCheckerConfig,
-        caplog: LogCaptureFixture,
+        caplog_structlog: list[EventDict],
     ) -> None:
         """
         Test `run_ntp_checks` when an `ntplib.NTPException` occurs during a request.
@@ -404,7 +460,7 @@ class TestNTPChecker:
             valid_ntp_config (NTPCheckerConfig): A pytest fixture providing a valid config.
             caplog (LogCaptureFixture): The `pytest` fixture to capture log messages.
         """
-        caplog.set_level(10)  # Set log level to DEBUG
+        expected_results_count: Final[int] = 2
 
         mocker.patch(
             "ntplib.NTPClient.request",
@@ -414,23 +470,58 @@ class TestNTPChecker:
         checker = NTPChecker(config=valid_ntp_config)
         results = checker.run_ntp_checks()
 
-        assert len(results) == 2  # Two servers in valid_ntp_config
+        assert len(results) == expected_results_count  # Two servers in valid_ntp_config
         assert "[mocked] Error retrieving time from NTP server time.google.com: Test error" in results[0]
         assert "[mocked] Error retrieving time from NTP server 8.8.8.8: Test error" in results[1]
 
         # Check logger output for error messages
-        assert any(
-            "[mocked] Error retrieving time from NTP server time.google.com" in record.message
-            and "Test error" in record.message
-            and record.levelname == "ERROR"  # Check log level
-            for record in caplog.records
+        assert any (
+            record["event"] == "[mocked] Checking NTP servers..."
+            and record["log_level"] == "info"
+            for record in caplog_structlog
         )
+
+        # Test with time.google.com
         assert any(
-            "[mocked] Error retrieving time from NTP server 8.8.8.8" in record.message
-            and "Test error" in record.message
-            and record.levelname == "ERROR"  # Check log level
-            for record in caplog.records
+            record["event"] == "[mocked] Checking NTP server"
+            and record["log_level"] == "debug"
+            and record["server"] == "time.google.com"
+            for record in caplog_structlog
         )
+
+        assert any(
+            "exc_info" in record
+            and record["event"] == "[mocked] Error retrieving time from NTP server"
+            and record["log_level"] == "error"
+            and record["server"] == "time.google.com"
+            and isinstance(record["exc_info"], ntplib.NTPException)
+            and "Test error" in str(record["exc_info"])
+            for record in caplog_structlog
+        )
+
+        # Test with 8.8.8.8
+        assert any(
+            record["event"] == "[mocked] Checking NTP server"
+            and record["log_level"] == "debug"
+            and record["server"] == "8.8.8.8"
+            for record in caplog_structlog
+        )
+
+        assert any(
+            "exc_info" in record
+            and record["event"] == "[mocked] Error retrieving time from NTP server"
+            and record["log_level"] == "error"
+            and record["server"] == "8.8.8.8"
+            and isinstance(record["exc_info"], ntplib.NTPException)
+            and "Test error" in str(record["exc_info"])
+            for record in caplog_structlog
+        )
+
+        # All done.
+        assert any(
+            record["event"] == "[mocked] All NTP servers checked."
+            and record["log_level"] == "info"
+            for record in caplog_structlog)
 
     @pytest.mark.unit
     @pytest.mark.parametrize("app_context_fixture", ["simple"], indirect=True)
@@ -438,7 +529,7 @@ class TestNTPChecker:
         self,
         mocker: MockerFixture,
         app_context_fixture: AppContext,
-        caplog: LogCaptureFixture,
+        caplog_structlog: list[EventDict],
     ) -> None:
         """
         Test `NTPChecker` functionality with a specific server configured via `from_params`.
@@ -450,7 +541,6 @@ class TestNTPChecker:
             app_context_fixture (AppContext): A pytest fixture providing an `AppContext`.
             caplog (LogCaptureFixture): The `pytest` fixture to capture log messages.
         """
-        caplog.set_level(10)  # Set log level to DEBUG
 
         mock_response = mocker.Mock()
         mock_response.tx_time = 1234567890
@@ -470,7 +560,29 @@ class TestNTPChecker:
         assert "[mocked] Successfully retrieved time from pool.ntp.org " in results[0]
 
         # Check logger output
-        assert any("[mocked] Checking NTP server: pool.ntp.org" in record.message for record in caplog.records)
+        assert any(
+            event["event"] == "[mocked] Checking NTP servers..."
+            and event["log_level"] == "info"
+            for event in caplog_structlog
+        )
+
+        assert any(
+            event["event"] == "[mocked] Checking NTP server"
+            and event["log_level"] == "debug"
+            and event["server"] == "pool.ntp.org"
+            for event in caplog_structlog
+        )
+
+        assert any(
+            event["event"] == "[mocked] Successfully retrieved time from server"
+            and event["log_level"] == "debug"
+            and event["server"] == "pool.ntp.org"
+            for event in caplog_structlog)
+
+        assert any(
+            event["event"] == "[mocked] All NTP servers checked."
+            and event["log_level"] == "info"
+            for event in caplog_structlog)
 
     @pytest.mark.unit
     @pytest.mark.parametrize("app_context_fixture", ["simple"], indirect=True)
@@ -478,7 +590,7 @@ class TestNTPChecker:
         self,
         mocker: MockerFixture,
         app_context_fixture: AppContext,
-        caplog: LogCaptureFixture,
+        caplog_structlog: list[EventDict],
     ) -> None:
         """
         Test `NTPChecker`'s error handling for a general exception during NTP request.
@@ -492,7 +604,6 @@ class TestNTPChecker:
             app_context_fixture (AppContext): A pytest fixture providing an `AppContext`.
             caplog (LogCaptureFixture): The `pytest` fixture to capture log messages.
         """
-        caplog.set_level(10)  # Set log level to DEBUG
 
         mock_request = mocker.patch("ntplib.NTPClient.request")
         mock_request.side_effect = Exception("Timeout!")
@@ -509,12 +620,34 @@ class TestNTPChecker:
         assert "[mocked] An unexpected error occurred while checking NTP server fake.ntp.org: Timeout!" in results[0]
 
         # Check logger output (the exception will be caught and logged by logger.exception)
-        assert any(
-            "[mocked] An unexpected error occurred while checking NTP server fake.ntp.org" in record.message
-            and record.levelname == "ERROR"  # Or CRITICAL/EXCEPTION depending on structlog setup
-            and "Timeout!" in record.exc_info[1].args[0]  # Check original exception message in exc_info
-            for record in caplog.records
+
+        assert any (
+            record["event"] == "[mocked] Checking NTP servers..."
+            and record["log_level"] == "info"
+            for record in caplog_structlog
         )
+
+        assert any(
+            record["event"] == "[mocked] Checking NTP server"
+            and record["log_level"] == "debug"
+            and record["server"] == "fake.ntp.org"
+            for record in caplog_structlog
+        )
+
+        assert any(
+            "exc_info" in record
+            and record["event"] == "[mocked] An unexpected error occurred while checking NTP server"
+            and record["log_level"] == "error"
+            and record["server"] == "fake.ntp.org"
+            and isinstance(record["exc_info"], Exception)
+            and "Timeout!" in str(record["exc_info"])
+            for record in caplog_structlog
+        )
+
+        assert any(
+           record["event"] == "[mocked] All NTP servers checked."
+           and record["log_level"] == "info"
+           for record in caplog_structlog)
 
     @pytest.mark.unit
     @pytest.mark.parametrize("app_context_fixture", ["simple"], indirect=True)
@@ -522,7 +655,7 @@ class TestNTPChecker:
         self,
         mocker: MockerFixture,
         app_context_fixture: AppContext,
-        caplog: LogCaptureFixture,
+        caplog_structlog: list[EventDict],
     ) -> None:
         """
         Test checking multiple NTP servers with mixed results (success, failure, success).
@@ -536,7 +669,7 @@ class TestNTPChecker:
             app_context_fixture (AppContext): A pytest fixture providing an `AppContext`.
             caplog (LogCaptureFixture): The `pytest` fixture to capture log messages.
         """
-        caplog.set_level(10)  # Set log level to DEBUG
+        expected_results_count: Final[int] = 3
 
         # Mock for successful NTP response
         mock_success_response = mocker.Mock()
@@ -564,21 +697,69 @@ class TestNTPChecker:
         checker = NTPChecker(config=config)
         results = checker.run_ntp_checks()
 
-        assert len(results) == 3
+        assert len(results) == expected_results_count
         assert "[mocked] Successfully retrieved time from pool.ntp.org" in results[0]
         assert "[mocked] Error retrieving time from NTP server fake.ntp.org: Failed to connect" in results[1]
         assert "[mocked] Successfully retrieved time from 8.8.8.8" in results[2]
 
         # Check logger output for mixed results
-        assert any("[mocked] Checking NTP server: pool.ntp.org" in record.message for record in caplog.records)
         assert any(
-            "[mocked] Successfully retrieved time from pool.ntp.org" in record.message for record in caplog.records
+            record["event"] == "[mocked] Checking NTP servers..."
+            and record["log_level"] == "info"
+            for record in caplog_structlog
         )
-        assert any("[mocked] Checking NTP server: fake.ntp.org" in record.message for record in caplog.records)
+
+        # Server pool.ntp.org
         assert any(
-            "[mocked] Error retrieving time from NTP server fake.ntp.org: Failed to connect" in record.message
-            and record.levelname == "ERROR"
-            for record in caplog.records
+            record["event"] == "[mocked] Checking NTP server"
+            and record["log_level"] == "debug"
+            and record["server"] == "pool.ntp.org"
+            for record in caplog_structlog
         )
-        assert any("[mocked] Checking NTP server: 8.8.8.8" in record.message for record in caplog.records)
-        assert any("[mocked] Successfully retrieved time from 8.8.8.8" in record.message for record in caplog.records)
+
+        assert any(
+            record["event"] == "[mocked] Successfully retrieved time from server"
+            and record["log_level"] == "debug"
+            and record["server"] == "pool.ntp.org"
+            for record in caplog_structlog
+        )
+
+        # Server fake.ntp.org
+        assert any(
+            record["event"] == "[mocked] Checking NTP server"
+            and record["log_level"] == "debug"
+            and record["server"] == "fake.ntp.org"
+            for record in caplog_structlog
+        )
+
+        assert any(
+            "exc_info" in record
+            and record["event"] == "[mocked] Error retrieving time from NTP server"
+            and record["log_level"] == "error"
+            and record["server"] == "fake.ntp.org"
+            and isinstance(record["exc_info"], ntplib.NTPException)
+            and "Failed to connect" in str(record["exc_info"])
+            for record in caplog_structlog
+        )
+
+        # Server 8.8.8.8
+        assert any(
+            record["event"] == "[mocked] Checking NTP server"
+            and record["log_level"] == "debug"
+            and record["server"] == "8.8.8.8"
+            for record in caplog_structlog
+        )
+
+        assert any(
+            record["event"] == "[mocked] Successfully retrieved time from server"
+            and record["log_level"] == "debug"
+            and record["server"] == "8.8.8.8"
+            for record in caplog_structlog
+        )
+
+        # All done
+        assert any(
+            record["event"] == "[mocked] All NTP servers checked."
+            and record["log_level"] == "info"
+            for record in caplog_structlog
+        )
