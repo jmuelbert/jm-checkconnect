@@ -228,10 +228,10 @@ class CheckConnectGUIRunner(QWidget):
         self.log_output(self.tr("Running NTP tests…"))
         try:
             self.checkconnect.run_ntp_checks()
-            ntp_results = self.checkconnect.get_ntp_results()
+            ntp_results = self.checkconnect.ntp_results
             for line in ntp_results or []:
                 self.log_output(line)
-            self.ntp_results = self.checkconnect.get_ntp_results() or []
+            self.ntp_results = self.checkconnect.ntp_results or []
         except Exception as e:
             self.logger.exception(self._("Error in test_ntp"))
             self.show_error(self.tr(f"NTP test failed: {e}"))
@@ -249,10 +249,10 @@ class CheckConnectGUIRunner(QWidget):
         self.log_output(self.tr("Running URL tests…"))
         try:
             self.checkconnect.run_url_checks()
-            url_results = self.checkconnect.get_url_results()
+            url_results = self.checkconnect.url_results
             for line in url_results or []:
                 self.log_output(line)
-            self.url_results = self.checkconnect.get_url_results() or []
+            self.url_results = self.checkconnect.url_results or []
         except Exception as e:
             self.logger.exception(self._("Error in test_urls"))
             self.show_error(self.tr(f"URL test failed: {e}"))
