@@ -23,6 +23,7 @@ if TYPE_CHECKING:
 
     from PySide6.QtWidgets import QApplication
     from pytest_mock import MockerFixture
+    from structlog.typing import EventDict
 
     from checkconnect.config.appcontext import AppContext
 
@@ -74,7 +75,7 @@ class TestGuiMain:
             mocker: The pytest-mock fixture for patching objects.
         """
         mock_run_ntp = mocker.patch.object(gui.checkconnect, "run_ntp_checks")
-        gui.checkconnect.set_ntp_results(["NTP server 1 OK", "NTP server 2 OK"])
+        gui.checkconnect.ntp_results = (["NTP server 1 OK", "NTP server 2 OK"])
 
         gui.test_ntp()
 
@@ -95,7 +96,7 @@ class TestGuiMain:
             mocker: The pytest-mock fixture for patching objects.
         """
         mock_run_url = mocker.patch.object(gui.checkconnect, "run_url_checks")
-        gui.checkconnect.set_url_results(["https://example.com OK"])
+        gui.checkconnect.url_results = (["https://example.com OK"])
 
         gui.test_urls()
 
@@ -116,15 +117,15 @@ class TestGuiMain:
         mock_html = mocker.patch("checkconnect.gui.gui_main.generate_html_report")
         mock_pdf = mocker.patch("checkconnect.gui.gui_main.generate_pdf_report")
 
-        gui.checkconnect.set_ntp_results(["NTP OK"])
-        gui.checkconnect.set_url_results(["URL OK"])
+        gui.checkconnect.ntp_results = (["NTP OK"])
+        gui.checkconnect.url_results = (["URL OK"])
         gui.generate_reports()
 
         mock_html.assert_called_once()
         mock_pdf.assert_called_once()
         assert "Reports generated successfully." in gui.output_log.toPlainText()
 
-    def test_generate_reports_failure(self, gui: CheckConnectGUIRunner, mocker: MockerFixture) -> None:
+    def test_generate_reports_failure(self, gui: CheckConnectGUIRunner, mocker: MockerFixture, caplog_structlog: list[EventDict]) -> None:
         """
         Test error handling when report generation fails.
 
@@ -141,8 +142,6 @@ class TestGuiMain:
         # Spy on QMessageBox.critical in the same module where show_error lives
         critical_spy = mocker.patch("checkconnect.gui.gui_main.QMessageBox.critical", autospec=True)
 
-        # Also spy on the logger.error call
-        log_error_spy = mocker.patch.object(gui.logger, "error")
 
         # 2) Act
         gui.generate_reports()
@@ -157,7 +156,14 @@ class TestGuiMain:
         assert "Failed to generate reports: Oops" in args[2]
 
         #   b) logger.error was called once with the same message
-        log_error_spy.assert_called_once_with(args[2])
+        assert any(
+            "exc_info" in record
+            and record["event"] == "[mocked] Failed to generate reports"
+            and record["log_level"] == "error"
+            and isinstance(record["exc_info"], Exception)
+            and "Oops" in str(record["exc_info"])
+            for record in caplog_structlog)
+
 
     def test_show_summary_html(self, gui: CheckConnectGUIRunner, mocker: MockerFixture) -> None:
         """
@@ -201,7 +207,7 @@ class TestGuiMain:
 
         assert "Summary Text" in gui.summary_view.toPlainText()
 
-    def test_show_summary_exception(self, gui: CheckConnectGUIRunner, mocker: MockerFixture) -> None:
+    def test_show_summary_exception(self, gui: CheckConnectGUIRunner, mocker: MockerFixture, caplog_structlog: list[EventDict]) -> None:
         """
         Test that summary generation errors are logged gracefully.
 
@@ -218,9 +224,6 @@ class TestGuiMain:
         # Spy on QMessageBox.critical in the same module where show_error lives
         critical_spy = mocker.patch("checkconnect.gui.gui_main.QMessageBox.critical", autospec=True)
 
-        # Also spy on the logger.error call
-        log_error_spy = mocker.patch.object(gui.logger, "error")
-
         # 2) Act
         gui.show_summary()
 
@@ -234,4 +237,10 @@ class TestGuiMain:
         assert "Failed to generate summary: Boom" in args[2]
 
         #   b) logger.error was called once with the same message
-        log_error_spy.assert_called_once_with(args[2])
+        assert any(
+            "exc_info" in record
+            and record["event"] == "[mocked] Can't create the summary."
+            and record["log_level"] == "error"
+            and isinstance(record["exc_info"], Exception)
+            and "Boom" in str(record["exc_info"])
+            for record in caplog_structlog)

@@ -19,7 +19,6 @@ from typing import TYPE_CHECKING
 import structlog
 from PySide6.QtCore import QSettings
 from PySide6.QtWidgets import (
-    QApplication,
     QComboBox,
     QHBoxLayout,
     QMessageBox,
@@ -36,8 +35,12 @@ from checkconnect.reports.report_generator import generate_html_report, generate
 from checkconnect.reports.report_manager import OutputFormat, ReportManager
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from checkconnect.config.appcontext import AppContext
 
+# Global logger for main.py (will be reconfigured by LoggingManagerSingleton)
+log: structlog.stdlib.BoundLogger
 log = structlog.get_logger(__name__)
 
 
@@ -54,12 +57,10 @@ class CheckConnectGUIRunner(QWidget):
     ----------
     context : AppContext
         The application context providing access to shared resources like logger and translator.
-    logger : structlog.stdlib.BoundLogger
-        The logger instance for logging messages within the GUI.
     translator : Any
         The translator instance for internationalization.
-    _ : Callable[[str], str]
-        A convenience alias for the translation function.
+    _translate_func (Callable[[str], str]):
+        A shortcut to the translation function `translator.gettext`.
     config : Any
         The application configuration from the context.
     settings : QSettings
@@ -88,6 +89,9 @@ class CheckConnectGUIRunner(QWidget):
         Stores the results of the last URL check.
     """
 
+    # Type definition for the translation function
+    _translate_func: Callable[[str], str]
+
     def __init__(
         self,
         context: AppContext,
@@ -110,9 +114,8 @@ class CheckConnectGUIRunner(QWidget):
         super().__init__()
 
         self.context = context
-        self.logger = log
         self.translator = context.translator
-        self._ = context.gettext
+        self._translate_func = context.translator.gettext
         self.config = context.settings  # For translations of UI text, if necessary
         self.settings = QSettings("JM", "CheckConnect")
         self.language = language
@@ -123,18 +126,6 @@ class CheckConnectGUIRunner(QWidget):
         self.url_results: list[str] = []
 
         self.setup_gui()
-
-    def tr(self, source_text: str) -> str:
-        """
-        Implement simple translation method using QApplication's translate.
-
-        Args:
-            source_text (str): The text to be translated.
-
-        Returns:
-            str: The translated text.
-        """
-        return QApplication.translate("CheckConnectGUI", source_text)
 
     def setup_gui(self) -> None:
         """
@@ -233,7 +224,7 @@ class CheckConnectGUIRunner(QWidget):
                 self.log_output(line)
             self.ntp_results = self.checkconnect.ntp_results or []
         except Exception as e:
-            self.logger.exception(self._("Error in test_ntp"))
+            log.exception(self._translate_func("Error in test_ntp"), exc_info=e)
             self.show_error(self.tr(f"NTP test failed: {e}"))
         else:
             self.log_output(self.tr("NTP tests completed."))
@@ -254,7 +245,7 @@ class CheckConnectGUIRunner(QWidget):
                 self.log_output(line)
             self.url_results = self.checkconnect.url_results or []
         except Exception as e:
-            self.logger.exception(self._("Error in test_urls"))
+            log.exception(self._translate_func("Error in test_urls"), exc_info=e)
             self.show_error(self.tr(f"URL test failed: {e}"))
         else:
             self.log_output(self.tr("URL tests completed."))
@@ -270,33 +261,32 @@ class CheckConnectGUIRunner(QWidget):
         try:
             generate_html_report(
                 context=self.context,
-                ntp_results=self.checkconnect.get_ntp_results(),
-                url_results=self.checkconnect.get_url_results(),
+                ntp_results=self.checkconnect.ntp_results,
+                url_results=self.checkconnect.url_results,
             )
 
             generate_pdf_report(
                 context=self.context,
-                ntp_results=self.checkconnect.get_ntp_results(),
-                url_results=self.checkconnect.get_url_results(),
+                ntp_results=self.checkconnect.ntp_results,
+                url_results=self.checkconnect.url_results,
             )
 
         except Exception as e:
-            msg = self._(f"Failed to generate reports: {e}")
-            self.logger.exception(msg)
+            log.exception(self._translate_func("Failed to generate reports"), exc_info=e)
             self.show_error(self.tr(f"Failed to generate reports: {e}"))
         else:
             self.log_output(self.tr("Reports generated successfully."))
 
     def log_output(self, message: str) -> None:
         """
-        Appends a message to the GUI's output log and the application logger.
+        Append a message to the GUI's output log and the application logger.
 
         Args:
         ----
             message (str): The message string to be displayed and logged.
         """
         self.output_log.append(message)
-        self.logger.info(message)
+        log.info(message)
 
     def show_summary(self) -> None:
         """
@@ -326,14 +316,11 @@ class CheckConnectGUIRunner(QWidget):
             if format_text == "html":
                 self.summary_view.setHtml(summary)
                 self.log_output(self.tr("HTML summary generated"))
-                self.logger.debug(self._("HTML summary generated"))
             else:
                 self.summary_view.setPlainText(summary)
                 self.log_output(self.tr("Text summary generated"))
-                self.logger.debug(self._("Text summary generated"))
         except Exception as e:
-            msg: str = self._(f"Can't create the summary: {e}")
-            self.logger.exception(msg)
+            log.exception(self._translate_func("Can't create the summary."), exc_info=e)
             self.show_error(self.tr(f"Failed to generate summary: {e}"))
 
     def show_error(self, message: str) -> None:
@@ -347,5 +334,4 @@ class CheckConnectGUIRunner(QWidget):
         ----
             message (str): The error message to display.
         """
-        self.logger.error(message)
         QMessageBox.critical(self, self.tr("Error"), message)
