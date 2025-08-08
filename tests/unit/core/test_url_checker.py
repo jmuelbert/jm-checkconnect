@@ -13,7 +13,7 @@ including handling various success and failure scenarios.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Final
 
 import pytest
 import requests
@@ -25,8 +25,8 @@ from checkconnect.core.url_checker import URLChecker, URLCheckerConfig
 if TYPE_CHECKING:
     from unittest.mock import MagicMock
 
-    from pytest.logging import LogCaptureFixture
     from pytest_mock import MockerFixture
+    from structlog.typing import EventDict
 
     from checkconnect.config.appcontext import AppContext
 
@@ -73,12 +73,15 @@ class TestURLCheckerConfig:
         Args:
             valid_url_config (URLCheckerConfig): A pytest fixture providing a valid config.
         """
+        expected_timeout: Final[int] = 5
+        expected_urls: Final[int] = 2
+
         checker = URLChecker(config=valid_url_config)
 
         assert isinstance(checker, URLChecker)
-        assert len(checker.config.urls) == 2
+        assert len(checker.config.urls) == expected_urls
         assert checker.config.urls == [HttpUrl("https://example.com"), HttpUrl("https://google.com")]
-        assert checker.config.timeout == 5
+        assert checker.config.timeout == expected_timeout
 
     @pytest.mark.unit
     @pytest.mark.parametrize("app_context_fixture", ["simple"], indirect=True)
@@ -95,14 +98,16 @@ class TestURLCheckerConfig:
         Args:
             app_context_fixture (AppContext): A pytest fixture providing an `AppContext`.
         """
+        expected_timeout: Final[int] = 10
+
         config = URLCheckerConfig(
-            urls=["https://example.com", "https://google.com"],
+            urls=[HttpUrl("https://example.com/"), HttpUrl("https://google.com/")],
             timeout=10,
             context=app_context_fixture,
         )
         assert isinstance(config, URLCheckerConfig)
         assert config.urls == [HttpUrl("https://example.com"), HttpUrl("https://google.com")]
-        assert config.timeout == 10
+        assert config.timeout == expected_timeout
         assert config.context == app_context_fixture
 
     @pytest.mark.unit
@@ -116,7 +121,7 @@ class TestURLCheckerConfig:
         """
         with pytest.raises(ValidationError) as exc_info:
             URLCheckerConfig(
-                urls=["http://example.com"],
+                urls=[HttpUrl("http://example.com")],
                 timeout=-10,
                 context=app_context_fixture,
             )
@@ -133,7 +138,7 @@ class TestURLCheckerConfig:
         """
         with pytest.raises(ValidationError) as exc_info:
             URLCheckerConfig(
-                urls=["http://example.com"],
+                urls=[HttpUrl("http://example.com")],
                 timeout="not-an-int",  # type: ignore[arg-type]
                 context=app_context_fixture,
             )
@@ -231,8 +236,7 @@ class TestURLCheckerConfig:
 
 
 class TestURLChecker:
-    (
-        """
+    """
     Test cases for the `URLChecker` class.
 
     This class contains tests for the core functionality of `URLChecker`,
@@ -240,8 +244,7 @@ class TestURLChecker:
     processing multiple servers. It leverages mocks to isolate network
     interactions.
     """
-        ""
-    )
+
 
     @pytest.mark.unit
     @pytest.mark.parametrize("app_context_fixture", ["simple"], indirect=True)
@@ -249,7 +252,7 @@ class TestURLChecker:
         self,
         app_context_fixture: AppContext,
         mocker: MockerFixture,
-        caplog: LogCaptureFixture,
+        caplog_structlog: list[EventDict],
     ) -> None:
         """
         Test `URLChecker`'s integration with mocked `requests.get`.
@@ -263,7 +266,7 @@ class TestURLChecker:
             mocker (MockerFixture): The `pytest-mock` fixture for creating mocks.
             caplog (LogCaptureFixture): The `pytest` fixture to capture log messages.
         """
-        caplog.set_level(10)  # Set log level to DEBUG to capture INFO messages
+        excepted_status_code: Final[int] = 200
 
         mock_response = mocker.Mock()
         mock_response.status_code = 200
@@ -284,12 +287,31 @@ class TestURLChecker:
         assert "[mocked] Successfully connected to http://example.com/ with Status: 200" in results[0]
 
         # Check logger output for info messages with the '[mocked]' prefix
-        assert any("[mocked] Checking URLs ..." in record.message for record in caplog.records)
-        assert any("[mocked] Checking URL server: http://example.com/" in record.message for record in caplog.records)
+
         assert any(
-            "[mocked] Successfully connected to http://example.com/ with Status: 200" in record.message
-            for record in caplog.records
+            record["event"] == "[mocked] Checking URLs ..."
+            and record["log_level"] == "info"
+            for record in caplog_structlog
         )
+
+        assert any(
+            record["event"] == "[mocked] Checking URL server."
+            and record["log_level"] == "debug"
+            and record["server"] == "http://example.com/"
+            for record in caplog_structlog
+        )
+
+        assert any(
+            record["event"] == "[mocked] Successfully connected to Web-Server"
+            and record["log_level"] == "debug"
+            and record["server"] == "http://example.com/"
+            and record["status_code"] == excepted_status_code
+            for record in caplog_structlog)
+
+        assert any(
+            record["event"] == "[mocked] All Web-Servers checked."
+            and record["log_level"] == "info"
+            for record in caplog_structlog)
 
     @pytest.mark.unit
     @pytest.mark.parametrize("app_context_fixture", ["simple"], indirect=True)
@@ -325,14 +347,16 @@ class TestURLChecker:
         Args:
             app_context_fixture (AppContext): A pytest fixture providing an `AppContext`.
         """
+        expected_timeout: Final[int] = 5
+
         checker = URLChecker.from_params(
-            urls=["http://example.com"],
+            urls=[HttpUrl("http://example.com")],
             timeout=5,
             context=app_context_fixture,
         )
         assert isinstance(checker, URLChecker)
         assert len(checker.config.urls) == 1
-        assert checker.config.timeout == 5
+        assert checker.config.timeout == expected_timeout
 
     @pytest.mark.unit
     @pytest.mark.parametrize("app_context_fixture", ["simple"], indirect=True)
@@ -340,7 +364,7 @@ class TestURLChecker:
         self,
         mocker: MockerFixture,
         valid_url_config: URLCheckerConfig,
-        caplog: LogCaptureFixture,
+        caplog_structlog: list[EventDict],
     ) -> None:
         """
         Test `run_url_checks` when all URL requests are successful.
@@ -354,7 +378,8 @@ class TestURLChecker:
             valid_url_config (URLCheckerConfig): A pytest fixture providing a valid config.
             caplog (LogCaptureFixture): The `pytest` fixture to capture log messages.
         """
-        caplog.set_level(10)  # Set log level to DEBUG
+        expected_results: Final[int] = 2
+        excepted_status_code: Final[int] = 200
 
         mock_response = mocker.Mock(spec=requests.Response)
         mock_response.status_code = 200
@@ -363,19 +388,53 @@ class TestURLChecker:
         checker = URLChecker(config=valid_url_config)
         results = checker.run_url_checks()
 
-        assert len(results) == 2
+        assert len(results) == expected_results
         assert "[mocked] Successfully connected to https://example.com/ with Status: 200" in results[0]
         assert "[mocked] Successfully connected to https://google.com/ with Status: 200" in results[1]
 
         # Check logger output
         assert any(
-            "[mocked] Successfully connected to https://example.com/ with Status: 200" in record.message
-            for record in caplog.records
+            record["event"] == "[mocked] Checking URLs ..."
+            and record["log_level"] == "info"
+            for record in caplog_structlog
         )
+
+        # Test http://example.com/
         assert any(
-            "[mocked] Successfully connected to https://google.com/ with Status: 200" in record.message
-            for record in caplog.records
+            record["event"] == "[mocked] Checking URL server."
+            and record["log_level"] == "debug"
+            and record["server"] == "https://example.com/"
+            for record in caplog_structlog
         )
+
+        assert any(
+            record["event"] == "[mocked] Successfully connected to Web-Server"
+            and record["log_level"] == "debug"
+            and record["server"] == "https://example.com/"
+            and record["status_code"] == excepted_status_code
+            for record in caplog_structlog)
+
+        # Test https://google.com/
+        assert any(
+            record["event"] == "[mocked] Checking URL server."
+            and record["log_level"] == "debug"
+            and record["server"] == "https://google.com/"
+            for record in caplog_structlog
+        )
+
+        assert any(
+            record["event"] == "[mocked] Successfully connected to Web-Server"
+            and record["log_level"] == "debug"
+            and record["server"] == "https://google.com/"
+            and record["status_code"] == excepted_status_code
+            for record in caplog_structlog)
+
+        # All done.
+        assert any(
+            record["event"] == "[mocked] All Web-Servers checked."
+            and record["log_level"] == "info"
+            for record in caplog_structlog)
+
 
     @pytest.mark.unit
     @pytest.mark.parametrize("app_context_fixture", ["simple"], indirect=True)
@@ -383,7 +442,7 @@ class TestURLChecker:
         self,
         mocker: MockerFixture,
         valid_url_config: URLCheckerConfig,
-        caplog: LogCaptureFixture,
+        caplog_structlog: list[EventDict],
     ) -> None:
         """
         Test `run_url_checks` when an `requests.get` occurs during a request.
@@ -397,7 +456,7 @@ class TestURLChecker:
             valid_url_config (URLCheckerConfig): A pytest fixture providing a valid config.
             caplog (LogCaptureFixture): The `pytest` fixture to capture log messages.
         """
-        caplog.set_level(10)  # Set log level to DEBUG
+        expected_results: Final[int] = 2
 
         mocker.patch(
             "requests.get",
@@ -407,28 +466,60 @@ class TestURLChecker:
         checker = URLChecker(config=valid_url_config)
         results = checker.run_url_checks()
 
-        assert len(results) == 2
+        assert len(results) == expected_results
         assert "[mocked] Error by connection to https://example.com/: Connection failed" in results[0]
         assert "[mocked] Error by connection to https://google.com/: Connection failed" in results[1]
 
-        # Check logger output for error messages
+        # Check logger output for info messages with the '[mocked]' prefix
         assert any(
-            "[mocked] Error by connection to https://example.com/" in record.message
-            and "Connection failed" in record.message
-            and record.levelname == "ERROR"  # Check log level
-            for record in caplog.records
+            record["event"] == "[mocked] Checking URLs ..."
+            and record["log_level"] == "info"
+            for record in caplog_structlog
         )
+
+        # Check https://example.com/
         assert any(
-            "[mocked] Error by connection to https://google.com/" in record.message
-            and "Connection failed" in record.message
-            and record.levelname == "ERROR"  # Check log level
-            for record in caplog.records
+            record["event"] == "[mocked] Checking URL server."
+            and record["log_level"] == "debug"
+            and record["server"] == "https://example.com/"
+            for record in caplog_structlog
         )
+
+        assert any(
+            "exc_info" in record
+            and record["event"] == "[mocked] Error by connection"
+            and record["log_level"] == "error"
+            and record["server"] == "https://example.com/"
+            and isinstance(record["exc_info"], RequestException)
+            and "Connection failed" in str(record["exc_info"])
+            for record in caplog_structlog)
+
+        # Check https://google.com/
+        assert any(
+            record["event"] == "[mocked] Checking URL server."
+            and record["log_level"] == "debug"
+            and record["server"] == "https://google.com/"
+            for record in caplog_structlog
+        )
+
+        assert any(
+            "exc_info" in record
+            and record["event"] == "[mocked] Error by connection"
+            and record["log_level"] == "error"
+            and record["server"] == "https://google.com/"
+            and isinstance(record["exc_info"], RequestException)
+            and "Connection failed" in str(record["exc_info"])
+            for record in caplog_structlog)
+
+        assert any(
+            record["event"] == "[mocked] All Web-Servers checked."
+            and record["log_level"] == "info"
+            for record in caplog_structlog)
 
     @pytest.mark.unit
     @pytest.mark.parametrize("app_context_fixture", ["simple"], indirect=True)
     def test_url_checker_with_context(
-        self, mocker: MockerFixture, app_context_fixture: AppContext, caplog: LogCaptureFixture
+        self, mocker: MockerFixture, app_context_fixture: AppContext,  caplog_structlog: list[EventDict],
     ) -> None:
         """
         Test `URLChecker` functionality with a specific server configured via `from_params`.
@@ -440,7 +531,7 @@ class TestURLChecker:
             app_context_fixture (AppContext): A pytest fixture providing an `AppContext`.
             caplog (LogCaptureFixture): The `pytest` fixture to capture log messages.
         """
-        caplog.set_level(10)  # Set log level to DEBUG
+        excepted_status_code: Final[int] = 200
 
         mock_response = mocker.Mock(spec=requests.Response)
         mock_response.status_code = 200
@@ -448,7 +539,7 @@ class TestURLChecker:
 
         url_checker = URLChecker.from_params(
             context=app_context_fixture,
-            urls=["https://example.com"],
+            urls=[HttpUrl("https://example.com")],
             timeout=5,
         )
 
@@ -457,16 +548,36 @@ class TestURLChecker:
         assert len(results) == 1
         assert "[mocked] Successfully connected to https://example.com/ with Status: 200" in results[0]
 
-        # Check logger output
+        # Check logger output for info messages with the '[mocked]' prefix
         assert any(
-            "[mocked] Successfully connected to https://example.com/ with Status: 200" in record.message
-            for record in caplog.records
+            record["event"] == "[mocked] Checking URLs ..."
+            and record["log_level"] == "info"
+            for record in caplog_structlog
         )
+
+        assert any(
+            record["event"] == "[mocked] Checking URL server."
+            and record["log_level"] == "debug"
+            and record["server"] == "https://example.com/"
+            for record in caplog_structlog
+        )
+
+        assert any(
+            record["event"] == "[mocked] Successfully connected to Web-Server"
+            and record["log_level"] == "debug"
+            and record["server"] == "https://example.com/"
+            and record["status_code"] == excepted_status_code
+            for record in caplog_structlog)
+
+        assert any(
+            record["event"] == "[mocked] All Web-Servers checked."
+            and record["log_level"] == "info"
+            for record in caplog_structlog)
 
     @pytest.mark.unit
     @pytest.mark.parametrize("app_context_fixture", ["simple"], indirect=True)
     def test_url_checker_with_site_not_found(
-        self, mocker: MockerFixture, app_context_fixture: AppContext, caplog: LogCaptureFixture
+        self, mocker: MockerFixture, app_context_fixture: AppContext, caplog_structlog: list[EventDict]
     ) -> None:
         """
         Test `URLChecker`'s error handling for a site not found exception during URL request.
@@ -480,7 +591,6 @@ class TestURLChecker:
             app_context_fixture (AppContext): A pytest fixture providing an `AppContext`.
             caplog (LogCaptureFixture): The `pytest` fixture to capture log messages.
         """
-        caplog.set_level(10)  # Set log level to DEBUG
 
         # Simulate a DNS resolution or connection error
         mocker.patch(
@@ -499,14 +609,28 @@ class TestURLChecker:
         assert len(results) == 1
         assert "Error by connection to" in results[0] or "Failed to establish a new connection" in results[0]
 
-        # Check logger output (the exception will be caught and logged by logger.exception)
+        # Check logger output for info messages with the '[mocked]' prefix
         assert any(
-            "[mocked] Error by connection to" in record.message
-            and record.levelname == "ERROR"  # Or CRITICAL/EXCEPTION depending on structlog setup
-            and "Failed to establish a new connection"
-            in record.exc_info[1].args[0]  # Check original exception message in exc_info
-            for record in caplog.records
+            record["event"] == "[mocked] Checking URL server."
+            and record["log_level"] == "debug"
+            and record["server"] == "https://www.that-server-does-not.exist/"
+            for record in caplog_structlog
         )
+
+        assert any(
+            "exc_info" in record
+            and record["event"] == "[mocked] Error by connection"
+            and record["log_level"] == "error"
+            and record["server"] == "https://www.that-server-does-not.exist/"
+            and isinstance(record["exc_info"], requests.exceptions.ConnectionError)
+            and "Failed to establish a new connection" in str(record["exc_info"])
+            for record in caplog_structlog)
+
+        assert any(
+            record["event"] == "[mocked] All Web-Servers checked."
+            and record["log_level"] == "info"
+            for record in caplog_structlog)
+
 
     @pytest.mark.unit
     @pytest.mark.parametrize("app_context_fixture", ["simple"], indirect=True)
@@ -514,7 +638,7 @@ class TestURLChecker:
         self,
         mocker: MockerFixture,
         app_context_fixture: AppContext,
-        caplog: LogCaptureFixture,
+        caplog_structlog: list[EventDict],
     ) -> None:
         """
         Test checking multiple URL servers with mixed results (success, failure, success).
@@ -528,10 +652,11 @@ class TestURLChecker:
             app_context_fixture (AppContext): A pytest fixture providing an `AppContext`.
             caplog (LogCaptureFixture): The `pytest` fixture to capture log messages.
         """
-        caplog.set_level(10)  # Set log level to DEBUG
+        expected_results: Final[int] = 3
+        excepted_status_code: Final[int] = 200
 
         mock_success = mocker.Mock(spec=requests.Response)
-        mock_success.status_code = 200
+        mock_success.status_code = excepted_status_code
         mocker.patch(
             "requests.get",
             side_effect=[
@@ -543,9 +668,9 @@ class TestURLChecker:
 
         config = URLCheckerConfig(
             urls=[
-                "http://example1.com",
-                "http://example2.com",
-                "http://example3.com",
+                HttpUrl("https://example1.com"),
+                HttpUrl("https://example2.com"),
+                HttpUrl("https://example3.com"),
             ],
             timeout=5,
             context=app_context_fixture,
@@ -553,25 +678,68 @@ class TestURLChecker:
         checker = URLChecker(config=config)
         results = checker.run_url_checks()
 
-        assert len(results) == 3
+        assert len(results) == expected_results
         assert "Status: 200" in results[0]
         assert "Error by connection to" in results[1]
         assert "Status: 200" in results[2]
 
         # Check logger output for mixed results
-        assert any("[mocked] Checking URL server: http://example1.com/" in record.message for record in caplog.records)
         assert any(
-            "[mocked] Successfully connected to http://example1.com/ with Status: 200" in record.message
-            for record in caplog.records
+            record["event"] == "[mocked] Checking URLs ..."
+            and record["log_level"] == "info"
+            for record in caplog_structlog
         )
-        assert any("[mocked] Checking URL server: http://example2.com/" in record.message for record in caplog.records)
+
+        # Test http://example1.com/
         assert any(
-            "[mocked] Error by connection to http://example2.com/: Failed" in record.message
-            and record.levelname == "ERROR"
-            for record in caplog.records
+            record["event"] == "[mocked] Checking URL server."
+            and record["log_level"] == "debug"
+            and record["server"] == "https://example1.com/"
+            for record in caplog_structlog
         )
-        assert any("[mocked] Checking URL server: http://example3.com/" in record.message for record in caplog.records)
+
         assert any(
-            "[mocked] Successfully connected to http://example3.com/ with Status: 200" in record.message
-            for record in caplog.records
+            record["event"] == "[mocked] Successfully connected to Web-Server"
+            and record["log_level"] == "debug"
+            and record["server"] == "https://example1.com/"
+            and record["status_code"] == excepted_status_code
+            for record in caplog_structlog)
+
+
+        # Test http://example2.com/
+        assert any(
+            record["event"] == "[mocked] Checking URL server."
+            and record["log_level"] == "debug"
+            and record["server"] == "https://example2.com/"
+            for record in caplog_structlog
         )
+
+        assert any(
+            "exc_info" in record
+            and record["event"] == "[mocked] Error by connection"
+            and record["log_level"] == "error"
+            and record["server"] == "https://example2.com/"
+            and isinstance(record["exc_info"], RequestException)
+            and "Failed" in str(record["exc_info"])
+            for record in caplog_structlog)
+
+        # Test http://example3.com/
+        assert any(
+            record["event"] == "[mocked] Checking URL server."
+            and record["log_level"] == "debug"
+            and record["server"] == "https://example3.com/"
+            for record in caplog_structlog
+        )
+
+        assert any(
+            record["event"] == "[mocked] Successfully connected to Web-Server"
+            and record["log_level"] == "debug"
+            and record["server"] == "https://example3.com/"
+            and record["status_code"] == excepted_status_code
+            for record in caplog_structlog)
+
+        # All done.
+        assert any(
+            record["event"] == "[mocked] All Web-Servers checked."
+            and record["log_level"] == "info"
+            for record in caplog_structlog)

@@ -21,8 +21,10 @@ from pydantic import BaseModel, ConfigDict, HttpUrl, field_validator, model_vali
 from checkconnect.config.appcontext import AppContext  # noqa: TC001
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Callable, Mapping
 
+# Global logger for main.py (will be reconfigured by LoggingManagerSingleton)
+log: structlog.stdlib.BoundLogger
 log = structlog.get_logger(__name__)
 
 
@@ -133,12 +135,15 @@ class URLChecker:
         Logger instance for logging messages.
     translator : Any
         Translator instance from the context, used for localization of messages.
-    _ : Callable[[str], str]
+    __translate_func (Callable[[str], str]):
         A shortcut to the translation function `translator.gettext`.
     results : list[str]
         A list to store the results of each URL check.
 
     """
+
+    # Type definition for the translation function
+    _translate_func: Callable[[str], str]
 
     def __init__(self, config: URLCheckerConfig) -> None:
         """
@@ -157,14 +162,13 @@ class URLChecker:
             msg = config.context.translator.gettext("URLCheckerConfig.context must not be None")
             raise ValueError(msg)
         self.config: URLCheckerConfig = config
-        self.logger = log
         self.translator = config.context.translator
-        self._ = self.translator.gettext
+        self._translate_func = config.context.translator.gettext
 
         self.results: list[str] = []
 
         if not self.config.urls:
-            msg = self._("No URL servers provided in configuration.")
+            msg = self._translate_func("No URL servers provided in configuration.")
             raise ValueError(msg)
 
     @classmethod
@@ -232,29 +236,27 @@ class URLChecker:
                        if the URL check failed.
 
         """
-        self.logger.info(self._("Checking URLs ..."))
+        log.info(self._translate_func("Checking URLs ..."))
 
         for url in self.config.urls:
-            msg: str = self._(f"Checking URL server: {url}")
-            self.logger.debug(msg)
+            msg: str = self._translate_func("Checking URL server.")
+            log.debug(msg, server=str(url))
             try:
                 response: requests.Response = requests.get(
                     str(url),
                     timeout=self.config.timeout,
                 )
-                result: str = self._(f"Successfully connected to {url} with Status: {response.status_code}")
-                self.logger.debug(result)
-                self.results.append(result)
-            except requests.RequestException as e:
-                error_message: str = self._(f"Error by connection to {url}: {e}")
-                self.logger.exception(error_message)
-                self.results.append(error_message)
-            except Exception as e:  # Another specific exception should be managed.
-                error_message = self._(f"An unexpected error occurred while checking {url}: {e}")
-                self.logger.exception(error_message)
-                self.results.append(error_message)
 
-        self.logger.info(self._("All URL servers checked."))
+                log.debug(self._translate_func("Successfully connected to Web-Server"), server=str(url), status_code=response.status_code)
+                self.results.append(self._translate_func(f"Successfully connected to {url} with Status: {response.status_code}"))
+            except requests.RequestException as e:
+                log.exception(self._translate_func("Error by connection"), server=str(url), exc_info=e)
+                self.results.append(self._translate_func(f"Error by connection to {url}: {e}"))
+            except Exception as e:  # Another specific exception should be managed.
+                log.exception(self._translate_func("An unexpected error occurred while checking Web-Server"), server=url, exc_info=e)
+                self.results.append(self._translate_func(f"An unexpected error occurred while checking Web-Server: {url} with error: {e}"))
+
+        log.info(self._translate_func("All Web-Servers checked."))
         return self.results
 
 
