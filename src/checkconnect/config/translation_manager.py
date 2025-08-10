@@ -38,9 +38,9 @@ from checkconnect.config.settings_manager import SettingsManagerSingleton
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-# Global log for main.py (will be reconfigured by LoggingManagerSingleton)
-logger: structlog.stdlib.Boundlog
-logger = structlog.get_logger(__name__)
+# Global logger for main.py (will be reconfigured by LoggingManagerSingleton)
+log: structlog.stdlib.BoundLogger
+log = structlog.get_logger(__name__)
 
 
 class TranslationManager:

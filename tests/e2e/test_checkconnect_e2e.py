@@ -78,14 +78,14 @@ def test_cli_workflow(
 
     generate_html_report(
         context=app_context_fixture,  # This will now read the reports_path_for_test from settings mock
-        ntp_results=checker.get_ntp_results(),
-        url_results=checker.get_url_results(),
+        ntp_results=checker.ntp_results,
+        url_results=checker.url_results,
     )
 
     generate_pdf_report(
         context=app_context_fixture,  # This will now read the reports_path_for_test from settings mock
-        ntp_results=checker.get_ntp_results(),
-        url_results=checker.get_url_results(),
+        ntp_results=checker.ntp_results,
+        url_results=checker.url_results,
     )
 
     # The ReportManager instance itself already has the correct reports_dir
@@ -94,8 +94,8 @@ def test_cli_workflow(
 
     ntp_results, url_results = report_manager.load_previous_results()
     summary = report_manager.get_summary(
-        ntp_results=checker.get_ntp_results(),
-        url_results=checker.get_url_results(),
+        ntp_results=checker.ntp_results,
+        url_results=checker.url_results,
         summary_format=OutputFormat.text,
     )
 

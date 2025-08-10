@@ -14,7 +14,7 @@ from __future__ import annotations
 import json
 from enum import StrEnum
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Final
+from typing import TYPE_CHECKING, Final
 
 import structlog
 from platformdirs import user_data_dir
@@ -29,13 +29,16 @@ from checkconnect.exceptions import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from structlog.stdlib import BoundLogger
 
     from checkconnect.config.appcontext import AppContext
     from checkconnect.config.translation_manager import TranslationManager
 
-log: BoundLogger = structlog.get_logger(__name__)
-
+# Global logger for main.py (will be reconfigured by LoggingManagerSingleton)
+log: structlog.stdlib.BoundLogger
+log = structlog.get_logger(__name__)
 
 class OutputFormat(StrEnum):
     """Defines the supported output formats for summaries."""
@@ -78,7 +81,9 @@ class ReportManager:
     logger: BoundLogger
     translator: TranslationManager
     data_dir: Path
-    _: Any  # Placeholder for gettext function
+
+    # Type definition for the translation function
+    _translate_func: Callable[[str], str]
 
     def __init__(
         self,
@@ -95,18 +100,18 @@ class ReportManager:
         """
         self.context = context
         self.translator = context.translator
-        self._ = self.translator.gettext
+        self._translate_func = context.translator.gettext
         self.data_dir = data_dir
 
         # Ensure the directory exists
         try:
             self.data_dir.mkdir(parents=True, exist_ok=True)
-            log.info(self._("Ensured data directory exists: '{data_dir}'"), data_dir=self.data_dir)
+            log.debug(self._translate_func("Ensured data directory exists."), path=str(self.data_dir))
         except OSError as e:
-            log.exception(self._("Failed to create data directory: '{data_dir}'"), data_dir=self.data_dir, error=str(e))
+            msg = self._translate_func("Failed to create data directory.")
+            log.exception(msg, path=str(self.data_dir), exc_info=e)
             # Depending on severity, you might want to raise an exception or handle gracefully
-            raise DirectoryCreationError(
-                self._("Failed to create data directory: '{data_dir}': {error}").format(data_dir=data_dir, error=str(e))
+            raise DirectoryCreationError(message=f"{msg} {data_dir}", original_exception=e
             ) from e
 
     # --- Factory-Methods ---
@@ -135,14 +140,13 @@ class ReportManager:
 
         if data_dir_from_config_str:
             data_dir = Path(data_dir_from_config_str)
-            log.info(context.translator.translate("Using data directory from config: '{data_dir}'"), data_dir=data_dir)
+            log.info(context.translator.translate("Using data directory from config."), path=str(data_dir))
         else:
             data_dir = default_data_path
             log.warning(
                 context.translator.translate(
-                    "Data directory not found in config or invalid. Using default: '{data_dir}'"
-                ),
-                data_dir=data_dir,
+                    "Data directory not found in config or invalid. Using default."),
+                    path=str(data_dir)
             )
 
         return cls(context=context, data_dir=data_dir)
@@ -169,8 +173,8 @@ class ReportManager:
         if arg_data_dir is not None:
             # An argument was provided, always use it.
             log.info(
-                context.translator.translate("Using data directory from CLI argument: '{data_dir}'"),
-                data_dir=arg_data_dir,
+                context.translator.translate("Using data directory from CLI argument."),
+                path=str(arg_data_dir),
             )
             return cls(context=context, data_dir=arg_data_dir)
         # No argument provided, fall back to logic in from_context
@@ -195,14 +199,14 @@ class ReportManager:
         """
         filename = self._DATA_FILENAMES.get(data_type)
         if filename is None:
-            translated_message = self._(f"Unknown report data type: {data_type.value}. No filename configured.")
+            translated_message = self._translate_func(f"Unknown report data type: {data_type.value}. No filename configured.")
             raise SummaryUnknownDataError(translated_message)
 
         return self.data_dir / filename
 
     def _save_json(self, data_type: ReportDataType, data: list[str]) -> None:
         """
-        Generic method to save JSON data based on the report data type.
+        Save JSON data based on the report data type.
 
         Args:
         ----
@@ -218,21 +222,24 @@ class ReportManager:
             with output_path.open("w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2)
             log.debug(
-                self._("Results for '{data_type.value}' saved to disk: '{output_path}'"),
+                self._translate_func("Results saved to disk.",
+                ),
                 data_type_value=data_type.value,
-                file_path=output_path,
+                path=str(output_path),
             )
         except (OSError, TypeError, ValueError) as e:
             log.exception(
-                self._("Could not save '{data_type.value}' results due to an unexpected error."),
+                self._translate_func("Could not save results due to an unexpected error."),
                 data_type_value=data_type.value,
+                path=str(output_path),
+                exc_info=e
             )
-            translated_message = self._(f"Could not save {data_type.value} results to: {output_path}")
-            raise SummaryDataSaveError(translated_message, original_exception=e) from e
+            translated_message = self._translate_func(f"Could not save {data_type.value} results to: {output_path}")
+            raise SummaryDataSaveError(message=translated_message, original_exception=e) from e
 
     def _load_json(self, data_type: ReportDataType) -> list[str]:
         """
-        Generic method to load JSON data based on the report data type.
+        Load JSON data based on the report data type.
 
         Args:
         ----
@@ -254,18 +261,18 @@ class ReportManager:
                 with file_path.open("r", encoding="utf-8") as f:
                     results = json.load(f)
                 log.debug(
-                    self._("Loaded {data_type.value} results from: {file_path}"),
+                    self._translate_func("Loaded results."),
                     data_type_value=data_type.value,
-                    file_path=file_path,
+                    path=str(file_path),
                 )
         except (OSError, json.JSONDecodeError) as e:
             log.exception(
-                self._("Failed to load '{data_type.value}' results."),
+                self._translate_func("Failed to load results."),
                 data_type_value=data_type.value,
-                file_path=file_path,
+                path=str(file_path),
             )
-            translated_message = self._(f"Failed to load {data_type.value} results from: {file_path}")
-            raise SummaryDataLoadError(translated_message, original_exception=e) from e
+            translated_message = self._translate_func(f"Failed to load {data_type.value} results from: {file_path}")
+            raise SummaryDataLoadError(message=translated_message, original_exception=e) from e
         return results
 
     def save_ntp_results(self, data: list[str]) -> None:
@@ -324,11 +331,9 @@ class ReportManager:
             SummaryDataLoadError: If there's a problem loading the data from the files.
         """
         ntp_results: list[str] = self.load_ntp_results()
-        print("[DEBUG] Loaded NTP results from file:", ntp_results)
         url_results: list[str] = self.load_url_results()
-        print("[DEBUG] Loaded URL results from file:", url_results)
 
-        log.info(self._("Previous results loaded from disk."))
+        log.info(self._translate_func("Previous results loaded from disk."))
         return ntp_results, url_results
 
     def get_data_dir(self) -> Path:
@@ -381,18 +386,18 @@ class ReportManager:
             SummaryFormatError: If an invalid `OutputFormat` is specified.
         """
         if summary_format not in {OutputFormat.text, OutputFormat.markdown, OutputFormat.html}:
-            translated_message = self._(
+            translated_message =self._translate_func(
                 f"Invalid format specified. Use 'text', 'markdown', or 'html' instead of {summary_format}."
             )
-            raise SummaryFormatError(translated_message)
+            raise SummaryFormatError(message=translated_message)
 
         url_section = self._format_section(
-            self._("URL Check Results"),
+            self._translate_func("URL Check Results"),
             url_results,
             summary_format,
         )
         ntp_section = self._format_section(
-            self._("NTP Check Results"),
+            self._translate_func("NTP Check Results"),
             ntp_results,
             summary_format,
         )

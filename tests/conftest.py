@@ -332,7 +332,7 @@ def mock_dependencies(
     mock_translator_instance = MagicMock(spec=TranslationManager)
     mock_translator_instance.gettext.side_effect = lambda x: x
     mock_translator_instance.translate.side_effect = lambda x: x
-    mock_translator_instance.get_current_language.return_value = "en"
+    mock_translator_instance.current_language.return_value = "en"
 
     # Side effect for configure_instance for TranslationManagerSingleton
     def mock_translation_configure_instance_side_effect(
@@ -373,7 +373,6 @@ def mock_dependencies(
     # 7. Mock CheckConnect core logic
     mock_check_connect_instance = MagicMock(spec=CheckConnect)
     mock_check_connect_instance.run_all_checks.return_value = None
-    mocker.patch.object(CheckConnect, "__new__", return_value=mock_check_connect_instance)
     # If cli_run_app_module directly imports and uses CheckConnect (e.g., in a 'run' command)
     # Ensure this path is correct if CheckConnect is imported elsewhere.
     # import checkconnect.cli.run_app as cli_run_app_module # Example import
@@ -832,7 +831,7 @@ def mock_qapplication_class(mocker: MockerFixture) -> MagicMock:
     return mock_qapp_ctor
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture()
 def _always_mock_qapp(mock_qapplication_class):
     """Ensures QApplication is always mocked for GUI-related tests."""
     return

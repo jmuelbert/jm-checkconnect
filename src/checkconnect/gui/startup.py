@@ -24,6 +24,7 @@ from PySide6.QtCore import QLocale, QTranslator
 from PySide6.QtWidgets import QApplication
 
 from checkconnect import __about__
+from checkconnect.gui.gui_main import CheckConnectGUIRunner
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -33,14 +34,15 @@ if TYPE_CHECKING:
 if TYPE_CHECKING:
     from checkconnect.config.appcontext import AppContext
 
+# Global logger for main.py (will be reconfigured by LoggingManagerSingleton)
+log: structlog.stdlib.BoundLogger
 log = structlog.get_logger(__name__)
-
 
 def _try_load_translation(
     path: str, qt_translator: QTranslator, app: QApplication, translate: Callable[[str], str]
 ) -> bool:
     """
-    Attempts to load and install a Qt translation from the given path.
+    Attempt to load and install a Qt translation from the given path.
 
     Args:
         path (str): The path to the `.qm` translation file.
@@ -54,10 +56,10 @@ def _try_load_translation(
     if qt_translator.load(path):
         app.installTranslator(qt_translator)
         if path.startswith(":/"):
-            msg = translate(f"Loaded Qt translations from Qt resource: {path}")
+            msg = translate("Loaded Qt translations from Qt resource.")
         else:
-            msg = translate(f"Loaded Qt translations from file: {path}")
-        log.info(msg)
+            msg = translate("Loaded Qt translations from file.")
+        log.debug(msg, path=str(path))
         return True
     return False
 
@@ -103,28 +105,29 @@ def setup_translations(
             # QLocale.system().uiLanguages() might return 'de-DE', 'en-US', etc.
             # You usually want the 'de' or 'en' part.
             language = ui_languages[0].split("-")[0]
-            msg = translate(f"Using Qt preferred UI language for translations: {language} (from {ui_languages[0]})")
-            log.info(msg)
+            log.debug(translate("Using Qt preferred UI language for translations"),
+                language=language,
+                ui_language=ui_languages[0])
         else:
             # Fallback to system locale name if UI languages are not available
             language = QLocale.system().name().split("_")[0]
-            msg = translate(f"Qt preferred UI languages not found, falling back to system locale: {language}")
-            log.warning(msg)
+            log.warning(translate("Qt preferred UI languages not found, falling back to system locale."),
+                language=language)
 
     attempted_paths = [
         f":/translations/{language}.qm",
-        str((translations_dir or Path(user_data_dir(__about__.__app_name__)) / "translations") / f"{language}.qm"),
+        str((translations_dir or Path(user_data_dir(__about__.__app_name__.lower())) / "translations") / f"{language}.qm"),
     ]
 
     for path in attempted_paths:
         if _try_load_translation(path, qt_translator, app, translate):
             return
 
-    msg = translate(f"No Qt translation found for language '{language}'")
-    log.warning(msg)
+    log.warning(translate("No Qt translation found for language."),
+        language=language)
 
 
-def run(context: AppContext, language: str | None = None) -> None:
+def run(context: AppContext, language: str | None = None) -> int:
     """
     Initialize and runs the CheckConnect GUI application.
 
@@ -139,6 +142,9 @@ def run(context: AppContext, language: str | None = None) -> None:
                               logging, and other shared services.
         language (str | None): Optional. The language code to use for the GUI,
                                overriding the system default if provided.
+
+    Returns:
+        int: The exit code of the Qt application.
     """
     # Check if a QApplication instance already exists to prevent
     # "QApplication: An instance of QApplication already exists." errors.
@@ -147,6 +153,7 @@ def run(context: AppContext, language: str | None = None) -> None:
 
     app = QApplication.instance()
     created_new_app = False
+    window = None
 
     if app is None:
         # Create a new QApplication only if one doesn't already exist.
@@ -156,17 +163,14 @@ def run(context: AppContext, language: str | None = None) -> None:
     else:
         log.debug(translate("Using existing QApplication instance."))
 
-    exit_code = 0
+    exit_code = 1 # Default to an error code
+
     try:
         # The 'context' object should contain the default language config from TOML
         # if not explicitly passed to this function.
 
         # Load Qt translations based on the provided language or system locale.
         setup_translations(app=app, context=context, language=language)
-
-        # Import CheckConnectGUI here to avoid circular dependencies if it
-        # directly or indirectly imports this module.
-        from checkconnect.gui.gui_main import CheckConnectGUIRunner
 
         # Create and show the main GUI window.
         window = CheckConnectGUIRunner(context=context)
@@ -177,27 +181,33 @@ def run(context: AppContext, language: str | None = None) -> None:
 
         # Start the Qt event loop. This blocks until the application exits.
         exit_code = app.exec()
-        msg = translate(f"Qt application exited with code: {exit_code}")
-        log.info(msg)
+        log.info(translate("Qt application exited with code."), exit_code=exit_code)
 
     except Exception as e:
         # Catch any unexpected errors during GUI initialization or execution.
-        msg = translate(f"Failed to close GUI window cleanly: {e}")
-        log.exception(msg)
+        log.exception(translate("Failed to close GUI window cleanly."), exc_info=e)
         exit_code = 1
+
     finally:
         # Ensure window is closed if it was created
-        if "window" in locals() and window:
+        if window:
             try:
                 window.close()
                 log.debug(translate("CheckConnect GUI window closed."))
-            except Exception as e:  # noqa: BLE001
-                msg = translate(f"Failed to close GUI window cleanly: {e}")
-                log.warning(msg)
+            except Exception as e:
+                log.exception(translate("Failed to close GUI window cleanly."), exc_info=e)
+                # The exit_code is already 1 from the exception, no need to re-assig
 
+        # Only quit the QApplication if we created it
         if created_new_app:
             # Ensure the QApplication is quit even on error if we created it.
-            app.quit()
             log.debug(translate("QApplication instance quit."))
+            app.quit()
 
-        sys.exit(exit_code)
+    return exit_code
+
+if __name__ == "__main__":
+    # This is how the function is typically called.
+    # The responsibility of calling sys.exit() is now on the caller.
+    # sys.exit(run(context=...))
+    pass

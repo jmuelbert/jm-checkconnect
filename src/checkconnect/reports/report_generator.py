@@ -26,12 +26,16 @@ from checkconnect import __about__
 from checkconnect.exceptions import DirectoryCreationError, ReportsMissingDataError
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from structlog.stdlib import BoundLogger
 
     from checkconnect.config.appcontext import AppContext
     from checkconnect.config.translation_manager import TranslationManager
 
-log: BoundLogger = structlog.get_logger(__name__)
+# Global logger for main.py (will be reconfigured by LoggingManagerSingleton)
+log: structlog.stdlib.BoundLogger
+log = structlog.get_logger(__name__)
 
 
 class ReportTemplate:
@@ -233,11 +237,14 @@ class ReportGenerator:
 
     HTML_FILENAME: Final[str] = "report.html"
     PDF_FILENAME: Final[str] = "report.pdf"
+
     context: AppContext
     logger: BoundLogger
     translator: TranslationManager
     reports_dir: Path
-    _: Any  # Placeholder for gettext function
+
+    # Type definition for the translation function
+    _translate_func: Callable[[str], str]
 
     def __init__(
         self,
@@ -254,23 +261,20 @@ class ReportGenerator:
         """
         self.context = context
         self.translator = context.translator
-        self._ = self.translator.gettext
+        self._translate_func = context.translator.gettext
         self.reports_dir = reports_dir
 
         # Ensure the directory exists
         try:
             self.reports_dir.mkdir(parents=True, exist_ok=True)
-            log.info(self._("Ensured report directory exists: '{reports_dir}'"), reports_dir=self.reports_dir)
+            log.debug(self._translate_func("Ensured report directory exists."), path=str(self.reports_dir))
         except OSError as e:
             log.exception(
-                self._("Failed to create report directory: '{reports_dir}'"), reports_dir=self.reports_dir, error=str(e)
+                self._translate_func("Failed to create report directory."), path=str(self.reports_dir), exc_info=e
             )
             # Depending on severity, you might want to raise an exception or handle gracefully
-            raise DirectoryCreationError(
-                self._("Failed to create report directory: '{reports_dir}': {error}").format(
-                    reports_dir=reports_dir, error=str(e)
-                )
-            ) from e
+            msg = self._translate_func(f"Failed to create report directory: '{reports_dir}': {e}")
+            raise DirectoryCreationError(message=msg, original_exception=e) from e
 
     # --- Factory-Methods ---
     @classmethod
@@ -297,16 +301,15 @@ class ReportGenerator:
         if reports_dir_from_config_str:
             reports_dir = Path(reports_dir_from_config_str)
             log.info(
-                context.translator.translate("Using report directory from config: '{reports_dir}'"),
+                context.translator.translate("Using report directory from config."),
                 reports_dir=reports_dir,
             )
         else:
             reports_dir = default_reports_path
             log.warning(
                 context.translator.translate(
-                    "Report directory not found in config or invalid. Using default: '{reports_dir}'"
-                ),
-                reports_dir=reports_dir,
+                    "Report directory not found in config or invalid. Using default."),
+                    path=str(reports_dir)
             )
 
         return cls(context=context, reports_dir=reports_dir)
@@ -330,7 +333,7 @@ class ReportGenerator:
         if arg_reports_dir is not None:
             # An argument was provided, always use it.
             log.info(
-                context.translator.translate("Using report directory from CLI argument: '{reports_dir}'"),
+                context.translator.translate("Using report directory from CLI argument."),
                 reports_dir=arg_reports_dir,
             )
             return cls(context=context, reports_dir=arg_reports_dir)
@@ -355,17 +358,19 @@ class ReportGenerator:
             TypeError: If ntp_results or url_results are not lists of strings.
         """
         if not ntp_results and not url_results:
-            log.error(self._("No results provided for report generation"))
-            msg = self._("Cannot generate a report with no results")
+            msg = self._translate_func("Cannot generate a report. No results provided")
+            log.error(msg)
             raise ReportsMissingDataError(msg)
 
         if not all(isinstance(item, str) for item in ntp_results):
-            log.error(self._("Invalid NTP results: Expected list of strings"))
-            raise TypeError(self._("NTP results must be a list of strings"))
+            msg = self._translate_func("Invalid NTP results: Expected list of strings")
+            log.error(msg)
+            raise TypeError(msg)
 
         if not all(isinstance(item, str) for item in url_results):
-            log.error(self._("Invalid URL results: Expected list of strings"))
-            raise TypeError(self._("URL results must be a list of strings"))
+            msg = self._translate_func("Invalid URL results: Expected list of strings")
+            log.error(msg)
+            raise TypeError(msg)
 
     def generate_report(self, validated_data: ReportInput, report_filename: str = "report.txt") -> Path:
         """
@@ -383,22 +388,22 @@ class ReportGenerator:
             The path to the created report file.
         """
         report_path = self.reports_dir / report_filename
-        with open(report_path, "w", encoding="utf-8") as f:
-            f.write(self._("Connectivity Report\n\n"))
-            f.write(self._("NTP Results:\n"))
+        with report_path.open("w", encoding="utf-8") as f:
+            f.write(self._translate_func("Connectivity Report\n\n"))
+            f.write(self._translate_func("NTP Results:\n"))
             if validated_data.ntp_results:
                 for result in validated_data.ntp_results:
                     f.write(f"- {result}\n")
             else:
-                f.write(self._("- No NTP results.\n"))
+                f.write(self._translate_func("- No NTP results.\n"))
 
-            f.write(self._("\nURL Results:\n"))
+            f.write(self._translate_func("URL Results:\n"))
             if validated_data.url_results:
                 for result in validated_data.url_results:
                     f.write(f"- {result}\n")
             else:
-                f.write(self._("- No URL results.\n"))
-        log.info(self._("Report saved"), report_path=report_path)
+                f.write(self._translate_func("- No URL results.\n"))
+        log.info(self._translate_func("Report saved"), path=str(report_path))
         return report_path
 
     def generate_reports(
@@ -414,7 +419,7 @@ class ReportGenerator:
             ntp_results: A list of NTP check results.
             url_results: A list of URL check results.
         """
-        log.info(self._("Generating reports"), reports_dir=self.reports_dir)
+        log.info(self._translate_func("Generating reports"), path=str(self.reports_dir))
 
         self.generate_html_report(
             ntp_results=ntp_results,
@@ -450,15 +455,15 @@ class ReportGenerator:
             Exception: For any other unexpected errors during report generation.
         """
         log.info(
-            self._("Creating HTML report with NTP servers and URLs from config in '{reports_dir}'"),
-            reports_dir=self.reports_dir,
+            self._translate_func("Creating HTML report with NTP servers and URLs."),
+            path=str(self.reports_dir),
         )
 
         try:
             ReportInput(ntp_results=ntp_results, url_results=url_results)
         except ValidationError as e:
-            msg = self._(f"Invalid report data: {e}")
-            log.exception(msg)
+            msg = self._translate_func("Invalid report data.")
+            log.exception(msg, exc_info=e)
             raise
 
         try:
@@ -473,10 +478,10 @@ class ReportGenerator:
             output_path = self.reports_dir / self.HTML_FILENAME
             output_path.write_text(html_content, encoding="utf-8")
 
-            log.info(self._("HTML report generated at '{output_path}'"), output_path=output_path)
+            log.info(self._translate_func("HTML report generated."), path=str(output_path))
 
-        except (OSError, Exception):
-            log.exception(self._("Error generating HTML report."))
+        except (OSError, Exception) as e:
+            log.exception(self._translate_func("Error generating HTML report."), exc_info=e)
             raise
         else:
             return output_path
@@ -503,13 +508,13 @@ class ReportGenerator:
             ValidationError: If the input data fails Pydantic validation.
             Exception: For any errors during PDF generation via WeasyPrint.
         """
-        log.info(self._("Creating PDF report with NTP servers and URLs from config"), reports_dir=self.reports_dir)
+        log.info(self._translate_func("Creating PDF report with NTP servers and URLs from config"), path=str(self.reports_dir))
 
         try:
             ReportInput(ntp_results=ntp_results, url_results=url_results)
         except ValidationError as e:
-            msg = self._(f"Invalid report data: {e}")
-            log.exception(msg)
+            msg = self._translate_func("Invalid report data.")
+            log.exception(msg, exc_info=e)
             raise
 
         try:
@@ -525,10 +530,10 @@ class ReportGenerator:
             # Generate the PDF
             HTML(string=html_content).write_pdf(str(output_path))
 
-            log.info(self._("PDF report generated at '{output_path}'"), output_path=output_path)
+            log.info(self._translate_func("PDF report generated at '{output_path}'"), path=str(output_path))
 
-        except Exception:
-            log.exception(self._("Error generating PDF report."))
+        except Exception as e:
+            log.exception(self._translate_func("Error generating PDF report."), exc_info=e)
             raise
         else:
             return output_path

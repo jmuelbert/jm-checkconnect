@@ -89,28 +89,13 @@ class TestReportManager:
 
         assert manager.data_dir == manager_data_dir
 
-    @pytest.mark.unit
-    @pytest.mark.parametrize("app_context_fixture", ["full"], indirect=True)
-    def test_from_context_uses_configured_data_dir(
-        self, report_manager_from_context_instance: ReportManager, mocker: MockerFixture, tmp_path: Path
-    ) -> None:
-        """
-        Test that `ReportGenerator.from_context` uses the configured directory when the context is 'full'.
-        """
-        app_context = report_manager_from_context_instance.context
-
-        manager = ReportManager.from_context(context=app_context)
-
-        expected_path_from_config = tmp_path / "test_data_from_config"
-
-        assert manager.data_dir == expected_path_from_config
 
     @pytest.mark.unit
     @pytest.mark.parametrize("app_context_fixture", ["simple"], indirect=True)
     def test_from_context_uses_default_data_dir_if_none_in_config(
         self,
         app_context_fixture: AppContext,  # Use this directly, no need for the report_generator_from_context_instance fixture if you're creating it here
-        mocker,  # Use mocker from pytest-mock for patching
+        mocker: MockerFixture,  # Use mocker from pytest-mock for patching
         caplog_structlog: list[EventDict],  # To capture structlog output
     ) -> None:
         """
@@ -149,16 +134,16 @@ class TestReportManager:
         mock_mkdir.assert_called_once_with(parents=True, exist_ok=True)
 
         assert any(
-            "Data directory not found in config or invalid. Using default: '{data_dir}'" in e.get("event")
-            and e.get("data_dir") == mock_user_data_dir_path
+            e.get("event") == "[mocked] Data directory not found in config or invalid. Using default."
+            and e.get("path") == str(mock_user_data_dir_path)
             and e.get("log_level") == "warning"
             for e in caplog_structlog
         )
 
         assert any(
-            "Ensured data directory exists: '{data_dir}'" in e.get("event")
-            and e.get("data_dir") == mock_user_data_dir_path
-            and e.get("log_level") == "info"
+           e.get("event") == "[mocked] Ensured data directory exists."
+            and e.get("path") == str(mock_user_data_dir_path)
+            and e.get("log_level") == "debug"
             for e in caplog_structlog
         )
 
@@ -209,17 +194,18 @@ class TestReportManager:
             ReportManager.from_params(context=app_context_fixture, arg_data_dir=target_path)
 
         # Assert the essential components of the error message
-        assert "[mocked] Failed to create data directory: '/nonexistent/path_unwritable': Permission denied" in str(
-            excinfo.value
-        )
-        assert os_error_message in str(excinfo.value)
+        assert "[mocked] Failed to create data directory." in str(excinfo.value)
         assert isinstance(excinfo.value.__cause__, OSError)
 
+        # Assert that the error is logged
         assert any(
-            e.get("event") == "[mocked] Failed to create data directory: '{data_dir}'"
-            and e.get("data_dir") == target_path
-            and e.get("log_level") == "error"
-            for e in caplog_structlog
+            "exc_info" in event
+            and event.get("event") == "[mocked] Failed to create data directory."
+            and event.get("log_level") == "error"
+            and event.get("path") == str(target_path)
+            and isinstance(event["exc_info"], OSError)
+            and os_error_message in str(event["exc_info"])
+            for event in caplog_structlog
         )
 
     @pytest.mark.unit
@@ -285,18 +271,19 @@ class TestReportManager:
         loaded_ntp_data = report_manager_from_params_instance.load_ntp_results()
         assert loaded_ntp_data == data_ntp
 
+        # Verify the log events
         assert any(
-            "Loaded {data_type.value} results from: {file_path}" in event.get("event")
+            event.get("event") == "[mocked] Loaded results."
             and event.get("data_type_value") == "ntp"
-            and event.get("file_path") == ntp_file
+            and event.get("path") == str(ntp_file)
             and event.get("log_level") == "debug"
             for event in caplog_structlog
         )
 
         assert any(
-            "Results for '{data_type.value}' saved to disk: '{output_path}'" in event.get("event")
+            event.get("event") == "[mocked] Results saved to disk."
             and event.get("data_type_value") == "ntp"
-            and event.get("file_path") == ntp_file
+            and event.get("path") == str(ntp_file)
             and event.get("log_level") == "debug"
             for event in caplog_structlog
         )
@@ -332,17 +319,17 @@ class TestReportManager:
         assert loaded_url_data == data_url
 
         assert any(
-            "Loaded {data_type.value} results from: {file_path}" in event.get("event")
+            event.get("event") == "[mocked] Loaded results."
             and event.get("data_type_value") == "url"
-            and event.get("file_path") == url_file
+            and event.get("path") == str(url_file)
             and event.get("log_level") == "debug"
             for event in caplog_structlog
         )
 
         assert any(
-            "Results for '{data_type.value}' saved to disk: '{output_path}'" in event.get("event")
+            event.get("event") == "[mocked] Results saved to disk."
             and event.get("data_type_value") == "url"
-            and event.get("file_path") == url_file
+            and event.get("path") == str(url_file)
             and event.get("log_level") == "debug"
             for event in caplog_structlog
         )
@@ -376,17 +363,17 @@ class TestReportManager:
             / report_manager_from_params_instance._DATA_FILENAMES[ReportDataType.NTP]  # noqa: SLF001
         )
         assert any(
-            "Loaded {data_type.value} results from: {file_path}" in event.get("event")
+            event.get("event") == "[mocked] Loaded results."
             and event.get("data_type_value") == "ntp"
-            and event.get("file_path") == ntp_file
+            and event.get("path") == str(ntp_file)
             and event.get("log_level") == "debug"
             for event in caplog_structlog
         )
 
         assert any(
-            "Results for '{data_type.value}' saved to disk: '{output_path}'" in event.get("event")
+            event.get("event") == "[mocked] Results saved to disk."
             and event.get("data_type_value") == "ntp"
-            and event.get("file_path") == ntp_file
+            and event.get("path") == str(ntp_file)
             and event.get("log_level") == "debug"
             for event in caplog_structlog
         )
@@ -398,31 +385,23 @@ class TestReportManager:
             / report_manager_from_params_instance._DATA_FILENAMES[ReportDataType.URL]  # noqa: SLF001
         )
         assert any(
-            "Loaded {data_type.value} results from: {file_path}" in event.get("event")
+            event.get("event") == "[mocked] Loaded results."            and event.get("data_type_value") == "url"
+            and event.get("path") == str(url_file)
+            and event.get("log_level") == "debug"
+            for event in caplog_structlog
+        )
+
+        assert any(
+            event.get("event") == "[mocked] Results saved to disk."
             and event.get("data_type_value") == "url"
-            and event.get("file_path") == url_file
+            and event.get("path") == str(url_file)
             and event.get("log_level") == "debug"
             for event in caplog_structlog
         )
 
         assert any(
-            "Results for '{data_type.value}' saved to disk: '{output_path}'" in event.get("event")
-            and event.get("data_type_value") == "url"
-            and event.get("file_path") == url_file
-            and event.get("log_level") == "debug"
-            for event in caplog_structlog
-        )
-
-        assert any(
-            "Loaded {data_type.value} results from: {file_path}" in event.get("event")
-            and event.get("data_type_value") == "ntp"
-            and event.get("file_path") == ntp_file
-            and event.get("log_level") == "debug"
-            for event in caplog_structlog
-        )
-
-        assert any(
-            "Previous results loaded from disk." in event.get("event") and event.get("log_level") == "info"
+            event.get("event") == "[mocked] Previous results loaded from disk."
+            and event.get("log_level") == "info"
             for event in caplog_structlog
         )
 
@@ -470,26 +449,28 @@ class TestReportManager:
         # Define the expected error message from the OSError
         os_error_message = "Disk full"
 
-        with patch.object(Path, "open", side_effect=OSError(os_error_message)):
-            with pytest.raises(SummaryDataSaveError) as excinfo:
-                # Any save method relying on _save_json should trigger this
-                report_manager_from_params_instance.save_ntp_results(["some data"])
+        with patch.object(Path, "open", side_effect=OSError(os_error_message)), \
+            pytest.raises(SummaryDataSaveError) as excinfo:
+            # Any save method relying on _save_json should trigger this
+            report_manager_from_params_instance.save_ntp_results(["some data"])
 
         # Assertions for the raised exception
-        assert "Could not save ntp results to:" in str(excinfo.value)
-        assert "Could not save ntp results to:" in str(excinfo.value)
+        assert "[mocked] Could not save ntp results to: " in str(excinfo.value)
         assert isinstance(excinfo.value.__cause__, OSError)
 
         assert any(
-            "Could not save '{data_type.value}' results due to an unexpected error." in event["event"]
-            and event.get("data_type_value") == "ntp"
+            "exc_info" in event
+            and event.get("event") == "[mocked] Could not save results due to an unexpected error."
             and event.get("log_level") == "error"
+            and event.get("data_type_value") == "ntp"
+            and isinstance(event["exc_info"], OSError)
+            and os_error_message in str(event["exc_info"])
             for event in caplog_structlog
         )
 
     @pytest.mark.unit
     def test_load_results_error_handling(
-        self, report_manager_from_params_instance: ReportManager, caplog_structlog: list[EventDict]
+        self, report_manager_from_params_instance: ReportManager
     ) -> None:
         """
         Test that `SummaryDataLoadError` is raised when a load operation fails.

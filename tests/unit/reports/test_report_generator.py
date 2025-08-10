@@ -240,7 +240,7 @@ class TestReportGenerator:
     @pytest.mark.unit
     @pytest.mark.parametrize("app_context_fixture", ["full"], indirect=True)
     def test_from_context_uses_configured_reports_dir(
-        self, report_generator_from_context_instance: ReportGenerator, mocker: MockerFixture, tmp_path: Path
+        self, report_generator_from_context_instance: ReportGenerator, tmp_path: Path
     ) -> None:
         """
         Test that `ReportGenerator.from_context` uses the configured directory when the context is 'full'.
@@ -297,16 +297,16 @@ class TestReportGenerator:
         mock_mkdir.assert_called_once_with(parents=True, exist_ok=True)
 
         assert any(
-            "Report directory not found in config or invalid. Using default: '{reports_dir}'" in e.get("event")
-            and e.get("reports_dir") == mock_user_data_dir_path
+            e.get("event") == "[mocked] Report directory not found in config or invalid. Using default."
+            and e.get("path") == str(mock_user_data_dir_path)
             and e.get("log_level") == "warning"
             for e in caplog_structlog
         )
 
         assert any(
-            "Ensured report directory exists: '{reports_dir}'" in e.get("event")
-            and e.get("reports_dir") == mock_user_data_dir_path
-            and e.get("log_level") == "info"
+            e.get("event") == "[mocked] Ensured report directory exists."
+            and e.get("path") == str(mock_user_data_dir_path)
+            and e.get("log_level") == "debug"
             for e in caplog_structlog
         )
 
@@ -344,8 +344,8 @@ class TestReportGenerator:
         assert isinstance(excinfo.value.__cause__, OSError)
 
         assert any(
-            e.get("event") == "[mocked] Failed to create report directory: '{reports_dir}'"
-            and e.get("reports_dir") == target_path
+            e.get("event") == "[mocked] Failed to create report directory."
+            and e.get("path") == str(target_path)
             and e.get("log_level") == "error"
             for e in caplog_structlog
         )
@@ -353,7 +353,7 @@ class TestReportGenerator:
     @pytest.mark.unit
     @pytest.mark.parametrize("app_context_fixture", ["full"], indirect=True)
     def test_generate_report_creates_file(
-        self, report_generator_from_context_instance: ReportGenerator, caplog_structlog: list[EventDict]
+        self, report_generator_from_context_instance: ReportGenerator
     ) -> None:
         """
         Test the `generate_report` method, which creates a plain text file.
@@ -375,15 +375,14 @@ class TestReportGenerator:
         assert report_path.is_file()
 
         content = report_path.read_text(encoding="utf-8")
-        assert "Connectivity Report" in content
-        assert "NTP Results:" in content
+
+        assert "[mocked] Connectivity Report" in content
+        assert "[mocked] NTP Results:" in content
         assert "ntp1.example.com: OK" in content
         assert "NTP Test Result 2" not in content  # Ensure no old content is present
-        assert "URL Results:" in content
+        assert "[mocked] URL Results:" in content
         assert "https://example.com: 200" in content
 
-        for event in caplog_structlog:
-            print(event)
 
     @pytest.mark.unit
     def test_generate_html_report_success(
@@ -419,13 +418,15 @@ class TestReportGenerator:
         Path.write_text.assert_called_once_with("<html>Mocked HTML</html>", encoding="utf-8")
 
         # Assert the logger was informed
-        assert any("[mocked] HTML report generated at" in log_entry.get("event") for log_entry in caplog_structlog)
+        assert any(
+            log_entry.get("event") == "[mocked] HTML report generated."
+            and log_entry.get("log_level") == "info"
+            for log_entry in caplog_structlog)
 
     @pytest.mark.unit
     def test_generate_html_report_missing_data_raises_error(
         self,
         report_generator_from_context_instance: ReportGenerator,
-        mocker: MockerFixture,
         caplog_structlog: list[EventDict],
     ) -> None:
         """
@@ -442,7 +443,8 @@ class TestReportGenerator:
         assert "Field 'url_results' cannot be empty." in str(excinfo.value)
 
         assert any(
-            "Invalid report data:" in log_entry.get("event") and log_entry.get("log_level") == "error"
+            "[mocked] Invalid report data." in log_entry.get("event")
+            and log_entry.get("log_level") == "error"
             for log_entry in caplog_structlog
         )
 
@@ -529,8 +531,8 @@ class TestReportGenerator:
         mock_weasyprint_html_instance.write_pdf.assert_called_once_with(str(expected_path))
 
         assert any(
-            "PDF report generated at" in e.get("event")
-            and e.get("output_path") == expected_path
+            "[mocked] PDF report generated at" in e.get("event")
+            and e.get("path") == str(expected_path)
             and e.get("log_level") == "info"
             for e in caplog_structlog
         )
@@ -538,7 +540,6 @@ class TestReportGenerator:
     @pytest.mark.unit
     def test_generate_pdf_report_missing_data_raises_error(
         self,
-        mocker: MockerFixture,
         report_generator_from_context_instance: ReportGenerator,
         caplog_structlog: list[EventDict],
     ) -> None:
@@ -554,7 +555,7 @@ class TestReportGenerator:
         assert "Field 'ntp_results' cannot be empty." in str(excinfo.value)
         assert "Field 'url_results' cannot be empty." in str(excinfo.value)
         assert (
-            "Invalid report data: 2 validation errors for ReportInput\nntp_results\n" in e.get("event")
+            "[mocked] Invalid report data: 2 validation errors for ReportInput\nntp_results\n" in e.get("event")
             and e.get("log_level") == "error"
             for e in caplog_structlog
         )
@@ -627,7 +628,7 @@ class TestReportGenerator:
         )
         assert any(
             event.get("event") == "[mocked] Generating reports"
-            and event.get("reports_dir") == report_generator_from_context_instance.reports_dir
+            and event.get("path") == str(report_generator_from_context_instance.reports_dir)
             and event.get("log_level") == "info"
             for event in caplog_structlog
         )

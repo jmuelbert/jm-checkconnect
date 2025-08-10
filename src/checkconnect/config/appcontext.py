@@ -56,6 +56,8 @@ if TYPE_CHECKING:
     from checkconnect.config.settings_manager import SettingsManager
     from checkconnect.config.translation_manager import TranslationManager
 
+# Global logger for main.py (will be reconfigured by LoggingManagerSingleton)
+log: structlog.stdlib.BoundLogger
 log = structlog.get_logger(__name__)
 
 
