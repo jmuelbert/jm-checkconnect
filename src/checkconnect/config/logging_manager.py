@@ -481,6 +481,7 @@ class LoggingManager:
         pre_chain_processors: list[Processor],
         limited_file_handler_settings: dict[str, Any],
         logger_main_settings: dict[str, Any],
+        effective_log_level: int,
     ) -> None:
         """Set up the rotating file log handler for limited logs. if enabled."""
         if limited_file_handler_settings.get("enabled"):
@@ -510,13 +511,13 @@ class LoggingManager:
                     ],
                 )
                 rotating_handler.setFormatter(rotating_formatter)
-                rotating_handler.setLevel(logging.ERROR)  # Often, limited logs are for errors/critical only
+                rotating_handler.setLevel(effective_log_level)  # Often, limited logs are for errors/critical only
                 root_logger.addHandler(rotating_handler)
                 self._logger.debug(
                     self._translate_func("Limited file handler added."),
                     path=str(limited_log_file_path),
-                    level=logging.getLevelName(logging.ERROR),  # Report fixed level for this handler
-                )
+                    level=logging.getLevelName(effective_log_level
+                )                )
             except Exception as e:
                 msg = self._translate_func("Failed to set up limited file handler.")
                 self._internal_errors.append(f"{msg} {e}")

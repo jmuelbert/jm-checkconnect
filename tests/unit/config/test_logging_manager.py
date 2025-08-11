@@ -323,8 +323,7 @@ class TestLoggingManager:
                 translator=mock_app_context.translator,
             )
 
-        assert "Failed to set up main file handler." in str(excinfo.value)
-        # assert "LogHandlerError" == exc_info.type.__name__
+        assert "Translated: Log directory not specified in settings for file handler." in str(excinfo.value)
         assert excinfo.type.__name__ == "LogHandlerError"
         assert "Log directory not specified" in manager.get_instance_errors()[0]
         mock_bound_logger.exception.assert_called_with(  # Assert on the returned logger's method
@@ -411,9 +410,7 @@ class TestLoggingManager:
             Path(log_directory / "limited.log"), maxBytes=100, backupCount=2, encoding="utf-8"
         )
         mock_rotating_file_handler.return_value.setFormatter.assert_called_once()
-        mock_rotating_file_handler.return_value.setLevel.assert_called_once_with(
-            logging.ERROR
-        )  # Limited handler is ERROR level
+        mock_rotating_file_handler.return_value.setLevel.assert_called_once_with(logging.DEBUG)
 
         # Verify all handlers were added to the root logger using the patched addHandler
         assert logging.getLogger().addHandler.call_count == expected_add_handler_calls
@@ -753,18 +750,34 @@ class TestLoggingManagerSingleton:
 
     def test_get_initialization_errors_aggregates_from_instance(
         self,
-        mocker: MagicMock,
+        mocker: MockerFixture,
     ) -> None:
-        """Test that get_initialization_errors aggregates errors from the instance."""
+        """
+        Test that get_initialization_errors aggregates errors from the instance
+        and ensures the test is properly isolated.
+        """
         expected_unique_errors: Final[int] = 3
 
+        # ARRANGE
+        # Mock the instance that the singleton will hold.
         mock_instance = mocker.MagicMock(spec=LoggingManager)
-        mock_instance.get_instance_errors.return_value = ["Instance Error 1", "Instance Error 2"]
 
-        LoggingManagerSingleton._instance = mock_instance  # noqa: SLF001
-        LoggingManagerSingleton._initialization_errors.append("Singleton Error 1") # noqa: SLF001
+        # Corrected: We are setting the value of the 'internal_errors' property,
+        # not the return value of a method.
+        mock_instance.internal_errors = ["Instance Error 1", "Instance Error 2"]
 
+        # Use patch.object to replace the class attributes for the duration of this test.
+        # mocker will automatically revert these changes after the test is done.
+        mocker.patch.object(LoggingManagerSingleton, "_instance", new=mock_instance)
+        mocker.patch.object(LoggingManagerSingleton, "_initialization_errors", new=["Singleton Error 1"])
+
+        # ACT
+        # Call the method under test.
         errors = LoggingManagerSingleton.get_initialization_errors()
+
+        # ASSERT
+        # Check that the returned errors are a set of the expected unique values.
         assert set(errors) == {"Singleton Error 1", "Instance Error 1", "Instance Error 2"}
-        # Ensure unique errors are returned
+
+        # Check the length to ensure no duplicates.
         assert len(errors) == expected_unique_errors
