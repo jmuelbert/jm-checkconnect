@@ -240,3 +240,37 @@ class TestTranslationManagerSingleton:
         TranslationManagerSingleton.reset()
         new = TranslationManagerSingleton.get_instance()
         assert old is not new
+
+    def test_get_initialization_errors_aggregates_from_instance(
+        self,
+        mocker: MockerFixture,
+    ) -> None:
+        """
+        Test that get_initialization_errors aggregates errors from the instance
+        and ensures the test is properly isolated.
+        """
+        expected_unique_errors: Final[int] = 3
+
+        # ARRANGE
+        # Mock the instance that the singleton will hold.
+        mock_instance = mocker.MagicMock(spec=TranslationManager)
+
+        # Corrected: We are setting the value of the 'internal_errors' property,
+        # not the return value of a method.
+        mock_instance.internal_errors = ["Instance Error 1", "Instance Error 2"]
+
+        # Use patch.object to replace the class attributes for the duration of this test.
+        # mocker will automatically revert these changes after the test is done.
+        mocker.patch.object(TranslationManagerSingleton, "_instance", new=mock_instance)
+        mocker.patch.object(TranslationManagerSingleton, "_initialization_errors", new=["Singleton Error 1"])
+
+        # ACT
+        # Call the method under test.
+        errors = TranslationManagerSingleton.get_initialization_errors()
+
+        # ASSERT
+        # Check that the returned errors are a set of the expected unique values.
+        assert set(errors) == {"Singleton Error 1", "Instance Error 1", "Instance Error 2"}
+
+        # Check the length to ensure no duplicates.
+        assert len(errors) == expected_unique_errors

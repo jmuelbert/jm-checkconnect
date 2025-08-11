@@ -1107,3 +1107,37 @@ class TestSettingsManagerSingleton:
             assert expected_error_msg in errors[0]  # Check that the message is part of the error string
 
         # Ensure cleanup_singletons runs after this test to clear the error for subsequent tests
+
+    def test_get_initialization_errors_aggregates_from_instance(
+        self,
+        mocker: MockerFixture,
+    ) -> None:
+        """
+        Test that get_initialization_errors aggregates errors from the instance
+        and ensures the test is properly isolated.
+        """
+        expected_unique_errors: Final[int] = 3
+
+        # ARRANGE
+        # Mock the instance that the singleton will hold.
+        mock_instance = mocker.MagicMock(spec=SettingsManager)
+
+        # Corrected: We are setting the value of the 'internal_errors' property,
+        # not the return value of a method.
+        mock_instance.internal_errors = ["Instance Error 1", "Instance Error 2"]
+
+        # Use patch.object to replace the class attributes for the duration of this test.
+        # mocker will automatically revert these changes after the test is done.
+        mocker.patch.object(SettingsManagerSingleton, "_instance", new=mock_instance)
+        mocker.patch.object(SettingsManagerSingleton, "_initialization_errors", new=["Singleton Error 1"])
+
+        # ACT
+        # Call the method under test.
+        errors = SettingsManagerSingleton.get_initialization_errors()
+
+        # ASSERT
+        # Check that the returned errors are a set of the expected unique values.
+        assert set(errors) == {"Singleton Error 1", "Instance Error 1", "Instance Error 2"}
+
+        # Check the length to ensure no duplicates.
+        assert len(errors) == expected_unique_errors
