@@ -419,7 +419,7 @@ class TestReportGenerator:
 
         # Assert the logger was informed
         assert any(
-            log_entry.get("event") == "[mocked] HTML report generated."
+            log_entry.get("event") == "[mocked] HTML reports generated."
             and log_entry.get("log_level") == "info"
             for log_entry in caplog_structlog)
 
@@ -531,7 +531,7 @@ class TestReportGenerator:
         mock_weasyprint_html_instance.write_pdf.assert_called_once_with(str(expected_path))
 
         assert any(
-            "[mocked] PDF report generated at" in e.get("event")
+            "[mocked] PDF reports generated." in e.get("event")
             and e.get("path") == str(expected_path)
             and e.get("log_level") == "info"
             for e in caplog_structlog
