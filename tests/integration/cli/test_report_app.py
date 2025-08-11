@@ -14,7 +14,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, patch, PropertyMock
 
 import pytest
 
@@ -55,16 +55,32 @@ def mock_report_generator_class():
 
 
 @pytest.fixture
-def mock_checkconnect_class():
-    """Mocks the CheckConnect class and its instance methods, including getters."""
+def mock_checkconnect_class(mocker: MockerFixture):
+    """
+    Mocks the CheckConnect class and its instance methods, including getters.
+
+    This version correctly mocks properties using PropertyMock.
+    """
     with patch("checkconnect.cli.report_app.CheckConnect") as mock_cc_class:
+        # Create a mock instance of the CheckConnect class.
         mock_instance = MagicMock(name="CheckConnect_instance")
         mock_instance.run_all_checks.return_value = None
 
-        # NEU: Mock die Getter-Methoden anstatt der direkten Attribute
-        mock_instance.get_ntp_results.return_value = ["mocked_ntp_data_from_getter"]
-        mock_instance.get_url_results.return_value = ["mocked_url_data_from_getter"]
+        # Correctly mock the getter properties for ntp_results and url_results.
+        # We use PropertyMock to set the return value for when the property is accessed.
+        # This is the crucial change.
+        mocker.patch.object(
+            mock_instance,
+            "ntp_results",
+            new_callable=PropertyMock(return_value=["mocked_ntp_data_from_getter"])
+        )
+        mocker.patch.object(
+            mock_instance,
+            "url_results",
+            new_callable=PropertyMock(return_value=["mocked_url_data_from_getter"])
+        )
 
+        # Set the mock class to return our mock instance when called.
         mock_cc_class.return_value = mock_instance
         yield mock_cc_class
 
@@ -117,9 +133,9 @@ class TestCliReports:
 
         # Common initialization assertions
         assert_common_initialization(
-            settings_manager_instance,
-            logging_manager_instance,
-            translation_manager_instance,
+            settings_manager_instance=settings_manager_instance,
+            logging_manager_instance=logging_manager_instance,
+            translation_manager_instance=translation_manager_instance,
             expected_cli_log_level=logging.WARNING,  # Default from verbose=0 in cli_main
             expected_language="en",
             expected_console_logging=True,
@@ -214,9 +230,9 @@ class TestCliReports:
 
         # Common initialization assertions
         assert_common_initialization(
-            settings_manager_instance,
-            logging_manager_instance,
-            translation_manager_instance,
+            settings_manager_instance=settings_manager_instance,
+            logging_manager_instance=logging_manager_instance,
+            translation_manager_instance=translation_manager_instance,
             expected_cli_log_level=logging.WARNING,  # Default from verbose=0 in cli_main
             expected_language="en",
             expected_console_logging=True,
@@ -324,9 +340,9 @@ class TestCliReports:
 
         # Common initialization assertions
         assert_common_initialization(
-            settings_manager_instance,
-            logging_manager_instance,
-            translation_manager_instance,
+            settings_manager_instance=settings_manager_instance,
+            logging_manager_instance=logging_manager_instance,
+            translation_manager_instance=translation_manager_instance,
             expected_cli_log_level=logging.WARNING,  # Default from verbose=0 in cli_main
             expected_language="en",
             expected_console_logging=True,
@@ -431,9 +447,9 @@ class TestCliReports:
 
         # Common initialization assertions
         assert_common_initialization(
-            settings_manager_instance,
-            logging_manager_instance,
-            translation_manager_instance,
+            settings_manager_instance=settings_manager_instance,
+            logging_manager_instance=logging_manager_instance,
+            translation_manager_instance=translation_manager_instance,
             expected_cli_log_level=logging.WARNING,  # Default from verbose=0 in cli_main
             expected_language="en",
             expected_console_logging=True,
@@ -529,17 +545,17 @@ class TestCliReports:
 
         # Common initialization assertions
         assert_common_initialization(
-            settings_manager_instance,
-            logging_manager_instance,
-            translation_manager_instance,
+            settings_manager_instance=settings_manager_instance,
+            logging_manager_instance=logging_manager_instance,
+            translation_manager_instance=translation_manager_instance,
             expected_cli_log_level=logging.WARNING,  # Default from verbose=0 in cli_main
             expected_language="en",
             expected_console_logging=True,
         )
 
         # Specific assertion for the report command
-        mock_report_manager_class.from_params.assert_called_once_with(
-            context=AppContext.create.return_value, arg_data_dir=None
+        mock_report_generator_class.from_params.assert_called_once_with(
+            context=AppContext.create.return_value, arg_reports_dir=None
         )
         # Ensure generate_reports was not called as an error occurred early
         mock_report_generator_class.from_params.return_value.generate_reports.assert_not_called()
@@ -607,9 +623,9 @@ class TestCliReports:
 
         # Common initialization assertions
         assert_common_initialization(
-            settings_manager_instance,
-            logging_manager_instance,
-            translation_manager_instance,
+            settings_manager_instance=settings_manager_instance,
+            logging_manager_instance=logging_manager_instance,
+            translation_manager_instance=translation_manager_instance,
             expected_cli_log_level=logging.WARNING,  # Default from verbose=0 in cli_main
             expected_language="en",
             expected_console_logging=True,
@@ -678,9 +694,9 @@ class TestCliReports:
 
         # Common initialization assertions
         assert_common_initialization(
-            settings_manager_instance,
-            logging_manager_instance,
-            translation_manager_instance,
+            settings_manager_instance=settings_manager_instance,
+            logging_manager_instance=logging_manager_instance,
+            translation_manager_instance=translation_manager_instance,
             expected_cli_log_level=logging.WARNING,  # Default from verbose=0 in cli_main
             expected_language="en",
         )

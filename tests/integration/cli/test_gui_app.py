@@ -80,9 +80,9 @@ class TestCliGUI:
 
         # Common initialization assertions
         assert_common_initialization(
-            settings_manager_instance,
-            logging_manager_instance,
-            translation_manager_instance,
+            settings_manager_instance=settings_manager_instance,
+            logging_manager_instance=logging_manager_instance,
+            translation_manager_instance=translation_manager_instance,
             expected_cli_log_level=logging.WARNING,  # Default from verbose=0 in cli_main
             expected_language="en",
             expected_console_logging=False,
@@ -175,9 +175,9 @@ class TestCliGUI:
 
         # Common initialization assertions
         assert_common_initialization(
-            settings_manager_instance,
-            logging_manager_instance,
-            translation_manager_instance,
+            settings_manager_instance=settings_manager_instance,
+            logging_manager_instance=logging_manager_instance,
+            translation_manager_instance=translation_manager_instance,
             expected_cli_log_level=logging.WARNING,
             expected_language=expected_language_for_translation,  # Use the specific expected language
             expected_console_logging=False,
@@ -240,9 +240,9 @@ class TestCliGUI:
 
         # Common initialization assertions
         assert_common_initialization(
-            settings_manager_instance,
-            logging_manager_instance,
-            translation_manager_instance,
+            settings_manager_instance=settings_manager_instance,
+            logging_manager_instance=logging_manager_instance,
+            translation_manager_instance=translation_manager_instance,
             expected_cli_log_level=logging.WARNING,  # Default from verbose=0 in cli_main
             expected_language="en",
             expected_console_logging=False,
@@ -313,9 +313,9 @@ class TestCliGUI:
 
         # Common initialization assertions
         assert_common_initialization(
-            settings_manager_instance,
-            logging_manager_instance,
-            translation_manager_instance,
+            settings_manager_instance=settings_manager_instance,
+            logging_manager_instance=logging_manager_instance,
+            translation_manager_instance=translation_manager_instance,
             expected_cli_log_level=logging.WARNING,  # Default from verbose=0 in cli_main
             expected_language="en",
             expected_console_logging=False,
@@ -382,9 +382,9 @@ class TestCliGUI:
 
         # Common initialization assertions
         assert_common_initialization(
-            settings_manager_instance,
-            logging_manager_instance,
-            translation_manager_instance,
+            settings_manager_instance=settings_manager_instance,
+            logging_manager_instance=logging_manager_instance,
+            translation_manager_instance=translation_manager_instance,
             expected_cli_log_level=logging.WARNING,  # Default from verbose=0 in cli_main
             expected_language="en",
             expected_console_logging=False,

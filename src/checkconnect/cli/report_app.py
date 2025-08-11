@@ -79,6 +79,7 @@ def reports(
 
         console.print(app_context.gettext("[bold green]Generating reports.[/bold green]"))
 
+        report_generator = ReportGenerator.from_params(context=app_context, arg_reports_dir=reports_dir)
         report_manager = ReportManager.from_params(context=app_context, arg_data_dir=data_dir)
 
         if report_manager.results_exists():
@@ -89,13 +90,14 @@ def reports(
             ntp_results = checker.ntp_results
             url_results = checker.url_results
 
-        report_generator = ReportGenerator.from_params(context=app_context, arg_reports_dir=reports_dir)
+
         report_generator.generate_reports(
             ntp_results=ntp_results,
             url_results=url_results,
         )
 
         console.print(app_context.gettext("[bold green]Reports generated successfully[/bold green]"))
+
     except ExitExceptionError as e:
         console.print(
             app_context.gettext(

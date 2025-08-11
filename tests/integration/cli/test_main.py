@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import pytest
+from unittest.mock import MagicMock, patch, PropertyMock
 
 from checkconnect.cli.main import main_app
 from checkconnect.config.appcontext import AppContext
@@ -25,6 +26,37 @@ if TYPE_CHECKING:
     from pytest_mock import MockerFixture
     from structlog.typing import EventDict
     from typer.testing import CliRunner
+
+
+@pytest.fixture
+def mock_checkconnect_class(mocker: MockerFixture):
+    """
+    Mocks the CheckConnect class and its instance methods, including getters.
+
+    This version correctly mocks properties using PropertyMock.
+    """
+    with patch("checkconnect.cli.run_app.CheckConnect") as mock_cc_class:
+        # Create a mock instance of the CheckConnect class.
+        mock_instance = MagicMock(name="CheckConnect_instance")
+        mock_instance.run_all_checks.return_value = None
+
+        # Correctly mock the getter properties for ntp_results and url_results.
+        # We use PropertyMock to set the return value for when the property is accessed.
+        # This is the crucial change.
+        mocker.patch.object(
+            mock_instance,
+            "ntp_results",
+            new_callable=PropertyMock(return_value=["mocked_ntp_data_from_getter"])
+        )
+        mocker.patch.object(
+            mock_instance,
+            "url_results",
+            new_callable=PropertyMock(return_value=["mocked_url_data_from_getter"])
+        )
+
+        # Set the mock class to return our mock instance when called.
+        mock_cc_class.return_value = mock_instance
+        yield mock_cc_class
 
 
 class TestCliMain:
@@ -40,6 +72,7 @@ class TestCliMain:
     def test_main_callback_with_all_options(
         self,
         mock_dependencies: dict[str, Any],
+        mock_checkconnect_class: MagicMock,
         config_file: Path,
         runner: CliRunner,
         caplog_structlog: list[EventDict],
@@ -111,7 +144,10 @@ class TestCliMain:
         )
 
         # Checkconnect called?
-        check_connect_instance.run_all_checks.assert_called_once()
+        # If result doesn't exists generate new results
+        mock_checkconnect_class.assert_called_once_with(context=AppContext.create.return_value)
+        checkconnect_instance = mock_checkconnect_class.return_value
+        checkconnect_instance.run_all_checks.assert_called_once()
 
         # --- Asserting on Specific Log Entries from Your Output ---
 
@@ -219,6 +255,8 @@ class TestCliMain:
         )
 
         # --- Asserting on Specific Log Entries from Your Output ---
+        for e in caplog_structlog:
+            print(e)
 
         # 1. Assert initial CLI startup (DEBUG)
         assert any(
@@ -312,6 +350,9 @@ class TestCliMain:
 
         # --- Asserting on Specific Log Entries from Your Output ---
         assert_common_cli_logs(caplog_structlog)
+
+        for event in caplog_structlog:
+            print(event)
 
         # Assert CLI Args
         assert any(
