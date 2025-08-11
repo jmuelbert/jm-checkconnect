@@ -478,7 +478,7 @@ class ReportGenerator:
             output_path = self.reports_dir / self.HTML_FILENAME
             output_path.write_text(html_content, encoding="utf-8")
 
-            log.info(self._translate_func("HTML report generated."), path=str(output_path))
+            log.info(self._translate_func("HTML reports generated."), path=str(output_path))
 
         except (OSError, Exception) as e:
             log.exception(self._translate_func("Error generating HTML report."), exc_info=e)
@@ -508,7 +508,7 @@ class ReportGenerator:
             ValidationError: If the input data fails Pydantic validation.
             Exception: For any errors during PDF generation via WeasyPrint.
         """
-        log.info(self._translate_func("Creating PDF report with NTP servers and URLs from config"), path=str(self.reports_dir))
+        log.info(self._translate_func("Creating PDF report with NTP servers and URLs."), path=str(self.reports_dir))
 
         try:
             ReportInput(ntp_results=ntp_results, url_results=url_results)
@@ -530,7 +530,7 @@ class ReportGenerator:
             # Generate the PDF
             HTML(string=html_content).write_pdf(str(output_path))
 
-            log.info(self._translate_func("PDF report generated at '{output_path}'"), path=str(output_path))
+            log.info(self._translate_func("PDF reports generated."), path=str(output_path))
 
         except Exception as e:
             log.exception(self._translate_func("Error generating PDF report."), exc_info=e)

@@ -122,11 +122,9 @@ class TestIntegration:
 
         assert "Starting CLI in tests mode" in log_content, "Missing 'Starting CLI in tests mode' in log"
         assert "Starting all checks..." in log_content, "Missing 'Starting all checks...' in log"
-        assert "All URL servers checked." in log_content, "Missing 'All URL servers checked.' in log"
+        assert "All Web-Servers checked." in log_content, "Missing 'All Web-Servers checked.' in log"
         assert "All NTP servers checked." in log_content, "Missing 'All NTP servers checked.' in log"
-        assert "All checks completed successfully." in log_content, (
-            "Missing 'All checks completed successfully.' in log"
-        )
+        assert "All checks completed successfully." in log_content, "Missing 'All checks completed successfully.' in log"
 
         # Optional cleanup
         log_dir = log_file.parent
@@ -174,19 +172,19 @@ class TestIntegration:
             "Missing 'Starting Checkconnect in generate-reports mode.' in log"
         )
         assert "Starting all checks..." in log_content, "Missing 'Starting all checks...' in log"
-        assert "All URL servers checked." in log_content, "Missing 'All URL servers checked.' in log"
+        assert "All Web-Servers checked." in log_content, "Missing 'All Web-Servers checked.' in log"
         assert "All NTP servers checked." in log_content, "Missing 'All NTP servers checked.' in log"
         assert "All checks completed successfully." in log_content, (
             "Missing 'All checks completed successfully.' in log"
         )
-        assert "Creating HTML report with NTP servers and URLs from config" in log_content, (
-            "Missing 'Creating HTML report with NTP servers and URLs from config' in log"
+        assert "Creating HTML report with NTP servers and URLs." in log_content, (
+            "Missing 'Creating HTML report with NTP servers and URLs.' in log"
         )
-        assert "HTML report generated at" in log_content, "Missing 'HTML report generated at' in log"
-        assert "Creating PDF report with NTP servers and URLs from config" in log_content, (
-            "Missing 'Creating PDF report with NTP servers and URLs from config' in log"
+        assert "HTML reports generated." in log_content, "Missing 'HTML reports generated.' in log"
+        assert "Creating PDF report with NTP servers and URLs." in log_content, (
+            "Missing 'Creating PDF report with NTP servers and URLs.' in log"
         )
-        assert "PDF report generated at" in log_content, "Missing 'PDF report generated at' in log"
+        assert "PDF reports generated." in log_content, "Missing 'PDF reports generated.' in log"
 
         log_dir = log_file.parent
         self._clear_log_dir(log_dir)
@@ -236,25 +234,23 @@ class TestIntegration:
         # Optional: check contents if needed
         log_content = log_file.read_text(encoding="utf-8")
 
-        print(log_content)
-
         assert "Starting Checkconnect in generate-reports mode." in log_content, (
             "Missing 'Starting Checkconnect in generate-reports mode.' in log"
         )
         assert "Starting all checks..." in log_content, "Missing 'Starting all checks...' in log"
-        assert "All URL servers checked." in log_content, "Missing 'All URL servers checked.' in log"
+        assert "All Web-Servers checked." in log_content, "Missing 'All Web-Servers checked.' in log"
         assert "All NTP servers checked." in log_content, "Missing 'All NTP servers checked.' in log"
         assert "All checks completed successfully." in log_content, (
             "Missing 'All checks completed successfully.' in log"
         )
-        assert "Creating HTML report with NTP servers and URLs from config" in log_content, (
-            "Missing 'Creating HTML report with NTP servers and URLs from config' in log"
+        assert "Creating HTML report with NTP servers and URLs." in log_content, (
+            "Missing 'Creating HTML report with NTP servers and URLs.' in log"
         )
-        assert "HTML report generated at" in log_content, "Missing 'HTML report generated at' in log"
-        assert "Creating PDF report with NTP servers and URLs from config" in log_content, (
-            "Missing 'Creating PDF report with NTP servers and URLs from config' in log"
+        assert "HTML reports generated." in log_content, "Missing 'HTML reports generated.' in log"
+        assert "Creating PDF report with NTP servers and URLs." in log_content, (
+            "Missing 'Creating PDF report with NTP servers and URLs.' in log"
         )
-        assert "PDF report generated at" in log_content, "Missing 'PDF report generated at' in log"
+        assert "PDF reports generated." in log_content, "Missing 'PDF reports generated.' in log"
 
         log_dir = log_file.parent
         self._clear_log_dir(log_dir)
