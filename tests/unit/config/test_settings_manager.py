@@ -14,7 +14,6 @@ from __future__ import annotations
 
 import tomllib
 from pathlib import Path
-
 from typing import TYPE_CHECKING, Any, Final
 from unittest.mock import MagicMock, call, mock_open, patch
 
@@ -30,6 +29,7 @@ from checkconnect.config.settings_manager import (
 from checkconnect.exceptions import SettingsConfigurationError, SettingsWriteConfigurationError
 
 if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
     from structlog.typing import EventDict
 
 # --- Fixtures ---

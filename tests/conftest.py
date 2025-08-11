@@ -48,7 +48,7 @@ if TYPE_CHECKING:
 # --- Core Logging Setup Fixture ---
 # This MUST run before any of your application code gets its first logger.
 # It ensures `structlog.get_logger()` returns a properly configured BoundLogger.
-@pytest.fixture(scope="function", autouse=True)
+@pytest.fixture(autouse=True)
 def structlog_base_config() -> Generator[None, None, None]:
     """
     Fixture to set up and tear down a robust structlog configuration for each test function.
@@ -130,7 +130,7 @@ def isolated_test_env(mocker: MockerFixture, tmp_path: Path) -> dict[str, Path]:
     - Changes the current working directory to a unique sub-directory within tmp_path,
       ensuring no existing 'config.toml' interferes with the local lookup.
     """
-    original_cwd = os.getcwd()
+    original_cwd = Path.cwd()
     try:
         # Create a unique temporary directory for the CWD of this test
         test_cwd = tmp_path / "test_run_cwd"
@@ -157,7 +157,7 @@ def isolated_test_env(mocker: MockerFixture, tmp_path: Path) -> dict[str, Path]:
 
 # --- 2. Global Dependency Mocks Fixture ---
 @pytest.fixture
-def mock_dependencies(
+def mock_dependencies(  # noqa: PLR0915
     mocker: MockerFixture,
     isolated_test_env: dict[str, Path],  # This fixture creates temporary directories for config/data/reports
 ) -> dict[str, Any]:
@@ -168,38 +168,29 @@ def mock_dependencies(
     # --- 0. CRUCIAL: RESET SINGLETON INTERNAL STATE ---
     # Singletons retain state across tests. This ensures each test starts with a clean slate.
     # Adjust attribute names if they are different in your actual singleton classes.
-    print("\nDEBUG: Resetting SettingsManagerSingleton state.")
-    SettingsManagerSingleton._is_configured = False
-    SettingsManagerSingleton._instance = None
-    SettingsManagerSingleton._initialization_errors = []
+    SettingsManagerSingleton._instance = None  # noqa: SLF001
+    SettingsManagerSingleton._initialization_errors = []  # noqa: SLF001
     # If cli_main_module has its own aliased reference to the singleton, reset that too.
     try:
-        cli_main_module.SettingsManagerSingleton._is_configured = False
-        cli_main_module.SettingsManagerSingleton._instance = None
-        cli_main_module.SettingsManagerSingleton._initialization_errors = []
+        cli_main_module.SettingsManagerSingleton._instance = None  # noqa: SLF001
+        cli_main_module.SettingsManagerSingleton._initialization_errors = []  # noqa: SLF001
     except AttributeError:
         # Catch if cli_main_module doesn't directly expose these attributes
         pass
 
-    print("DEBUG: Resetting LoggingManagerSingleton state.")
-    LoggingManagerSingleton._is_configured = False
-    LoggingManagerSingleton._instance = None
-    LoggingManagerSingleton._initialization_errors = []
+    LoggingManagerSingleton._instance = None  # noqa: SLF001
+    LoggingManagerSingleton._initialization_errors = []  # noqa: SLF001
     try:
-        cli_main_module.LoggingManagerSingleton._is_configured = False
-        cli_main_module.LoggingManagerSingleton._instance = None
-        cli_main_module.LoggingManagerSingleton._initialization_errors = []
+        cli_main_module.LoggingManagerSingleton._instance = None  # noqa: SLF001
+        cli_main_module.LoggingManagerSingleton._initialization_errors = []  # noqa: SLF001
     except AttributeError:
         pass
 
-    print("DEBUG: Resetting TranslationManagerSingleton state.")
-    TranslationManagerSingleton._is_configured = False
-    TranslationManagerSingleton._instance = None
-    TranslationManagerSingleton._initialization_errors = []
+    TranslationManagerSingleton._instance = None  # noqa: SLF001
+    TranslationManagerSingleton._initialization_errors = []  # noqa: SLF001
     try:
-        cli_main_module.TranslationManagerSingleton._is_configured = False
-        cli_main_module.TranslationManagerSingleton._instance = None
-        cli_main_module.TranslationManagerSingleton._initialization_errors = []
+        cli_main_module.TranslationManagerSingleton._instance = None  # noqa: SLF001
+        cli_main_module.TranslationManagerSingleton._initialization_errors = []  # noqa: SLF001
     except AttributeError:
         pass
 
@@ -242,9 +233,6 @@ def mock_dependencies(
     def mock_logging_initialize_from_context_side_effect(
         *, app_context: AppContext, cli_log_level: int, enable_console_logging: bool
     ):
-        print(
-            f"DEBUG: LoggingManagerSingleton.initialize_from_context called with cli_log_level={cli_log_level}, enable_console_logging={enable_console_logging}"
-        )
         # Simulate the real initialize_from_context calling apply_configuration
         mock_logging_manager_instance.apply_configuration(
             cli_log_level=cli_log_level,
@@ -291,14 +279,13 @@ def mock_dependencies(
     # --- CRITICAL FIX: Mock load_settings directly on the mock instance ---
     # This prevents the real load_settings logic from running (which involves file I/O)
     # and explicitly sets the loaded_config_file on the mock.
-    def mock_settings_instance_load_settings_side_effect(config_path_from_cli: Optional[Path] = None) -> None:
-        print(f"DEBUG: mock_settings_instance.load_settings (MOCKED) called with: {config_path_from_cli}")
+    def mock_settings_instance_load_settings_side_effect(config_path_from_cli: Path | None = None) -> None:
         if config_path_from_cli:
             mock_settings_instance.loaded_config_file = config_path_from_cli
         else:
             mock_settings_instance.loaded_config_file = None  # Or a suitable default for no config file
         # Ensure _settings is populated as if it were loaded
-        mock_settings_instance._settings = settings_data.copy()
+        mock_settings_instance._settings = settings_data.copy() # noqa: SLF001
 
     mock_settings_instance.load_settings.side_effect = mock_settings_instance_load_settings_side_effect
     # mock_settings_instance._save_default_config.return_value = None # No longer strictly needed if load_settings is fully mocked
@@ -306,9 +293,8 @@ def mock_dependencies(
     # Side effect for initialize_from_context, which calls load_settings on the instance
     def mock_settings_singleton_initialize_from_context_side_effect(
         *,
-        config_path: Optional[Path] = None,
+        config_path: Path | None = None,
     ):
-        print(f"DEBUG: SettingsManagerSingleton.initialize_from_context (MOCKED) called with config_path={config_path}")
         # This calls the *mocked* load_settings on mock_settings_instance
         mock_settings_instance.load_settings(config_path_from_cli=config_path)
         return mock_settings_instance
@@ -336,9 +322,8 @@ def mock_dependencies(
 
     # Side effect for configure_instance for TranslationManagerSingleton
     def mock_translation_configure_instance_side_effect(
-        *, language: Optional[str] = None, translation_domain: Optional[str] = None, locale_dir: Optional[Path] = None
+        *, language: str | None = None, translation_domain: str | None = None, locale_dir: Path | None = None
     ):
-        print(f"DEBUG: TranslationManagerSingleton.initialize_from_context called with language={language}")
         mock_translator_instance.configure(
             language=language, translation_domain=translation_domain, locale_dir=locale_dir
         )
@@ -435,7 +420,6 @@ def setup_default_config_locations(
     tmp_path: Path,
     mock_platformdirs_paths: dict[str, Path],
     mock_importlib_files: Path,
-    mocker: Any,
 ) -> None:
     """
     Set up the CONFIG_LOCATIONS for each test to use temporary paths.
@@ -455,7 +439,6 @@ def setup_default_config_locations(
 
 @pytest.fixture
 def setup_default_config(
-    mocker: MockerFixture,
     tmp_path: Path,
 ):
     SettingsManager.DEFAULT_CONFIG = {
@@ -479,30 +462,24 @@ def setup_default_config(
     }
 
 
-@pytest.fixture(scope="function", autouse=True)
+@pytest.fixture(autouse=True)
 def cleanup_singletons() -> Generator[None, None, None]:
     """
     Resets all application singletons to ensure clean state between tests.
     """
-    LoggingManagerSingleton._instance = None
-    LoggingManager._is_initialized = False  # If your singletons have internal state flags
-    LoggingManager._instance = None
-    LoggingManagerSingleton._initialization_errors.clear()
+    LoggingManagerSingleton._instance = None  # noqa: SLF001
+    LoggingManagerSingleton._initialization_errors.clear()  # noqa: SLF001
 
-    SettingsManagerSingleton._instance = None
-    SettingsManager._is_initialized = False
-    SettingsManager._instance = None
-    SettingsManagerSingleton._initialization_errors.clear()
+    SettingsManagerSingleton._instance = None  # noqa: SLF001
+    SettingsManagerSingleton._initialization_errors.clear()  # noqa: SLF001
 
-    TranslationManagerSingleton._instance = None
-    TranslationManager._is_initialized = False
-    TranslationManager._instance = None
-    TranslationManagerSingleton._initialization_errors.clear()
+    TranslationManagerSingleton._instance = None  # noqa: SLF001
+    TranslationManagerSingleton._initialization_errors.clear()  # noqa: SLF001
 
     yield  # Test runs here
 
     # Post-test cleanup (optional, but good for robustness if singletons have complex teardown)
-    if LoggingManagerSingleton._instance:
+    if LoggingManagerSingleton._instance: # noqa: SLF001
         LoggingManagerSingleton.reset()  # Assuming a reset method
 
 
@@ -520,7 +497,7 @@ def config_file(tmp_path: Path) -> Path:
     -------
         The path to the created temporary configuration file.
     """
-    DEFAULT_CONFIG: dict[str, dict[str, Any]] = {
+    default_config: dict[str, dict[str, Any]] = {
         "logger": {
             "level": "INFO",
             "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -552,12 +529,12 @@ def config_file(tmp_path: Path) -> Path:
 
     config_path = tmp_path / "config.toml"
     with config_path.open("wb") as f:
-        tomli_w.dump(DEFAULT_CONFIG, f)
+        tomli_w.dump(default_config, f)
     return config_path
 
 
 @pytest.fixture
-def mock_settings_with_defaults(setup_default_config_locations, tmp_path: Path, mocker: Any) -> Any:
+def mock_settings_with_defaults(tmp_path: Path, mocker: Any) -> Any:
     """
     Provides a realistic mock of the SettingsManager with complete default config.
 
@@ -565,7 +542,7 @@ def mock_settings_with_defaults(setup_default_config_locations, tmp_path: Path, 
     and settings.get_section("section") access patterns,
     returning real dicts and values for Pydantic validation.
     """
-    APP_NAME = "checkconnect"
+    app_name = "checkconnect"
     report_dir = tmp_path / "reports"
     data_dir = tmp_path / "data"
     log_dir = tmp_path / "logs"
@@ -583,11 +560,11 @@ def mock_settings_with_defaults(setup_default_config_locations, tmp_path: Path, 
         "console_handler": {"enabled": True},
         "file_handler": {
             "enabled": False,
-            "file_name": APP_NAME + ".log",
+            "file_name": app_name + ".log",
         },
         "limited_file_handler": {
             "enabled": False,
-            "file_name": "limited_" + APP_NAME + ".log",
+            "file_name": "limited_" + app_name + ".log",
             "max_bytes": 1024,
             "backup_count": 5,
         },
@@ -715,7 +692,7 @@ def app_context_fixture(
     context.translator = mock_translator
     context.gettext = mock_translator.gettext
     # Ensure get_module_logger returns the mock logger instance
-    context.get_module_logger.side_effect = lambda name: mock_logger_instance_for_context
+    context.get_module_logger.side_effect = lambda name: mock_logger_instance_for_context  # noqa: ARG005
 
     # Get a logger *from the context* for messages within the fixture itself
     # This ensures consistency with how your application uses loggers.
@@ -831,8 +808,8 @@ def mock_qapplication_class(mocker: MockerFixture) -> MagicMock:
     return mock_qapp_ctor
 
 
-@pytest.fixture()
-def _always_mock_qapp(mock_qapplication_class):
+@pytest.fixture
+def _always_mock_qapp():
     """Ensures QApplication is always mocked for GUI-related tests."""
     return
 

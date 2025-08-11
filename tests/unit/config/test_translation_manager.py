@@ -7,12 +7,15 @@ from __future__ import annotations
 
 import gettext
 import locale
+from typing import TYPE_CHECKING, Final
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from checkconnect.config.translation_manager import TranslationManager, TranslationManagerSingleton
 
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
 
 @pytest.fixture(autouse=True)
 def reset_translation_singleton():

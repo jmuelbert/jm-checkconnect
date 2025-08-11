@@ -7,7 +7,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path  # noqa: TC003
 from typing import TYPE_CHECKING, Any
-from unittest.mock import MagicMock, patch, PropertyMock
+from unittest.mock import MagicMock, PropertyMock, patch
 
 import pytest
 
@@ -18,7 +18,7 @@ from checkconnect.reports.report_manager import OutputFormat
 from tests.utils.common import assert_common_cli_logs, assert_common_initialization
 
 if TYPE_CHECKING:
-    # If EventDict is a specific type alias in structlog
+    from pytest_mock import MockerFixture
     from structlog.typing import EventDict
     from typer.testing import CliRunner
 else:
@@ -359,9 +359,6 @@ class TestCliSummary:
             "Expected 'Cannot start generate reports for checkconnect.' in stdout"
         )
         assert "Test error" in result.stdout, "Expected 'Test error' in stdout"
-
-        for e in caplog_structlog:
-            print(e)
 
         # Common initialization assertions
         assert_common_initialization(

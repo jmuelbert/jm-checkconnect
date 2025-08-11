@@ -14,9 +14,9 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
+from unittest.mock import MagicMock, PropertyMock, patch
 
 import pytest
-from unittest.mock import MagicMock, patch, PropertyMock
 
 from checkconnect.cli.main import main_app
 from checkconnect.config.appcontext import AppContext
@@ -91,7 +91,6 @@ class TestCliMain:
         settings_manager_instance = mock_dependencies["settings_manager_instance"]
         logging_manager_instance = mock_dependencies["logging_manager_instance"]
         translation_manager_instance = mock_dependencies["translation_manager_instance"]
-        check_connect_instance = mock_dependencies["check_connect_instance"]
 
         test_env = {
             "NO_COLOR": "1",  # Disable colors
@@ -251,8 +250,6 @@ class TestCliMain:
         )
 
         # --- Asserting on Specific Log Entries from Your Output ---
-        for e in caplog_structlog:
-            print(e)
 
         # 1. Assert initial CLI startup (DEBUG)
         assert any(
@@ -346,9 +343,6 @@ class TestCliMain:
 
         # --- Asserting on Specific Log Entries from Your Output ---
         assert_common_cli_logs(caplog_structlog)
-
-        for event in caplog_structlog:
-            print(event)
 
         # Assert CLI Args
         assert any(
@@ -491,8 +485,6 @@ class TestCliMain:
             ["--help"],
             env=test_env,
         )
-
-        # print(result.stdout) # Uncomment for debugging if needed
 
         assert result.exit_code == 0, f"Unexpected failure: {result.output}"
 

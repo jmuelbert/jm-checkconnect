@@ -14,7 +14,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
-from unittest.mock import MagicMock, patch, PropertyMock
+from unittest.mock import MagicMock, PropertyMock, patch
 
 import pytest
 
@@ -26,6 +26,8 @@ from checkconnect.exceptions import ExitExceptionError
 from tests.utils.common import assert_common_cli_logs, assert_common_initialization
 
 if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
+
     # If EventDict is a specific type alias in structlog
     from structlog.typing import EventDict
     from typer.testing import CliRunner
@@ -506,7 +508,6 @@ class TestCliReports:
     def test_reports_command_exit_exception_error(
         self,
         mock_dependencies: dict[str, Any],
-        mock_report_manager_class: MagicMock,
         mock_report_generator_class: MagicMock,
         runner: CliRunner,
         caplog_structlog: list[EventDict],

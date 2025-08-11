@@ -168,7 +168,7 @@ class NTPChecker:
         Logger instance for logging messages.
     translator (Any):
         Translator instance from the context, used for localization of messages.
-    _‚translate_func (Callable[[str], str]):
+    _.translate_func (Callable[[str], str]):
         A shortcut to the translation function `translator.gettext`.
     results (list[str]):
         A list to store the results of each NTP check.

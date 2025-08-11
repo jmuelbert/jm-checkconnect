@@ -308,7 +308,7 @@ def doc_quality(
 
 
 def main() -> None:
-    """Main entry point for CLI dispatch."""
+    """CLI dispatch for the entry point."""
     app()
 
 

@@ -4,8 +4,6 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
 
 class BaseReportError(Exception):
     """Basis-Exception für alle Berichts-bezogenen Fehler."""
@@ -17,7 +15,7 @@ class BaseReportError(Exception):
 class ExitExceptionError(BaseReportError):
     """Exception for CLI issues."""
 
-    def __init__(self, message: str, original_exception: Exception | None = None):
+    def __init__(self, message: str, original_exception: Exception | None = None) -> None:
         super().__init__(message)
         if original_exception:
             self.__cause__ = original_exception
@@ -28,7 +26,7 @@ class ExitExceptionError(BaseReportError):
 class LoggerConfigurationError(BaseReportError):
     """Base exception for logger configuration errors."""
 
-    def __init__(self, message: str, original_exception: Exception | None = None):
+    def __init__(self, message: str, original_exception: Exception | None = None) -> None:
         super().__init__(message)
         if original_exception:
             self.__cause__ = original_exception
@@ -37,7 +35,7 @@ class LoggerConfigurationError(BaseReportError):
 class InvalidLogLevelError(BaseReportError):
     """Raised when an invalid log level string is found in the config."""
 
-    def __init__(self, message: str, original_exception: Exception | None = None):
+    def __init__(self, message: str, original_exception: Exception | None = None) -> None:
         super().__init__(message)
         if original_exception:
             self.__cause__ = original_exception
@@ -46,7 +44,7 @@ class InvalidLogLevelError(BaseReportError):
 class LogDirectoryError(BaseReportError):
     """Raised when creating the log directory fails."""
 
-    def __init__(self, message: str, original_exception: Exception | None = None):
+    def __init__(self, message: str, original_exception: Exception | None = None)  -> None:
         super().__init__(message)
         if original_exception:
             self.__cause__ = original_exception
@@ -55,7 +53,7 @@ class LogDirectoryError(BaseReportError):
 class LogHandlerError(BaseReportError):
     """Raised when creating a log file handler fails."""
 
-    def __init__(self, message: str, original_exception: Exception | None = None):
+    def __init__(self, message: str, original_exception: Exception | None = None) -> None:
         super().__init__(message)
         if original_exception:
             self.__cause__ = original_exception
@@ -65,14 +63,14 @@ class LogHandlerError(BaseReportError):
 class SettingsConfigurationError(Exception):
     """Base exception for logger configuration errors."""
 
-    def __init__(self, path: Path) -> None:
+    def __init__(self) -> None:
         super().__init__("Invalid TOML syntax in configuration file")
 
 
 class SettingsWriteConfigurationError(Exception):
     """Base exception for logger configuration errors."""
 
-    def __init__(self, message: str, original_exception: Exception | None = None):
+    def __init__(self, message: str, original_exception: Exception | None = None)  -> None:
         super().__init__(message)
         if original_exception:
             self.__cause__ = original_exception
@@ -81,8 +79,8 @@ class SettingsWriteConfigurationError(Exception):
 class ConfigFileNotFoundError(SettingsConfigurationError, FileNotFoundError):
     """Raised when the configuration file is not found."""
 
-    def __init__(self, path: Path) -> None:
-        super().__init__(f"Configuration file not found")
+    def __init__(self) -> None:
+        super().__init__()
 
 
 # class InvalidConfigFileError(SettingsConfigurationError, ValueError):
@@ -94,7 +92,7 @@ class ConfigFileNotFoundError(SettingsConfigurationError, FileNotFoundError):
 
 # Reports
 class DirectoryCreationError(BaseReportError):
-    def __init__(self, message: str, original_exception: Exception | None = None):
+    def __init__(self, message: str, original_exception: Exception | None = None) -> None:
         super().__init__(message)
         if original_exception:
             self.__cause__ = original_exception
@@ -102,35 +100,35 @@ class DirectoryCreationError(BaseReportError):
 
 # ReportManager
 class SummaryDataLoadError(BaseReportError):
-    def __init__(self, message: str, original_exception: Exception | None = None):
+    def __init__(self, message: str, original_exception: Exception | None = None) -> None:
         super().__init__(message)
         if original_exception:
             self.__cause__ = original_exception
 
 
 class SummaryDataSaveError(BaseReportError):
-    def __init__(self, message: str, original_exception: Exception | None = None):
+    def __init__(self, message: str, original_exception: Exception | None = None) -> None:
         super().__init__(message)
         if original_exception:
             self.__cause__ = original_exception
 
 
 class SummaryUnknownDataError(BaseReportError):
-    def __init__(self, message: str, original_exception: Exception | None = None):
+    def __init__(self, message: str, original_exception: Exception | None = None) -> None:
         super().__init__(message)
         if original_exception:
             self.__cause__ = original_exception
 
 
 class SummaryFormatError(BaseReportError):
-    def __init__(self, message: str, original_exception: Exception | None = None):
+    def __init__(self, message: str, original_exception: Exception | None = None) -> None:
         super().__init__(message)
         if original_exception:
             self.__cause__ = original_exception
 
 
 class SummaryValueError(BaseReportError):
-    def __init__(self, message: str):
+    def __init__(self, message: str) -> None:
         super().__init__(message)
 
 
@@ -138,7 +136,7 @@ class SummaryValueError(BaseReportError):
 
 
 class ReportsMissingDataError(BaseReportError):
-    def __init__(self, message: str, original_exception: Exception | None = None):
+    def __init__(self, message: str, original_exception: Exception | None = None) -> None:
         super().__init__(message)
         if original_exception:
             self.__cause__ = original_exception

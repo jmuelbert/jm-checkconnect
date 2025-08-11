@@ -6,13 +6,12 @@
 
 from __future__ import annotations
 
-from typing import Any
-
 import json
 import subprocess
 import sys
 import tomllib
 from pathlib import Path
+from typing import Any
 
 import pytest
 import tomli_w
@@ -65,10 +64,6 @@ def get_log_file_from_config(config_file: Path) -> Path:
 
     log_dir = Path(config_data.get("logger", {}).get("log_directory", ""))
     file_name = config_data.get("file_handler", {}).get("file_name", "checkconnect.log")
-
-    print("Log directory:", log_dir)
-    print("File name:", file_name)
-    print("Config file:", config_file)
 
     return log_dir / file_name
 

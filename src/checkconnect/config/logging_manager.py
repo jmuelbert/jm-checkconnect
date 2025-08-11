@@ -85,7 +85,8 @@ logger.error("Failed to connect to external service.", service="AuthAPI", status
 # (though for the singleton, it's typically managed globally)
 # with LoggingManagerSingleton.get_instance() as logger_instance:
 #     log = logger_instance.get_logger("my_module")
-#     log.info("Inside context manager")"""
+#     log.info("Inside context manager")
+"""
 
 from __future__ import annotations
 

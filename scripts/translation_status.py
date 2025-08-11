@@ -192,7 +192,7 @@ def translation_status(
 
 
 def main() -> None:
-    """Main entry point for CLI dispatch."""
+    """CLI dispatch for the entry point."""
     app()
 
 

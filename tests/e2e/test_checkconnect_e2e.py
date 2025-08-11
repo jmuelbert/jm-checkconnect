@@ -3,14 +3,12 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 import structlog
 from bs4 import BeautifulSoup
-from PySide6.QtWidgets import QApplication
 
-# Assuming these imports are correct for your project structure
-from checkconnect.config.appcontext import AppContext
 from checkconnect.core.checkconnect import CheckConnect
 from checkconnect.gui.gui_main import CheckConnectGUIRunner
 from checkconnect.reports.report_generator import (
@@ -19,6 +17,11 @@ from checkconnect.reports.report_generator import (
     generate_pdf_report,
 )
 from checkconnect.reports.report_manager import OutputFormat, ReportManager
+
+if TYPE_CHECKING:
+    from PySide6.QtWidgets import QApplication
+
+    from checkconnect.config.appcontext import AppContext
 
 log = structlog.get_logger(__name__)
 
@@ -90,7 +93,7 @@ def test_cli_workflow(
 
     # The ReportManager instance itself already has the correct reports_dir
     data_dir_from_manager = report_manager.get_data_dir()  # This will still read from app_context_fixture.settings
-    log.info(f"Using data directory for test: {data_dir_from_manager}")
+    log.info("Using data directory for test", path=str(data_dir_from_manager))
 
     ntp_results, url_results = report_manager.load_previous_results()
     summary = report_manager.get_summary(
@@ -137,7 +140,7 @@ def test_cli_workflow(
 
 @pytest.mark.e2e
 def test_gui_workflow(
-    q_app: QApplication,
+    q_app: QApplication,  # noqa: ARG001
     app_context_fixture: AppContext,  # <--- Changed from dummy_app_context
     tmp_path: Path,
 ) -> None:
@@ -174,7 +177,7 @@ def test_gui_workflow(
     generator = ReportGenerator.from_context(context=app_context_fixture)
 
     data_dir_from_manager = manager.get_data_dir()
-    log.info(f"Using data directory for GUI test: {data_dir_from_manager}")
+    log.info("Using data directory for GUI test", path=str(data_dir_from_manager))
 
     gui.test_ntp()
     gui.test_urls()
@@ -186,10 +189,6 @@ def test_gui_workflow(
     assert "NTP" in log_text, "NTP test not found in log"
     assert "Status: 200" in log_text, "URL test not found in log"
     assert "Reports generated successfully" in log_text, "Reports generated successfully not found in log"
-    print("----")
-    print(log_text)
-    print("----")
-
     assert "summary generated" in log_text, "summary generated not found in log"
 
     # Use manager.reports_dir for asserts (it reflects what the ReportGenerator itself calculated)
