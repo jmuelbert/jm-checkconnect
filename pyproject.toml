@@ -172,6 +172,12 @@ dependencies = ["bandit[toml]>=1.7.8" ]
 bandit-scan = "bandit -r src -ll"
 all = ["bandit-scan"]
 
+[tool.hatch.envs.translate]
+installer = "uv"
+dependencies = [
+"babel>=2.0.0",
+]
+
 [tool.hatch.envs.docs]
 installer = "uv"
 dependencies = [
