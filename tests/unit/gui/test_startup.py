@@ -24,7 +24,6 @@ if TYPE_CHECKING:
     from structlog.typing import EventDict
 
 
-
 class TestSetupTranslations:
     """Unit tests for the setup_translations function."""
 
@@ -275,9 +274,7 @@ class TestRunFunction:
         # `run` creates a new QApplication instance.
         mock_qapplication_class.instance.return_value = None
 
-        mock_gui_runner_class = mocker.patch(
-            "checkconnect.gui.startup.CheckConnectGUIRunner"
-        )
+        mock_gui_runner_class = mocker.patch("checkconnect.gui.startup.CheckConnectGUIRunner")
         # The CheckConnectGUIRunner mock will return a new MagicMock instance
         # when called, and that instance will have a 'main_window' attribute.
         mock_gui_runner = mock_gui_runner_class.return_value
@@ -290,11 +287,7 @@ class TestRunFunction:
         mocker.patch("checkconnect.gui.startup.setup_translations")
 
         # Return a dictionary of the mocks for easy access in tests
-        return {
-            "app_instance": mock_app_instance,
-            "window_instance": mock_window_instance,
-            "sys_exit": mock_sys_exit
-        }
+        return {"app_instance": mock_app_instance, "window_instance": mock_window_instance, "sys_exit": mock_sys_exit}
 
     @pytest.fixture
     def mock_qapplication(self, mocker: MockerFixture):
@@ -339,8 +332,7 @@ class TestRunFunction:
         # and prevent it from doing anything unexpected during the test.
         mock_runner_instance = mocker.MagicMock(spec=CheckConnectGUIRunner)
         mock_runner_class = mocker.patch(
-            "checkconnect.gui.startup.CheckConnectGUIRunner",
-            return_value=mock_runner_instance
+            "checkconnect.gui.startup.CheckConnectGUIRunner", return_value=mock_runner_instance
         )
         mocker.patch("checkconnect.gui.startup.setup_translations")
 
@@ -383,10 +375,7 @@ class TestRunFunction:
 
         # Patch the CheckConnectGUIRunner in the correct location (startup.py)
         # to raise a RuntimeError when it is initialized.
-        mocker.patch(
-            "checkconnect.gui.startup.CheckConnectGUIRunner",
-            side_effect=RuntimeError("GUI init failed")
-        )
+        mocker.patch("checkconnect.gui.startup.CheckConnectGUIRunner", side_effect=RuntimeError("GUI init failed"))
 
         # Patch setup_translations to prevent it from running.
         mocker.patch("checkconnect.gui.startup.setup_translations")
@@ -429,10 +418,7 @@ class TestRunFunction:
 
         # Patch the CheckConnectGUIRunner in the correct location (startup.py)
         # to raise a RuntimeError when it is initialized.
-        mocker.patch(
-            "checkconnect.gui.startup.CheckConnectGUIRunner",
-            side_effect=RuntimeError("GUI init failed")
-        )
+        mocker.patch("checkconnect.gui.startup.CheckConnectGUIRunner", side_effect=RuntimeError("GUI init failed"))
 
         # Patch setup_translations to prevent it from running.
         mocker.patch("checkconnect.gui.startup.setup_translations")
@@ -463,8 +449,7 @@ class TestRunFunction:
 
         # Patch the CheckConnectGUIRunner to ensure it does not raise an exception.
         mocker.patch(
-            "checkconnect.gui.startup.CheckConnectGUIRunner",
-            return_value=mocker.Mock(spec=CheckConnectGUIRunner)
+            "checkconnect.gui.startup.CheckConnectGUIRunner", return_value=mocker.Mock(spec=CheckConnectGUIRunner)
         )
 
         # Patch the app.exec() to prevent the main event loop from running indefinitely.
@@ -500,10 +485,7 @@ class TestRunFunction:
         mock_qapplication_class.return_value = mock_app_instance
         mock_qapplication_class.instance.return_value = None
 
-        mocker.patch(
-            "checkconnect.gui.startup.CheckConnectGUIRunner",
-            side_effect = RuntimeError("Mocked exec_ error")
-        )
+        mocker.patch("checkconnect.gui.startup.CheckConnectGUIRunner", side_effect=RuntimeError("Mocked exec_ error"))
 
         # Patch setup_translations to prevent it from running.
         mocker.patch("checkconnect.gui.startup.setup_translations")
@@ -530,9 +512,7 @@ class TestRunFunction:
 
         # 2. Mock the CheckConnectGUIRunner class itself
         # This mock_window_class will be the "fake" CheckConnectGUIRunner class
-        mock_window_class = mocker.patch(
-            "checkconnect.gui.startup.CheckConnectGUIRunner", autospec=True
-        )
+        mock_window_class = mocker.patch("checkconnect.gui.startup.CheckConnectGUIRunner", autospec=True)
 
         # We can now get a reference to the mock instance that will be created
         # when the run function calls the mocked class.
@@ -570,9 +550,7 @@ class TestRunFunction:
         """
         # ARRANGE
         # 1. Patch the QApplication class where it is used.
-        mock_qapplication_class = mocker.patch(
-            "checkconnect.gui.startup.QApplication", autospec=True
-        )
+        mock_qapplication_class = mocker.patch("checkconnect.gui.startup.QApplication", autospec=True)
 
         # 2. Force the `run` function to create a new QApplication instance
         #    by mocking `.instance()` to return None.
@@ -586,14 +564,12 @@ class TestRunFunction:
         mock_app_instance.exec.return_value = expected_exit_code
 
         # 5. Mock the CheckConnectGUIRunner class to prevent a real window from being created.
-        mock_window_class = mocker.patch(
-            "checkconnect.gui.startup.CheckConnectGUIRunner", autospec=True
-        )
+        mock_window_class = mocker.patch("checkconnect.gui.startup.CheckConnectGUIRunner", autospec=True)
         mock_window_instance = mock_window_class.return_value
 
         # 6. CRITICAL CHANGE: Patch sys.argv with an empty list to control the arguments.
         # This prevents the QApplication constructor from seeing Pytest's arguments.
-        mocker.patch.object(sys, 'argv', [])
+        mocker.patch.object(sys, "argv", [])
 
         # ACT
         returned_exit_code = run(context=app_context_fixture, language="en")
@@ -638,8 +614,7 @@ class TestRunFunction:
 
         # Mock the GUI runner to prevent it from creating a real window.
         mocker.patch(
-            "checkconnect.gui.startup.CheckConnectGUIRunner",
-            return_value=mocker.Mock(spec=CheckConnectGUIRunner)
+            "checkconnect.gui.startup.CheckConnectGUIRunner", return_value=mocker.Mock(spec=CheckConnectGUIRunner)
         )
 
         # CRITICAL FIX: Ensure the mocked exec_() method returns a specific integer.

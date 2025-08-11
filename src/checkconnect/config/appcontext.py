@@ -37,8 +37,7 @@ def my_command(ctx: typer.Context):
     logger.info(app_context.gettext("Starting CheckConnect..."))
 
     config_value = app_context.settings.get_setting("network", "timeout")
-    logger.debug(f"Network timeout: {config_value}")
-"""
+    logger.debug(f"Network timeout: {config_value}")"""
 
 from __future__ import annotations
 

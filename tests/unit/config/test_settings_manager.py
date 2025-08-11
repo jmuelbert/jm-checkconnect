@@ -494,7 +494,8 @@ class TestSettingsManager:
         assert any(
             "exc_info" in entry
             and entry.get("log_level") == "error"
-            and entry.get("event") == "Failed to load config from CLI path (malformed or access error), trying default locations."
+            and entry.get("event")
+            == "Failed to load config from CLI path (malformed or access error), trying default locations."
             and entry.get("path") == str(error_path)
             and isinstance(entry.get("exc_info"), SettingsConfigurationError)
             and str(entry.get("exc_info")) == "Invalid TOML syntax in configuration file"
@@ -566,7 +567,6 @@ class TestSettingsManager:
         manager._settings = {"section": {"key": "value"}}  # noqa: SLF001
 
         assert manager.get_section("non_existent_section") == {}
-
 
     @pytest.mark.unit
     @pytest.mark.usefixtures("cleanup_singletons", "structlog_base_config")
@@ -765,7 +765,7 @@ class TestSettingsManager:
         """
         Test that save() persists the in-memory config to disk.
         """
-        expected_calls:Final[int] = 2
+        expected_calls: Final[int] = 2
 
         # Prepare path and initial config
         mock_config_path = Path("mock_config.toml")
@@ -1071,7 +1071,7 @@ class TestSettingsManagerSingleton:
         """
         Test that reset clears any accumulated initialization errors.
         """
-        expected_errors:Final[int] = 2
+        expected_errors: Final[int] = 2
 
         # Manually add an error to simulate a previous failed initialization
         SettingsManagerSingleton._initialization_errors.append("Simulated init error 1")  # noqa: SLF001

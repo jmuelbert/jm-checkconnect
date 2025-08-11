@@ -248,5 +248,5 @@ class CheckConnect:
             self.report_manager.save_ntp_results(self._ntp_results)
             log.info(self._translate_func("NTP checks completed successfully."))
         except Exception as e:
-            log.exception(self._translate_func("Error during NTP checks."), exc_info=e  )
+            log.exception(self._translate_func("Error during NTP checks."), exc_info=e)
             raise

@@ -352,9 +352,7 @@ class TestReportGenerator:
 
     @pytest.mark.unit
     @pytest.mark.parametrize("app_context_fixture", ["full"], indirect=True)
-    def test_generate_report_creates_file(
-        self, report_generator_from_context_instance: ReportGenerator
-    ) -> None:
+    def test_generate_report_creates_file(self, report_generator_from_context_instance: ReportGenerator) -> None:
         """
         Test the `generate_report` method, which creates a plain text file.
 
@@ -382,7 +380,6 @@ class TestReportGenerator:
         assert "NTP Test Result 2" not in content  # Ensure no old content is present
         assert "[mocked] URL Results:" in content
         assert "https://example.com: 200" in content
-
 
     @pytest.mark.unit
     def test_generate_html_report_success(
@@ -419,9 +416,9 @@ class TestReportGenerator:
 
         # Assert the logger was informed
         assert any(
-            log_entry.get("event") == "[mocked] HTML reports generated."
-            and log_entry.get("log_level") == "info"
-            for log_entry in caplog_structlog)
+            log_entry.get("event") == "[mocked] HTML reports generated." and log_entry.get("log_level") == "info"
+            for log_entry in caplog_structlog
+        )
 
     @pytest.mark.unit
     def test_generate_html_report_missing_data_raises_error(
@@ -443,8 +440,7 @@ class TestReportGenerator:
         assert "Field 'url_results' cannot be empty." in str(excinfo.value)
 
         assert any(
-            "[mocked] Invalid report data." in log_entry.get("event")
-            and log_entry.get("log_level") == "error"
+            "[mocked] Invalid report data." in log_entry.get("event") and log_entry.get("log_level") == "error"
             for log_entry in caplog_structlog
         )
 

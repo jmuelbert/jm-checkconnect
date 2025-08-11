@@ -44,14 +44,10 @@ def mock_checkconnect_class(mocker: MockerFixture):
         # We use PropertyMock to set the return value for when the property is accessed.
         # This is the crucial change.
         mocker.patch.object(
-            mock_instance,
-            "ntp_results",
-            new_callable=PropertyMock(return_value=["mocked_ntp_data_from_getter"])
+            mock_instance, "ntp_results", new_callable=PropertyMock(return_value=["mocked_ntp_data_from_getter"])
         )
         mocker.patch.object(
-            mock_instance,
-            "url_results",
-            new_callable=PropertyMock(return_value=["mocked_url_data_from_getter"])
+            mock_instance, "url_results", new_callable=PropertyMock(return_value=["mocked_url_data_from_getter"])
         )
 
         # Set the mock class to return our mock instance when called.

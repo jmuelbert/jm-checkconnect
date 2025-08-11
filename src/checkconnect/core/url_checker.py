@@ -247,14 +247,28 @@ class URLChecker:
                     timeout=self.config.timeout,
                 )
 
-                log.debug(self._translate_func("Successfully connected to Web-Server"), server=str(url), status_code=response.status_code)
-                self.results.append(self._translate_func(f"Successfully connected to {url} with Status: {response.status_code}"))
+                log.debug(
+                    self._translate_func("Successfully connected to Web-Server"),
+                    server=str(url),
+                    status_code=response.status_code,
+                )
+                self.results.append(
+                    self._translate_func(f"Successfully connected to {url} with Status: {response.status_code}")
+                )
             except requests.RequestException as e:
                 log.exception(self._translate_func("Error by connection"), server=str(url), exc_info=e)
                 self.results.append(self._translate_func(f"Error by connection to {url}: {e}"))
             except Exception as e:  # Another specific exception should be managed.
-                log.exception(self._translate_func("An unexpected error occurred while checking Web-Server"), server=url, exc_info=e)
-                self.results.append(self._translate_func(f"An unexpected error occurred while checking Web-Server: {url} with error: {e}"))
+                log.exception(
+                    self._translate_func("An unexpected error occurred while checking Web-Server"),
+                    server=url,
+                    exc_info=e,
+                )
+                self.results.append(
+                    self._translate_func(
+                        f"An unexpected error occurred while checking Web-Server: {url} with error: {e}"
+                    )
+                )
 
         log.info(self._translate_func("All Web-Servers checked."))
         return self.results

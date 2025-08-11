@@ -27,6 +27,7 @@ from checkconnect.config.translation_manager import TranslationManager
 
 # --- Fixtures for Mocking Dependencies ---
 
+
 @pytest.fixture
 def mock_settings_manager() -> MagicMock:
     """Mocks the SettingsManager."""
@@ -93,10 +94,10 @@ class TestAppContext:
             structlog.stdlib.add_logger_name,
             structlog.stdlib.add_log_level,
             structlog.stdlib.ProcessorFormatter.wrap_for_formatter,
-            structlog.processors.TimeStamper(fmt="iso", utc=True), # Ensure this matches your conftest.py
-            structlog.processors.StackInfoRenderer(), # If you have these in conftest
-            structlog.processors.format_exc_info, # If you have these in conftest
-            structlog.processors.UnicodeDecoder(), # If you have these in conftest
+            structlog.processors.TimeStamper(fmt="iso", utc=True),  # Ensure this matches your conftest.py
+            structlog.processors.StackInfoRenderer(),  # If you have these in conftest
+            structlog.processors.format_exc_info,  # If you have these in conftest
+            structlog.processors.UnicodeDecoder(),  # If you have these in conftest
             # Add ALL other processors from your conftest.py structlog_base_config here!
         ]
 

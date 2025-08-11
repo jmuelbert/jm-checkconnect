@@ -90,7 +90,6 @@ def reports(
             ntp_results = checker.ntp_results
             url_results = checker.url_results
 
-
         report_generator.generate_reports(
             ntp_results=ntp_results,
             url_results=url_results,

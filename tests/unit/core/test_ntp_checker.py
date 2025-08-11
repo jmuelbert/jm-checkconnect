@@ -303,8 +303,7 @@ class TestNTPChecker:
 
         # Check logger output for info messages with the '[mocked]' prefix
         assert any(
-            record["event"] == "[mocked] Checking NTP servers..."
-            and record["log_level"] == "info"
+            record["event"] == "[mocked] Checking NTP servers..." and record["log_level"] == "info"
             for record in caplog_structlog
         )
 
@@ -319,12 +318,13 @@ class TestNTPChecker:
             record["event"] == "[mocked] Successfully retrieved time from server"
             and record["log_level"] == "debug"
             and record["server"] == "pool.ntp.org"
-            for record in caplog_structlog)
+            for record in caplog_structlog
+        )
 
         assert any(
-            record["event"] == "[mocked] All NTP servers checked."
-            and record["log_level"] == "info"
-            for record in caplog_structlog)
+            record["event"] == "[mocked] All NTP servers checked." and record["log_level"] == "info"
+            for record in caplog_structlog
+        )
 
     @pytest.mark.unit
     @pytest.mark.parametrize("app_context_fixture", ["simple"], indirect=True)
@@ -404,8 +404,7 @@ class TestNTPChecker:
 
         # Check logger output
         assert any(
-            record["event"] == "[mocked] Checking NTP servers..."
-            and record["log_level"] == "info"
+            record["event"] == "[mocked] Checking NTP servers..." and record["log_level"] == "info"
             for record in caplog_structlog
         )
 
@@ -427,18 +426,20 @@ class TestNTPChecker:
             record["event"] == "[mocked] Successfully retrieved time from server"
             and record["log_level"] == "debug"
             and record["server"] == "time.google.com"
-            for record in caplog_structlog)
+            for record in caplog_structlog
+        )
 
         assert any(
             record["event"] == "[mocked] Successfully retrieved time from server"
             and record["log_level"] == "debug"
             and record["server"] == "8.8.8.8"
-            for record in caplog_structlog)
+            for record in caplog_structlog
+        )
 
         assert any(
-            record["event"] == "[mocked] All NTP servers checked."
-            and record["log_level"] == "info"
-            for record in caplog_structlog)
+            record["event"] == "[mocked] All NTP servers checked." and record["log_level"] == "info"
+            for record in caplog_structlog
+        )
 
     @pytest.mark.unit
     @pytest.mark.parametrize("app_context_fixture", ["simple"], indirect=True)
@@ -475,9 +476,8 @@ class TestNTPChecker:
         assert "[mocked] Error retrieving time from NTP server 8.8.8.8: Test error" in results[1]
 
         # Check logger output for error messages
-        assert any (
-            record["event"] == "[mocked] Checking NTP servers..."
-            and record["log_level"] == "info"
+        assert any(
+            record["event"] == "[mocked] Checking NTP servers..." and record["log_level"] == "info"
             for record in caplog_structlog
         )
 
@@ -519,9 +519,9 @@ class TestNTPChecker:
 
         # All done.
         assert any(
-            record["event"] == "[mocked] All NTP servers checked."
-            and record["log_level"] == "info"
-            for record in caplog_structlog)
+            record["event"] == "[mocked] All NTP servers checked." and record["log_level"] == "info"
+            for record in caplog_structlog
+        )
 
     @pytest.mark.unit
     @pytest.mark.parametrize("app_context_fixture", ["simple"], indirect=True)
@@ -561,8 +561,7 @@ class TestNTPChecker:
 
         # Check logger output
         assert any(
-            event["event"] == "[mocked] Checking NTP servers..."
-            and event["log_level"] == "info"
+            event["event"] == "[mocked] Checking NTP servers..." and event["log_level"] == "info"
             for event in caplog_structlog
         )
 
@@ -577,12 +576,13 @@ class TestNTPChecker:
             event["event"] == "[mocked] Successfully retrieved time from server"
             and event["log_level"] == "debug"
             and event["server"] == "pool.ntp.org"
-            for event in caplog_structlog)
+            for event in caplog_structlog
+        )
 
         assert any(
-            event["event"] == "[mocked] All NTP servers checked."
-            and event["log_level"] == "info"
-            for event in caplog_structlog)
+            event["event"] == "[mocked] All NTP servers checked." and event["log_level"] == "info"
+            for event in caplog_structlog
+        )
 
     @pytest.mark.unit
     @pytest.mark.parametrize("app_context_fixture", ["simple"], indirect=True)
@@ -621,9 +621,8 @@ class TestNTPChecker:
 
         # Check logger output (the exception will be caught and logged by logger.exception)
 
-        assert any (
-            record["event"] == "[mocked] Checking NTP servers..."
-            and record["log_level"] == "info"
+        assert any(
+            record["event"] == "[mocked] Checking NTP servers..." and record["log_level"] == "info"
             for record in caplog_structlog
         )
 
@@ -645,9 +644,9 @@ class TestNTPChecker:
         )
 
         assert any(
-           record["event"] == "[mocked] All NTP servers checked."
-           and record["log_level"] == "info"
-           for record in caplog_structlog)
+            record["event"] == "[mocked] All NTP servers checked." and record["log_level"] == "info"
+            for record in caplog_structlog
+        )
 
     @pytest.mark.unit
     @pytest.mark.parametrize("app_context_fixture", ["simple"], indirect=True)
@@ -704,8 +703,7 @@ class TestNTPChecker:
 
         # Check logger output for mixed results
         assert any(
-            record["event"] == "[mocked] Checking NTP servers..."
-            and record["log_level"] == "info"
+            record["event"] == "[mocked] Checking NTP servers..." and record["log_level"] == "info"
             for record in caplog_structlog
         )
 
@@ -759,7 +757,6 @@ class TestNTPChecker:
 
         # All done
         assert any(
-            record["event"] == "[mocked] All NTP servers checked."
-            and record["log_level"] == "info"
+            record["event"] == "[mocked] All NTP servers checked." and record["log_level"] == "info"
             for record in caplog_structlog
         )

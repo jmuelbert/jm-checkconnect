@@ -174,8 +174,8 @@ class TranslationManager:
             lang, _ = locale.getlocale(locale.LC_MESSAGES)
 
         except locale.Error as e:
-           log.exception("Failed to determine default language. Going back to English.", exc_info=e)
-           return "en"
+            log.exception("Failed to determine default language. Going back to English.", exc_info=e)
+            return "en"
         else:
             return lang if lang else "en"
 
@@ -310,14 +310,14 @@ class TranslationManager:
 
             # If initial getlocale didn't return a language, try setting LC_ALL to empty string
             with suppress(locale.Error):
-                locale.setlocale(locale.LC_ALL, '')
+                locale.setlocale(locale.LC_ALL, "")
                 lang_code, encoding = locale.getlocale(locale.LC_CTYPE)
                 if lang_code:
                     return f"{lang_code}.{encoding}" if encoding else f"{lang_code}.UTF-8"
         except locale.Error as e:
-           log.warning("Initial locale.getlocale attempts failed: %s", e)
+            log.warning("Initial locale.getlocale attempts failed: %s", e)
         except Exception as e:
-           log.exception("Unexpected error during initial locale attempts.", exc_info=e)
+            log.exception("Unexpected error during initial locale attempts.", exc_info=e)
         return None
 
     @staticmethod
@@ -337,9 +337,7 @@ class TranslationManager:
                 log.info("Successfully set locale to en_US.UTF-8 as macOS workaround.")
 
             except locale.Error as e:
-               log.exception(
-                    "macOS specific locale workaround 'en_US.UTF-8' also failed.", exc_info=e
-                )
+                log.exception("macOS specific locale workaround 'en_US.UTF-8' also failed.", exc_info=e)
             else:
                 return "en_US.UTF-8"
 
@@ -362,9 +360,7 @@ class TranslationManager:
             env_val = os.getenv(var)
             if env_val:
                 # Extract two-letter code then normalize it to a full locale string
-                return TranslationManager._normalize_locale_string(
-                    TranslationManager._extract_two_letter_lang(env_val)
-                )
+                return TranslationManager._normalize_locale_string(TranslationManager._extract_two_letter_lang(env_val))
         return None
 
     def _get_system_language(self) -> str | None:
@@ -391,7 +387,7 @@ class TranslationManager:
             return system_locale
 
         log.warning("Could not determine system default language from any source.")
-        return None # If no locale can be determined by any strategy
+        return None  # If no locale can be determined by any strategy
 
     def _set_language(self) -> None:
         """

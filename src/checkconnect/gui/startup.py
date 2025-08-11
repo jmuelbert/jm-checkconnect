@@ -38,6 +38,7 @@ if TYPE_CHECKING:
 log: structlog.stdlib.BoundLogger
 log = structlog.get_logger(__name__)
 
+
 def _try_load_translation(
     path: str, qt_translator: QTranslator, app: QApplication, translate: Callable[[str], str]
 ) -> bool:
@@ -105,26 +106,31 @@ def setup_translations(
             # QLocale.system().uiLanguages() might return 'de-DE', 'en-US', etc.
             # You usually want the 'de' or 'en' part.
             language = ui_languages[0].split("-")[0]
-            log.debug(translate("Using Qt preferred UI language for translations"),
+            log.debug(
+                translate("Using Qt preferred UI language for translations"),
                 language=language,
-                ui_language=ui_languages[0])
+                ui_language=ui_languages[0],
+            )
         else:
             # Fallback to system locale name if UI languages are not available
             language = QLocale.system().name().split("_")[0]
-            log.warning(translate("Qt preferred UI languages not found, falling back to system locale."),
-                language=language)
+            log.warning(
+                translate("Qt preferred UI languages not found, falling back to system locale."), language=language
+            )
 
     attempted_paths = [
         f":/translations/{language}.qm",
-        str((translations_dir or Path(user_data_dir(__about__.__app_name__.lower())) / "translations") / f"{language}.qm"),
+        str(
+            (translations_dir or Path(user_data_dir(__about__.__app_name__.lower())) / "translations")
+            / f"{language}.qm"
+        ),
     ]
 
     for path in attempted_paths:
         if _try_load_translation(path, qt_translator, app, translate):
             return
 
-    log.warning(translate("No Qt translation found for language."),
-        language=language)
+    log.warning(translate("No Qt translation found for language."), language=language)
 
 
 def run(context: AppContext, language: str | None = None) -> int:
@@ -163,7 +169,7 @@ def run(context: AppContext, language: str | None = None) -> int:
     else:
         log.debug(translate("Using existing QApplication instance."))
 
-    exit_code = 1 # Default to an error code
+    exit_code = 1  # Default to an error code
 
     try:
         # The 'context' object should contain the default language config from TOML
@@ -205,6 +211,7 @@ def run(context: AppContext, language: str | None = None) -> int:
             app.quit()
 
     return exit_code
+
 
 if __name__ == "__main__":
     # This is how the function is typically called.

@@ -245,7 +245,6 @@ class TestURLChecker:
     interactions.
     """
 
-
     @pytest.mark.unit
     @pytest.mark.parametrize("app_context_fixture", ["simple"], indirect=True)
     def test_url_checker_integration(
@@ -289,8 +288,7 @@ class TestURLChecker:
         # Check logger output for info messages with the '[mocked]' prefix
 
         assert any(
-            record["event"] == "[mocked] Checking URLs ..."
-            and record["log_level"] == "info"
+            record["event"] == "[mocked] Checking URLs ..." and record["log_level"] == "info"
             for record in caplog_structlog
         )
 
@@ -306,12 +304,13 @@ class TestURLChecker:
             and record["log_level"] == "debug"
             and record["server"] == "http://example.com/"
             and record["status_code"] == excepted_status_code
-            for record in caplog_structlog)
+            for record in caplog_structlog
+        )
 
         assert any(
-            record["event"] == "[mocked] All Web-Servers checked."
-            and record["log_level"] == "info"
-            for record in caplog_structlog)
+            record["event"] == "[mocked] All Web-Servers checked." and record["log_level"] == "info"
+            for record in caplog_structlog
+        )
 
     @pytest.mark.unit
     @pytest.mark.parametrize("app_context_fixture", ["simple"], indirect=True)
@@ -394,8 +393,7 @@ class TestURLChecker:
 
         # Check logger output
         assert any(
-            record["event"] == "[mocked] Checking URLs ..."
-            and record["log_level"] == "info"
+            record["event"] == "[mocked] Checking URLs ..." and record["log_level"] == "info"
             for record in caplog_structlog
         )
 
@@ -412,7 +410,8 @@ class TestURLChecker:
             and record["log_level"] == "debug"
             and record["server"] == "https://example.com/"
             and record["status_code"] == excepted_status_code
-            for record in caplog_structlog)
+            for record in caplog_structlog
+        )
 
         # Test https://google.com/
         assert any(
@@ -427,14 +426,14 @@ class TestURLChecker:
             and record["log_level"] == "debug"
             and record["server"] == "https://google.com/"
             and record["status_code"] == excepted_status_code
-            for record in caplog_structlog)
+            for record in caplog_structlog
+        )
 
         # All done.
         assert any(
-            record["event"] == "[mocked] All Web-Servers checked."
-            and record["log_level"] == "info"
-            for record in caplog_structlog)
-
+            record["event"] == "[mocked] All Web-Servers checked." and record["log_level"] == "info"
+            for record in caplog_structlog
+        )
 
     @pytest.mark.unit
     @pytest.mark.parametrize("app_context_fixture", ["simple"], indirect=True)
@@ -472,8 +471,7 @@ class TestURLChecker:
 
         # Check logger output for info messages with the '[mocked]' prefix
         assert any(
-            record["event"] == "[mocked] Checking URLs ..."
-            and record["log_level"] == "info"
+            record["event"] == "[mocked] Checking URLs ..." and record["log_level"] == "info"
             for record in caplog_structlog
         )
 
@@ -492,7 +490,8 @@ class TestURLChecker:
             and record["server"] == "https://example.com/"
             and isinstance(record["exc_info"], RequestException)
             and "Connection failed" in str(record["exc_info"])
-            for record in caplog_structlog)
+            for record in caplog_structlog
+        )
 
         # Check https://google.com/
         assert any(
@@ -509,17 +508,21 @@ class TestURLChecker:
             and record["server"] == "https://google.com/"
             and isinstance(record["exc_info"], RequestException)
             and "Connection failed" in str(record["exc_info"])
-            for record in caplog_structlog)
+            for record in caplog_structlog
+        )
 
         assert any(
-            record["event"] == "[mocked] All Web-Servers checked."
-            and record["log_level"] == "info"
-            for record in caplog_structlog)
+            record["event"] == "[mocked] All Web-Servers checked." and record["log_level"] == "info"
+            for record in caplog_structlog
+        )
 
     @pytest.mark.unit
     @pytest.mark.parametrize("app_context_fixture", ["simple"], indirect=True)
     def test_url_checker_with_context(
-        self, mocker: MockerFixture, app_context_fixture: AppContext,  caplog_structlog: list[EventDict],
+        self,
+        mocker: MockerFixture,
+        app_context_fixture: AppContext,
+        caplog_structlog: list[EventDict],
     ) -> None:
         """
         Test `URLChecker` functionality with a specific server configured via `from_params`.
@@ -550,8 +553,7 @@ class TestURLChecker:
 
         # Check logger output for info messages with the '[mocked]' prefix
         assert any(
-            record["event"] == "[mocked] Checking URLs ..."
-            and record["log_level"] == "info"
+            record["event"] == "[mocked] Checking URLs ..." and record["log_level"] == "info"
             for record in caplog_structlog
         )
 
@@ -567,12 +569,13 @@ class TestURLChecker:
             and record["log_level"] == "debug"
             and record["server"] == "https://example.com/"
             and record["status_code"] == excepted_status_code
-            for record in caplog_structlog)
+            for record in caplog_structlog
+        )
 
         assert any(
-            record["event"] == "[mocked] All Web-Servers checked."
-            and record["log_level"] == "info"
-            for record in caplog_structlog)
+            record["event"] == "[mocked] All Web-Servers checked." and record["log_level"] == "info"
+            for record in caplog_structlog
+        )
 
     @pytest.mark.unit
     @pytest.mark.parametrize("app_context_fixture", ["simple"], indirect=True)
@@ -624,13 +627,13 @@ class TestURLChecker:
             and record["server"] == "https://www.that-server-does-not.exist/"
             and isinstance(record["exc_info"], requests.exceptions.ConnectionError)
             and "Failed to establish a new connection" in str(record["exc_info"])
-            for record in caplog_structlog)
+            for record in caplog_structlog
+        )
 
         assert any(
-            record["event"] == "[mocked] All Web-Servers checked."
-            and record["log_level"] == "info"
-            for record in caplog_structlog)
-
+            record["event"] == "[mocked] All Web-Servers checked." and record["log_level"] == "info"
+            for record in caplog_structlog
+        )
 
     @pytest.mark.unit
     @pytest.mark.parametrize("app_context_fixture", ["simple"], indirect=True)
@@ -685,8 +688,7 @@ class TestURLChecker:
 
         # Check logger output for mixed results
         assert any(
-            record["event"] == "[mocked] Checking URLs ..."
-            and record["log_level"] == "info"
+            record["event"] == "[mocked] Checking URLs ..." and record["log_level"] == "info"
             for record in caplog_structlog
         )
 
@@ -703,8 +705,8 @@ class TestURLChecker:
             and record["log_level"] == "debug"
             and record["server"] == "https://example1.com/"
             and record["status_code"] == excepted_status_code
-            for record in caplog_structlog)
-
+            for record in caplog_structlog
+        )
 
         # Test http://example2.com/
         assert any(
@@ -721,7 +723,8 @@ class TestURLChecker:
             and record["server"] == "https://example2.com/"
             and isinstance(record["exc_info"], RequestException)
             and "Failed" in str(record["exc_info"])
-            for record in caplog_structlog)
+            for record in caplog_structlog
+        )
 
         # Test http://example3.com/
         assert any(
@@ -736,10 +739,11 @@ class TestURLChecker:
             and record["log_level"] == "debug"
             and record["server"] == "https://example3.com/"
             and record["status_code"] == excepted_status_code
-            for record in caplog_structlog)
+            for record in caplog_structlog
+        )
 
         # All done.
         assert any(
-            record["event"] == "[mocked] All Web-Servers checked."
-            and record["log_level"] == "info"
-            for record in caplog_structlog)
+            record["event"] == "[mocked] All Web-Servers checked." and record["log_level"] == "info"
+            for record in caplog_structlog
+        )

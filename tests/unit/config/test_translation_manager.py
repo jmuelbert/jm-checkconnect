@@ -25,9 +25,8 @@ def reset_translation_singleton():
 def manager() -> TranslationManager:
     return TranslationManager()
 
+
 class TestTranslationManager:
-
-
     def test_initial_state(self, manager: TranslationManager) -> None:
         """
         Test the initial state of the TranslationManager.
@@ -36,11 +35,10 @@ class TestTranslationManager:
             manager: TranslationManager instance.
 
         """
-        assert manager._translation_domain == "checkconnect"   # noqa: SLF001
+        assert manager._translation_domain == "checkconnect"  # noqa: SLF001
         assert manager._translation is not None  # noqa: SLF001
         assert isinstance(manager._translation, gettext.NullTranslations)  # noqa: SLF001
         assert manager.internal_errors == []
-
 
     def test_configure_explicit_language(self, monkeypatch, manager: TranslationManager, mocker) -> None:
         """
@@ -63,7 +61,6 @@ class TestTranslationManager:
         assert manager.gettext("Hello") == "translated:Hello"
         assert manager.internal_errors == []
 
-
     def test_configure_locale_fallback(self, monkeypatch, manager: TranslationManager) -> None:
         """
         Test that the locale is configured correctly when the default locale is not available.
@@ -79,7 +76,7 @@ class TestTranslationManager:
         manager.configure()
         assert manager.current_language == "fr_FR"
 
-    def test_configure_oserror(self,monkeypatch, manager: TranslationManager) -> None:
+    def test_configure_oserror(self, monkeypatch, manager: TranslationManager) -> None:
         """
         Test that the locale is configured correctly when the default locale is not available.
 
@@ -110,7 +107,6 @@ class TestTranslationManager:
         result = manager.translate_plural("apple", "apples", 2)
         assert result == "2 apples"
 
-
     def test_context_translation(self, manager: TranslationManager) -> None:
         """
         Test that context translations are handled correctly.
@@ -125,7 +121,6 @@ class TestTranslationManager:
         result = manager.translate_context("menu", "File")
         assert result == "Datei"
 
-
     def test_set_language(self, monkeypatch, manager: TranslationManager) -> None:
         """
         Test that the language can be set correctly.
@@ -134,12 +129,11 @@ class TestTranslationManager:
             monkeypatch: Monkeypatch fixture.
             manager: TranslationManager instance.
         """
-        monkeypatch.setattr(gettext, "translation", lambda *a, **k: gettext.NullTranslations()) # noqa: ARG005
+        monkeypatch.setattr(gettext, "translation", lambda *a, **k: gettext.NullTranslations())  # noqa: ARG005
         monkeypatch.setattr(locale, "setlocale", lambda *a, **k: None)  # noqa: ARG005
 
         manager.set_language("en")
         assert manager.current_language == "en"
-
 
     def test_system_language_env(self, monkeypatch, manager: TranslationManager) -> None:
         """
@@ -154,7 +148,6 @@ class TestTranslationManager:
 
         lang = manager._get_system_language()  # noqa: SLF001
         assert lang == "de_DE.UTF-8"
-
 
     @patch("checkconnect.config.translation_manager.locale.normalize")
     def test_normalize_locale_string_mocked(self, mock_normalize) -> None:
@@ -185,18 +178,17 @@ class TestTranslationManager:
         assert TranslationManager._extract_two_letter_lang("en_US.UTF-8") == "en"  # noqa: SLF001
         assert TranslationManager._extract_two_letter_lang("de_DE") == "de"  # noqa: SLF001
         assert TranslationManager._extract_two_letter_lang("C") == "en"  # noqa: SLF001
-        assert TranslationManager._extract_two_letter_lang("") == "en"    # noqa: SLF001
+        assert TranslationManager._extract_two_letter_lang("") == "en"  # noqa: SLF001
+
 
 class TestTranslationManagerSingleton:
-
     def test_singleton_returns_same_instance(self) -> None:
         """Test that the singleton returns the same instance."""
         a = TranslationManagerSingleton.get_instance()
         b = TranslationManagerSingleton.get_instance()
         assert a is b
 
-
-    def test_singleton_configuration(self,monkeypatch) -> None:
+    def test_singleton_configuration(self, monkeypatch) -> None:
         """
         Test that the singleton configuration works as expected.
 
@@ -211,7 +203,6 @@ class TestTranslationManagerSingleton:
         assert instance.current_language == "en"
         assert TranslationManagerSingleton.get_initialization_errors() == []
 
-
     def test_configure_adds_internal_error(self, monkeypatch) -> None:
         """
         Test that configure handles translation errors gracefully.
@@ -220,14 +211,13 @@ class TestTranslationManagerSingleton:
             monkeypatch: Pytest monkeypatch fixture.
         """
         monkeypatch.setattr(gettext, "translation", lambda *a, **k: (_ for _ in ()).throw(OSError("no .mo")))  # noqa: ARG005
-        monkeypatch.setattr(locale, "setlocale", lambda *a, **k: None) # noqa: ARG005
+        monkeypatch.setattr(locale, "setlocale", lambda *a, **k: None)  # noqa: ARG005
 
         tm = TranslationManager()
         with pytest.raises(OSError, match="no .mo"):
             tm.configure(language="de", translation_domain="dummy", locale_dir="/invalid/path")
 
         assert any("no .mo" in msg for msg in tm._internal_errors)  # noqa: SLF001
-
 
     def test_singleton_reset(self) -> None:
         """

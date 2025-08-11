@@ -75,7 +75,7 @@ class TestGuiMain:
             mocker: The pytest-mock fixture for patching objects.
         """
         mock_run_ntp = mocker.patch.object(gui.checkconnect, "run_ntp_checks")
-        gui.checkconnect.ntp_results = (["NTP server 1 OK", "NTP server 2 OK"])
+        gui.checkconnect.ntp_results = ["NTP server 1 OK", "NTP server 2 OK"]
 
         gui.test_ntp()
 
@@ -96,7 +96,7 @@ class TestGuiMain:
             mocker: The pytest-mock fixture for patching objects.
         """
         mock_run_url = mocker.patch.object(gui.checkconnect, "run_url_checks")
-        gui.checkconnect.url_results = (["https://example.com OK"])
+        gui.checkconnect.url_results = ["https://example.com OK"]
 
         gui.test_urls()
 
@@ -117,15 +117,17 @@ class TestGuiMain:
         mock_html = mocker.patch("checkconnect.gui.gui_main.generate_html_report")
         mock_pdf = mocker.patch("checkconnect.gui.gui_main.generate_pdf_report")
 
-        gui.checkconnect.ntp_results = (["NTP OK"])
-        gui.checkconnect.url_results = (["URL OK"])
+        gui.checkconnect.ntp_results = ["NTP OK"]
+        gui.checkconnect.url_results = ["URL OK"]
         gui.generate_reports()
 
         mock_html.assert_called_once()
         mock_pdf.assert_called_once()
         assert "Reports generated successfully." in gui.output_log.toPlainText()
 
-    def test_generate_reports_failure(self, gui: CheckConnectGUIRunner, mocker: MockerFixture, caplog_structlog: list[EventDict]) -> None:
+    def test_generate_reports_failure(
+        self, gui: CheckConnectGUIRunner, mocker: MockerFixture, caplog_structlog: list[EventDict]
+    ) -> None:
         """
         Test error handling when report generation fails.
 
@@ -141,7 +143,6 @@ class TestGuiMain:
 
         # Spy on QMessageBox.critical in the same module where show_error lives
         critical_spy = mocker.patch("checkconnect.gui.gui_main.QMessageBox.critical", autospec=True)
-
 
         # 2) Act
         gui.generate_reports()
@@ -162,8 +163,8 @@ class TestGuiMain:
             and record["log_level"] == "error"
             and isinstance(record["exc_info"], Exception)
             and "Oops" in str(record["exc_info"])
-            for record in caplog_structlog)
-
+            for record in caplog_structlog
+        )
 
     def test_show_summary_html(self, gui: CheckConnectGUIRunner, mocker: MockerFixture) -> None:
         """
@@ -207,7 +208,9 @@ class TestGuiMain:
 
         assert "Summary Text" in gui.summary_view.toPlainText()
 
-    def test_show_summary_exception(self, gui: CheckConnectGUIRunner, mocker: MockerFixture, caplog_structlog: list[EventDict]) -> None:
+    def test_show_summary_exception(
+        self, gui: CheckConnectGUIRunner, mocker: MockerFixture, caplog_structlog: list[EventDict]
+    ) -> None:
         """
         Test that summary generation errors are logged gracefully.
 
@@ -243,4 +246,5 @@ class TestGuiMain:
             and record["log_level"] == "error"
             and isinstance(record["exc_info"], Exception)
             and "Boom" in str(record["exc_info"])
-            for record in caplog_structlog)
+            for record in caplog_structlog
+        )

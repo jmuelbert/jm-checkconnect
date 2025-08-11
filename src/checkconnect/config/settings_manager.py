@@ -79,8 +79,7 @@ class SettingsManager:
         Path("config.toml"),
         Path(platformdirs.user_config_dir(APP_NAME, appauthor=False) / Path(CONF_NAME)),
         Path(platformdirs.site_config_dir(APP_NAME, appauthor=False) / Path(CONF_NAME)),
-        str(cast("Traversable", files(APP_NAME)).joinpath(CONF_NAME))
-
+        str(cast("Traversable", files(APP_NAME)).joinpath(CONF_NAME)),
     ]
 
     DEFAULT_CONFIG: ClassVar[dict[str, dict[str, Any]]] = {
@@ -144,7 +143,6 @@ class SettingsManager:
     def internal_errors(self) -> list[str]:
         """Return the list of internal errors."""
         return self._internal_errors
-
 
     @property
     def logger(self) -> structlog.BoundLogger:
@@ -257,7 +255,9 @@ class SettingsManager:
             self.logger.exception("TOML decoding failed for configuration file", path=str(path), exc_info=e)
             msg = "Malformed TOML file:" + str(path)
             raise SettingsConfigurationError(msg) from e
-        except (OSError) as e:  # Catch file-related OS errors (e.g., permissions, not found if path.exists() failed somehow)
+        except (
+            OSError
+        ) as e:  # Catch file-related OS errors (e.g., permissions, not found if path.exists() failed somehow)
             self._internal_errors.append(f"OS error accessing config file '{path!s}': {e}")
             self.logger.exception("Operating system error accessing configuration file", path=str(path), exc_info=e)
             msg = f"Could not access file: {path!s}"
@@ -488,7 +488,9 @@ class SettingsManager:
             try:
                 reloaded_config = self._load_from_file(self._loaded_config_file)
                 self._settings = reloaded_config
-                self.logger.info("Successfully reloaded configuration from previous path.", path=str(self._loaded_config_file))
+                self.logger.info(
+                    "Successfully reloaded configuration from previous path.", path=str(self._loaded_config_file)
+                )
             except (SettingsConfigurationError, ConfigFileNotFoundError, OSError) as e:
                 self.logger.exception(
                     "Failed to reload from previous path, attempting re-search.",
@@ -571,7 +573,6 @@ class SettingsManagerSingleton:
         cls._initialization_errors.clear()  # Clear errors for a fresh initialization attempt
 
         try:
-
             cls._instance.load_settings(config_path)  # Call the instance's load_settings
             # Add any errors reported by the instance itself
             cls._initialization_errors.extend(cls._instance.internal_errors)

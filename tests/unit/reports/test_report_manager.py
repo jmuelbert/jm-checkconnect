@@ -89,7 +89,6 @@ class TestReportManager:
 
         assert manager.data_dir == manager_data_dir
 
-
     @pytest.mark.unit
     @pytest.mark.parametrize("app_context_fixture", ["simple"], indirect=True)
     def test_from_context_uses_default_data_dir_if_none_in_config(
@@ -141,7 +140,7 @@ class TestReportManager:
         )
 
         assert any(
-           e.get("event") == "[mocked] Ensured data directory exists."
+            e.get("event") == "[mocked] Ensured data directory exists."
             and e.get("path") == str(mock_user_data_dir_path)
             and e.get("log_level") == "debug"
             for e in caplog_structlog
@@ -385,7 +384,8 @@ class TestReportManager:
             / report_manager_from_params_instance._DATA_FILENAMES[ReportDataType.URL]  # noqa: SLF001
         )
         assert any(
-            event.get("event") == "[mocked] Loaded results."            and event.get("data_type_value") == "url"
+            event.get("event") == "[mocked] Loaded results."
+            and event.get("data_type_value") == "url"
             and event.get("path") == str(url_file)
             and event.get("log_level") == "debug"
             for event in caplog_structlog
@@ -400,8 +400,7 @@ class TestReportManager:
         )
 
         assert any(
-            event.get("event") == "[mocked] Previous results loaded from disk."
-            and event.get("log_level") == "info"
+            event.get("event") == "[mocked] Previous results loaded from disk." and event.get("log_level") == "info"
             for event in caplog_structlog
         )
 
@@ -449,8 +448,10 @@ class TestReportManager:
         # Define the expected error message from the OSError
         os_error_message = "Disk full"
 
-        with patch.object(Path, "open", side_effect=OSError(os_error_message)), \
-            pytest.raises(SummaryDataSaveError) as excinfo:
+        with (
+            patch.object(Path, "open", side_effect=OSError(os_error_message)),
+            pytest.raises(SummaryDataSaveError) as excinfo,
+        ):
             # Any save method relying on _save_json should trigger this
             report_manager_from_params_instance.save_ntp_results(["some data"])
 
@@ -469,9 +470,7 @@ class TestReportManager:
         )
 
     @pytest.mark.unit
-    def test_load_results_error_handling(
-        self, report_manager_from_params_instance: ReportManager
-    ) -> None:
+    def test_load_results_error_handling(self, report_manager_from_params_instance: ReportManager) -> None:
         """
         Test that `SummaryDataLoadError` is raised when a load operation fails.
 

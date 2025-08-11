@@ -284,10 +284,11 @@ class NTPChecker:
                     f"Successfully retrieved time from {server} - Time: {time.ctime(response.tx_time)} - Difference: {difference:.2f}s",
                 )
                 self.results.append(result)
-                log.debug(self._translate_func("Successfully retrieved time from server"),
+                log.debug(
+                    self._translate_func("Successfully retrieved time from server"),
                     server=server,
                     time=time.ctime(response.tx_time),
-                    difference=difference
+                    difference=difference,
                 )
 
             except ntplib.NTPException as e:
@@ -295,17 +296,18 @@ class NTPChecker:
                     f"Error retrieving time from NTP server {server}: {e}",
                 )
                 self.results.append(error_message)
-                log.exception(self._translate_func("Error retrieving time from NTP server"),
-                    server=server,
-                    exc_info=e)
+                log.exception(self._translate_func("Error retrieving time from NTP server"), server=server, exc_info=e)
 
             except Exception as e:
-                error_message = self._translate_func(f"An unexpected error occurred while checking NTP server {server}: {e}")
+                error_message = self._translate_func(
+                    f"An unexpected error occurred while checking NTP server {server}: {e}"
+                )
                 self.results.append(error_message)
-                log.exception(self._translate_func("An unexpected error occurred while checking NTP server"),
+                log.exception(
+                    self._translate_func("An unexpected error occurred while checking NTP server"),
                     server=server,
-                    exc_info=e)
-
+                    exc_info=e,
+                )
 
         log.info(self._translate_func("All NTP servers checked."))
         return self.results

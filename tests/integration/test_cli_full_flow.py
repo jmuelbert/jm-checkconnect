@@ -124,7 +124,9 @@ class TestIntegration:
         assert "Starting all checks..." in log_content, "Missing 'Starting all checks...' in log"
         assert "All Web-Servers checked." in log_content, "Missing 'All Web-Servers checked.' in log"
         assert "All NTP servers checked." in log_content, "Missing 'All NTP servers checked.' in log"
-        assert "All checks completed successfully." in log_content, "Missing 'All checks completed successfully.' in log"
+        assert "All checks completed successfully." in log_content, (
+            "Missing 'All checks completed successfully.' in log"
+        )
 
         # Optional cleanup
         log_dir = log_file.parent

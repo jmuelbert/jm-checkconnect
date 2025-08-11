@@ -40,6 +40,7 @@ if TYPE_CHECKING:
 log: structlog.stdlib.BoundLogger
 log = structlog.get_logger(__name__)
 
+
 class OutputFormat(StrEnum):
     """Defines the supported output formats for summaries."""
 
@@ -111,8 +112,7 @@ class ReportManager:
             msg = self._translate_func("Failed to create data directory.")
             log.exception(msg, path=str(self.data_dir), exc_info=e)
             # Depending on severity, you might want to raise an exception or handle gracefully
-            raise DirectoryCreationError(message=f"{msg} {data_dir}", original_exception=e
-            ) from e
+            raise DirectoryCreationError(message=f"{msg} {data_dir}", original_exception=e) from e
 
     # --- Factory-Methods ---
     @classmethod
@@ -144,9 +144,8 @@ class ReportManager:
         else:
             data_dir = default_data_path
             log.warning(
-                context.translator.translate(
-                    "Data directory not found in config or invalid. Using default."),
-                    path=str(data_dir)
+                context.translator.translate("Data directory not found in config or invalid. Using default."),
+                path=str(data_dir),
             )
 
         return cls(context=context, data_dir=data_dir)
@@ -199,7 +198,9 @@ class ReportManager:
         """
         filename = self._DATA_FILENAMES.get(data_type)
         if filename is None:
-            translated_message = self._translate_func(f"Unknown report data type: {data_type.value}. No filename configured.")
+            translated_message = self._translate_func(
+                f"Unknown report data type: {data_type.value}. No filename configured."
+            )
             raise SummaryUnknownDataError(translated_message)
 
         return self.data_dir / filename
@@ -222,7 +223,8 @@ class ReportManager:
             with output_path.open("w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2)
             log.debug(
-                self._translate_func("Results saved to disk.",
+                self._translate_func(
+                    "Results saved to disk.",
                 ),
                 data_type_value=data_type.value,
                 path=str(output_path),
@@ -232,7 +234,7 @@ class ReportManager:
                 self._translate_func("Could not save results due to an unexpected error."),
                 data_type_value=data_type.value,
                 path=str(output_path),
-                exc_info=e
+                exc_info=e,
             )
             translated_message = self._translate_func(f"Could not save {data_type.value} results to: {output_path}")
             raise SummaryDataSaveError(message=translated_message, original_exception=e) from e
@@ -386,7 +388,7 @@ class ReportManager:
             SummaryFormatError: If an invalid `OutputFormat` is specified.
         """
         if summary_format not in {OutputFormat.text, OutputFormat.markdown, OutputFormat.html}:
-            translated_message =self._translate_func(
+            translated_message = self._translate_func(
                 f"Invalid format specified. Use 'text', 'markdown', or 'html' instead of {summary_format}."
             )
             raise SummaryFormatError(message=translated_message)

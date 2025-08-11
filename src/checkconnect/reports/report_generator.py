@@ -307,9 +307,8 @@ class ReportGenerator:
         else:
             reports_dir = default_reports_path
             log.warning(
-                context.translator.translate(
-                    "Report directory not found in config or invalid. Using default."),
-                    path=str(reports_dir)
+                context.translator.translate("Report directory not found in config or invalid. Using default."),
+                path=str(reports_dir),
             )
 
         return cls(context=context, reports_dir=reports_dir)

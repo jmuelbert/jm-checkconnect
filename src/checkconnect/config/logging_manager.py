@@ -85,9 +85,7 @@ logger.error("Failed to connect to external service.", service="AuthAPI", status
 # (though for the singleton, it's typically managed globally)
 # with LoggingManagerSingleton.get_instance() as logger_instance:
 #     log = logger_instance.get_logger("my_module")
-#     log.info("Inside context manager")
-"""
-
+#     log.info("Inside context manager")"""
 
 from __future__ import annotations
 
@@ -136,6 +134,7 @@ VERBOSITY_LEVELS: dict[int, int] = {
     1: logging.INFO,
     2: logging.DEBUG,
 }
+
 
 # --- Logging Manager ---
 class LoggingManager:
@@ -516,8 +515,8 @@ class LoggingManager:
                 self._logger.debug(
                     self._translate_func("Limited file handler added."),
                     path=str(limited_log_file_path),
-                    level=logging.getLevelName(effective_log_level
-                )                )
+                    level=logging.getLevelName(effective_log_level),
+                )
             except Exception as e:
                 msg = self._translate_func("Failed to set up limited file handler.")
                 self._internal_errors.append(f"{msg} {e}")
