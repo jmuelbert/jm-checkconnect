@@ -275,7 +275,7 @@ def mock_dependencies(
         "logger": {"level": "DEBUG"},
         "general": {"default_language": "en"},
         "data": {"directory": str(isolated_test_env["user_config_dir"] / "data_dir")},
-        "network": {"timeout": 5, "ntp_servers": ["test.ntp.org"], "urls": ["https://test.example.com"]},
+        "network": {"timeout": 5, "ntp_servers": ["pool.ntp.org"], "urls": ["https://www.example.com"]},
         "reports": {"directory": str(isolated_test_env["user_config_dir"] / "reports_dir")},
     }
     mock_settings_instance.get_all_settings.return_value = settings_data
