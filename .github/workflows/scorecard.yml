@@ -1,109 +1,72 @@
----
 # SPDX-FileCopyrightText: Open Source Security Foundation (OpenSSF)
 # SPDX-License-Identifier: Apache-2.0
-
-name: Supply Chain Security Analysis
-
-on: # yamllint disable-line rule:truthy
+name: Security Scorecard
+on: # yamlint disable-line rule:truthy
   schedule:
     - cron: 0 4 * * 1 # Run at 04:00 UTC every Monday
-
   push:
     branches:
       - main
       - develop
       - release/**
     paths-ignore:
-      - "**.md"
-      - "**.txt"
+      - '**.md'
+      - '**.txt'
       - docs/**
       - .github/*.md
       - LICENSES/**
       - LICENSE
-      - ".gitignore"
-
+      - '.gitignore'
   pull_request:
     types:
       - opened
       - edited
       - synchronize
     paths-ignore:
-      - "**.md"
-      - "**.txt"
+      - '**.md'
+      - '**.txt'
       - docs/**
       - .github/*.md
       - LICENSES/**
       - LICENSE
-      - ".gitignore"
-
+      - '.gitignore'
   workflow_dispatch:
-
 permissions:
   contents: read # Base permissions for all jobs
-
 concurrency:
   group: supply-chain-${{ github.ref }}
   cancel-in-progress: true # Ensures only one run per branch is active
-
 jobs:
   analyze:
-    name: Supply Chain Security Analysis
+    name: Run Scorecard Analysis
     if: github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
     timeout-minutes: 30
-
     permissions:
       security-events: write # Required for SARIF uploads
       id-token: write # Needed to publish results with Scorecard
-
+      issues: write # Needed to create the issue
+      pull-requests: write # Needed to create the comment
     steps:
       - name: 🔒 Harden Runner
-        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        uses: step-security/harden-runner@v2
         with:
           egress-policy: audit
-
       - name: 🧰 Checkout Repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
           persist-credentials: false
-
       - name: 🔍 Run Scorecard Analysis
         id: scorecard
-        uses: ossf/scorecard-action@v2.4.2
+        uses: ossf/scorecard-action@v2.4.1
         with:
           results_file: scorecard.sarif
           results_format: sarif
           publish_results: true
-
-      - name: 📤 Upload SARIF Results
-        uses: actions/upload-artifact@v4
-        with:
-          name: security-analysis
-          path: scorecard.sarif
-          retention-days: 30
-
-  process-results:
-    name: Process Security Results
-    needs: analyze
-    runs-on: ubuntu-latest
-
-    permissions:
-      contents: read
-
-    outputs:
-      high-risks: ${{ steps.process.outputs.high-risks }}
-      overall-score: ${{ steps.process.outputs.overall-score }}
-
-    steps:
-      - name: 🔽 Download Analysis Results
-        uses: actions/download-artifact@v4
-        with:
-          name: security-analysis
-
       - name: 📊 Process Results
-        id: process
-        uses: actions/github-script@v7.0.1
+        id: process-results
+        uses: actions/github-script@v7
         with:
           script: |
             const fs = require('fs');
@@ -111,75 +74,85 @@ jobs:
             const resultsFile = 'scorecard.sarif';
 
             if (!fs.existsSync(resultsFile)) {
-              throw new Error('Results file not found');
+              core.setFailed('Results file not found');
+              return;
             }
 
-            const results = JSON.parse(fs.readFileSync(resultsFile, 'utf8'));
+            try {
+              const results = JSON.parse(fs.readFileSync(resultsFile, 'utf8'));
 
-            if (!results.runs || results.runs.length === 0) {
-              throw new Error('Invalid SARIF format: No runs found');
+              if (!results.runs || results.runs.length === 0) {
+                core.setFailed('Invalid SARIF format: No runs found');
+                return;
+              }
+
+              const checks = results.runs[0].results || [];
+              const highRisks = checks.filter(check => check.level === 'error');
+
+              // Extract overall score safely
+              const overallScore = results.runs[0].properties?.['overall_score'] || '0';
+
+              // Generate summary report
+              const report = `## 🔒 Supply Chain Security Report\n\n` +
+                `### 📊 Overall Score: ${overallScore}/10\n\n` +
+                `### 🚨 High Risk Issues\n` +
+                (highRisks.length > 0
+                  ? highRisks.map(risk => `- ${risk.message.text}`).join('\n')
+                  : '✅ No high-risk issues found\n');
+
+              fs.writeFileSync('security-report.md', report);
+
+              const processedResults = {
+                overallScore: overallScore,
+                highRisks: highRisks.length
+              };
+
+              fs.writeFileSync('processed-results.json', JSON.stringify(processedResults, null, 2));
+
+              core.setOutput('high-risks', highRisks.length);
+              core.setOutput('overall-score', overallScore);
+              core.setOutput('report', report); // Output the full report for later use
+            } catch (error) {
+              core.setFailed(`Error processing results: ${error.message}`);
+              return;
             }
-
-            const checks = results.runs[0].results || [];
-            const highRisks = checks.filter(check => check.level === 'error');
-
-            // Extract overall score safely
-            const overallScore = results.runs[0].properties?.score || '0';
-
-            // Generate summary report
-            const report = `## 🔒 Supply Chain Security Report\n\n` +
-              `### 📊 Overall Score: ${overallScore}/10\n\n` +
-              `### 🚨 High Risk Issues\n` +
-              (highRisks.length > 0
-                ? highRisks.map(risk => `- ${risk.message.text}`).join('\n')
-                : '✅ No high-risk issues found\n');
-
-            fs.writeFileSync('security-report.md', report);
-
-            fs.writeFileSync('processed-results.json', JSON.stringify({
-              overallScore: overallScore,
-              highRisks: highRisks.length
-            }, null, 2));
-
-            core.setOutput('high-risks', highRisks.length);
-            core.setOutput('overall-score', overallScore);
-
       - name: 📤 Upload Processed Results
         uses: actions/upload-artifact@v4
         with:
           name: processed-results
           path: processed-results.json
           retention-days: 30
-
       - name: 📤 Upload Security Report
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        uses: actions/upload-artifact@v4
         with:
           name: SARIF file
-          path: scorecard_results.sarif
+          path: scorecard.sarif
           retention-days: 5
-
       # Upload the results to GitHub's code scanning dashboard.
-      - name: "Upload to code-scanning"
-        uses: github/codeql-action/upload-sarif@51f77329afa6477de8c49fc9c7046c15b9a4e79d # v3.29.5
+      - name: 'Upload to code-scanning'
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: scorecard.sarif
+          checkout_path: ${{ github.workspace }}
+          wait-for-processing: true
+
+      - name: 📢 Create Issue
+        if: ${{ steps.process-results.outputs.high-risks > 0 }}
+        run: |
+          gh issue create -t "🚨 Supply Chain Security Issues Detected" -b "${{ steps.process-results.outputs.report }}" --label "security,high-risk,needs-attention"
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+      - name: 💬 Add Comment to PR
+        if: ${{ github.event_name == 'pull_request' }}
+        uses: actions/github-script@v7
         with:
           script: |
-            const fs = require('fs');
-            const results = JSON.parse(fs.readFileSync('processed-results.json', 'utf8'));
-            const highRisks = results.highRisks;
-            const overallScore = results.overallScore;
+            const report = `${{ steps.process-results.outputs.report }}`;
 
-            const message = `## 🚨 Supply Chain Security Alert
-
-            High risk security issues detected:
-            - Score: ${overallScore}/10
-            - High Risk Issues: ${highRisks}
-
-            Please review the [security report](${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID})`;
-
-            await github.rest.issues.create({
+            await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              title: '🚨 Supply Chain Security Issues Detected',
-              body: message,
-              labels: ['security', 'high-risk', 'needs-attention']
+              issue_number: context.issue.number,
+              body: report
             });

@@ -1,0 +1,499 @@
+# English translations for PROJECT.
+# Copyright (C) 2025 ORGANIZATION
+# This file is distributed under the same license as the PROJECT project.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2025.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: PROJECT VERSION\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2025-08-11 11:16+0200\n"
+"PO-Revision-Date: 2025-08-11 11:16+0200\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: en\n"
+"Language-Team: en <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.17.0\n"
+
+#: src/checkconnect/core/url_checker.py:162
+msgid "URLCheckerConfig.context must not be None"
+msgstr ""
+
+#: src/checkconnect/core/url_checker.py:171
+msgid "No URL servers provided in configuration."
+msgstr ""
+
+#: src/checkconnect/core/url_checker.py:239
+msgid "Checking URLs ..."
+msgstr ""
+
+#: src/checkconnect/core/url_checker.py:242
+msgid "Checking URL server."
+msgstr ""
+
+#: src/checkconnect/core/url_checker.py:251
+msgid "Successfully connected to Web-Server"
+msgstr ""
+
+#: src/checkconnect/core/url_checker.py:259
+msgid "Error by connection"
+msgstr ""
+
+#: src/checkconnect/core/url_checker.py:263
+msgid "An unexpected error occurred while checking Web-Server"
+msgstr ""
+
+#: src/checkconnect/core/url_checker.py:273
+msgid "All Web-Servers checked."
+msgstr ""
+
+#: src/checkconnect/core/ntp_checker.py:194
+msgid "NTPCheckerConfig.context must not be None"
+msgstr ""
+
+#: src/checkconnect/core/ntp_checker.py:203
+msgid "No NTP servers provided in configuration."
+msgstr ""
+
+#: src/checkconnect/core/ntp_checker.py:265
+msgid "Checking NTP servers..."
+msgstr ""
+
+#: src/checkconnect/core/ntp_checker.py:268
+msgid "Checking NTP server"
+msgstr ""
+
+#: src/checkconnect/core/ntp_checker.py:288
+msgid "Successfully retrieved time from server"
+msgstr ""
+
+#: src/checkconnect/core/ntp_checker.py:299
+msgid "Error retrieving time from NTP server"
+msgstr ""
+
+#: src/checkconnect/core/ntp_checker.py:307
+msgid "An unexpected error occurred while checking NTP server"
+msgstr ""
+
+#: src/checkconnect/core/ntp_checker.py:312
+msgid "All NTP servers checked."
+msgstr ""
+
+#: src/checkconnect/core/checkconnect.py:166
+#, python-brace-format
+msgid "Error configuring {}"
+msgstr ""
+
+#: src/checkconnect/core/checkconnect.py:199
+msgid "Starting all checks..."
+msgstr ""
+
+#: src/checkconnect/core/checkconnect.py:207
+msgid "All checks completed successfully."
+msgstr ""
+
+#: src/checkconnect/core/checkconnect.py:222
+msgid "Starting URL checks. with"
+msgstr ""
+
+#: src/checkconnect/core/checkconnect.py:227
+msgid "URL checks completed successfully."
+msgstr ""
+
+#: src/checkconnect/core/checkconnect.py:229
+msgid "Error url checks."
+msgstr ""
+
+#: src/checkconnect/core/checkconnect.py:244
+msgid "Starting NTP checks..."
+msgstr ""
+
+#: src/checkconnect/core/checkconnect.py:249
+msgid "NTP checks completed successfully."
+msgstr ""
+
+#: src/checkconnect/core/checkconnect.py:251
+msgid "Error during NTP checks."
+msgstr ""
+
+#: src/checkconnect/config/logging_manager.py:221
+msgid "Applying full logging configuration..."
+msgstr ""
+
+#: src/checkconnect/config/logging_manager.py:225
+msgid "Full logging configuration applied successfully."
+msgstr ""
+
+#: src/checkconnect/config/logging_manager.py:227
+msgid "Critical error during logging configuration:"
+msgstr ""
+
+#: src/checkconnect/config/logging_manager.py:232
+msgid "An unexpected error occurred during logging configuration:"
+msgstr ""
+
+#: src/checkconnect/config/logging_manager.py:259
+msgid "All logging handlers shut down."
+msgstr ""
+
+#: src/checkconnect/config/logging_manager.py:337
+msgid "Cleared existing root logger handlers."
+msgstr ""
+
+#: src/checkconnect/config/logging_manager.py:373
+msgid "CLI log level applied, potentially increasing verbosity."
+msgstr ""
+
+#: src/checkconnect/config/logging_manager.py:379
+msgid "No CLI log level provided, using config/default."
+msgstr ""
+
+#: src/checkconnect/config/logging_manager.py:382
+msgid "Final effective log level calculated."
+msgstr ""
+
+#: src/checkconnect/config/logging_manager.py:427
+msgid "Console handler added."
+msgstr ""
+
+#: src/checkconnect/config/logging_manager.py:430
+msgid "Failed to set up console handler."
+msgstr ""
+
+#: src/checkconnect/config/logging_manager.py:447
+msgid "Log directory not specified in settings for file handler."
+msgstr ""
+
+#: src/checkconnect/config/logging_manager.py:468
+msgid "Main file handler added."
+msgstr ""
+
+#: src/checkconnect/config/logging_manager.py:473
+msgid "Failed to set up main file handler."
+msgstr ""
+
+#: src/checkconnect/config/logging_manager.py:490
+msgid "Log directory not specified in settings for limited file handler."
+msgstr ""
+
+#: src/checkconnect/config/logging_manager.py:517
+msgid "Limited file handler added."
+msgstr ""
+
+#: src/checkconnect/config/logging_manager.py:522
+msgid "Failed to set up limited file handler."
+msgstr ""
+
+#: src/checkconnect/config/logging_manager.py:537
+msgid "Logging configuration dictionary is empty."
+msgstr ""
+
+#: src/checkconnect/config/logging_manager.py:538
+msgid "No logging configuration provided."
+msgstr ""
+
+#: src/checkconnect/config/logging_manager.py:549
+msgid "Root logger level set."
+msgstr ""
+
+#: src/checkconnect/config/logging_manager.py:565
+msgid "Structlog core configured."
+msgstr ""
+
+#: src/checkconnect/config/logging_manager.py:588
+msgid "LoggingManager internal logger re-initialized with full config."
+msgstr ""
+
+#: src/checkconnect/cli/summary_app.py:78
+msgid "Starting Checkconnect in summary mode."
+msgstr ""
+
+#: src/checkconnect/cli/gui_app.py:64 src/checkconnect/cli/report_app.py:74
+#: src/checkconnect/cli/run_app.py:62 src/checkconnect/cli/summary_app.py:81
+msgid "Debug logging is active based on verbosity setting."
+msgstr ""
+
+#: src/checkconnect/cli/summary_app.py:86
+#, python-brace-format
+msgid ""
+"Invalid format: {summary_format}.Valid formats are: {{', "
+"'.join(valid_formats)}}"
+msgstr ""
+
+#: src/checkconnect/cli/summary_app.py:108
+msgid "[bold green]Results:[/bold green]"
+msgstr ""
+
+#: src/checkconnect/cli/summary_app.py:118
+msgid "Cannot start generate summary for checkconnect."
+msgstr ""
+
+#: src/checkconnect/cli/summary_app.py:125
+msgid "An unexpected error occurred generate summary."
+msgstr ""
+
+#: src/checkconnect/cli/run_app.py:59
+msgid "Starting CLI in tests mode"
+msgstr ""
+
+#: src/checkconnect/cli/run_app.py:66
+msgid "[bold green]Checking NTP and URL servers from config![/bold green]"
+msgstr ""
+
+#: src/checkconnect/cli/run_app.py:71
+msgid "[bold green]All checks passed successfully![/bold green]"
+msgstr ""
+
+#: src/checkconnect/cli/run_app.py:75
+msgid "Cannot due checks for checkconnect."
+msgstr ""
+
+#: src/checkconnect/cli/run_app.py:84
+msgid "An unexpected error occurred during checks."
+msgstr ""
+
+#: src/checkconnect/cli/gui_app.py:80 src/checkconnect/cli/main.py:371
+msgid "Cannot start GUI due to application error."
+msgstr ""
+
+#: src/checkconnect/cli/gui_app.py:61
+msgid "Starting CheckConnect GUI..."
+msgstr ""
+
+#: src/checkconnect/cli/gui_app.py:85
+msgid "An unexpected error occurred during GUI startup."
+msgstr ""
+
+#: src/checkconnect/cli/report_app.py:71
+msgid "Starting Checkconnect in generate-reports mode."
+msgstr ""
+
+#: src/checkconnect/cli/report_app.py:80
+msgid "[bold green]Generating reports.[/bold green]"
+msgstr ""
+
+#: src/checkconnect/cli/report_app.py:98
+msgid "[bold green]Reports generated successfully[/bold green]"
+msgstr ""
+
+#: src/checkconnect/cli/report_app.py:106
+msgid "Cannot start generate reports for checkconnect error."
+msgstr ""
+
+#: src/checkconnect/cli/report_app.py:115
+msgid "An unexpected error occurred generate reports."
+msgstr ""
+
+#: src/checkconnect/gui/startup.py:60
+msgid "Loaded Qt translations from Qt resource."
+msgstr ""
+
+#: src/checkconnect/gui/startup.py:62
+msgid "Loaded Qt translations from file."
+msgstr ""
+
+#: src/checkconnect/gui/startup.py:110
+msgid "Using Qt preferred UI language for translations"
+msgstr ""
+
+#: src/checkconnect/gui/startup.py:118
+msgid "Qt preferred UI languages not found, falling back to system locale."
+msgstr ""
+
+#: src/checkconnect/gui/startup.py:133
+msgid "No Qt translation found for language."
+msgstr ""
+
+#: src/checkconnect/gui/startup.py:168
+msgid "New QApplication instance created."
+msgstr ""
+
+#: src/checkconnect/gui/startup.py:170
+msgid "Using existing QApplication instance."
+msgstr ""
+
+#: src/checkconnect/gui/startup.py:186
+msgid "CheckConnect GUI window displayed."
+msgstr ""
+
+#: src/checkconnect/gui/startup.py:190
+msgid "Qt application exited with code."
+msgstr ""
+
+#: src/checkconnect/gui/startup.py:194 src/checkconnect/gui/startup.py:204
+msgid "Failed to close GUI window cleanly."
+msgstr ""
+
+#: src/checkconnect/gui/startup.py:202
+msgid "CheckConnect GUI window closed."
+msgstr ""
+
+#: src/checkconnect/gui/startup.py:210
+msgid "QApplication instance quit."
+msgstr ""
+
+#: src/checkconnect/gui/gui_main.py:227
+msgid "Error in test_ntp"
+msgstr ""
+
+#: src/checkconnect/gui/gui_main.py:248
+msgid "Error in test_urls"
+msgstr ""
+
+#: src/checkconnect/gui/gui_main.py:275
+msgid "Failed to generate reports"
+msgstr ""
+
+#: src/checkconnect/gui/gui_main.py:323
+msgid "Can't create the summary."
+msgstr ""
+
+#: src/checkconnect/reports/report_manager.py:110
+msgid "Ensured data directory exists."
+msgstr ""
+
+#: src/checkconnect/reports/report_manager.py:112
+msgid "Failed to create data directory."
+msgstr ""
+
+#: src/checkconnect/reports/report_manager.py:143
+msgid "Using data directory from config."
+msgstr ""
+
+#: src/checkconnect/reports/report_manager.py:147
+msgid "Data directory not found in config or invalid. Using default."
+msgstr ""
+
+#: src/checkconnect/reports/report_manager.py:175
+msgid "Using data directory from CLI argument."
+msgstr ""
+
+#: src/checkconnect/reports/report_manager.py:180
+msgid "No data directory argument provided. Falling back to config/default."
+msgstr ""
+
+#: src/checkconnect/reports/report_manager.py:227
+msgid "Results saved to disk."
+msgstr ""
+
+#: src/checkconnect/reports/report_manager.py:234
+msgid "Could not save results due to an unexpected error."
+msgstr ""
+
+#: src/checkconnect/reports/report_manager.py:266
+msgid "Loaded results."
+msgstr ""
+
+#: src/checkconnect/reports/report_manager.py:272
+msgid "Failed to load results."
+msgstr ""
+
+#: src/checkconnect/reports/report_manager.py:338
+msgid "Previous results loaded from disk."
+msgstr ""
+
+#: src/checkconnect/reports/report_manager.py:397
+msgid "URL Check Results"
+msgstr ""
+
+#: src/checkconnect/reports/report_manager.py:402
+msgid "NTP Check Results"
+msgstr ""
+
+#: src/checkconnect/reports/report_generator.py:270
+msgid "Ensured report directory exists."
+msgstr ""
+
+#: src/checkconnect/reports/report_generator.py:273
+msgid "Failed to create report directory."
+msgstr ""
+
+#: src/checkconnect/reports/report_generator.py:304
+msgid "Using report directory from config."
+msgstr ""
+
+#: src/checkconnect/reports/report_generator.py:310
+msgid "Report directory not found in config or invalid. Using default."
+msgstr ""
+
+#: src/checkconnect/reports/report_generator.py:335
+msgid "Using report directory from CLI argument."
+msgstr ""
+
+#: src/checkconnect/reports/report_generator.py:341
+msgid "No report directory argument provided. Falling back to config/default."
+msgstr ""
+
+#: src/checkconnect/reports/report_generator.py:360
+msgid "Cannot generate a report. No results provided"
+msgstr ""
+
+#: src/checkconnect/reports/report_generator.py:365
+msgid "Invalid NTP results: Expected list of strings"
+msgstr ""
+
+#: src/checkconnect/reports/report_generator.py:370
+msgid "Invalid URL results: Expected list of strings"
+msgstr ""
+
+#: src/checkconnect/reports/report_generator.py:391
+msgid ""
+"Connectivity Report\n"
+"\n"
+msgstr ""
+
+#: src/checkconnect/reports/report_generator.py:392
+msgid "NTP Results:\n"
+msgstr ""
+
+#: src/checkconnect/reports/report_generator.py:397
+msgid "- No NTP results.\n"
+msgstr ""
+
+#: src/checkconnect/reports/report_generator.py:399
+msgid "URL Results:\n"
+msgstr ""
+
+#: src/checkconnect/reports/report_generator.py:404
+msgid "- No URL results.\n"
+msgstr ""
+
+#: src/checkconnect/reports/report_generator.py:405
+msgid "Report saved"
+msgstr ""
+
+#: src/checkconnect/reports/report_generator.py:421
+msgid "Generating reports"
+msgstr ""
+
+#: src/checkconnect/reports/report_generator.py:457
+msgid "Creating HTML report with NTP servers and URLs."
+msgstr ""
+
+#: src/checkconnect/reports/report_generator.py:464
+#: src/checkconnect/reports/report_generator.py:515
+msgid "Invalid report data."
+msgstr ""
+
+#: src/checkconnect/reports/report_generator.py:480
+msgid "HTML reports generated."
+msgstr ""
+
+#: src/checkconnect/reports/report_generator.py:483
+msgid "Error generating HTML report."
+msgstr ""
+
+#: src/checkconnect/reports/report_generator.py:510
+msgid "Creating PDF report with NTP servers and URLs."
+msgstr ""
+
+#: src/checkconnect/reports/report_generator.py:532
+msgid "PDF reports generated."
+msgstr ""
+
+#: src/checkconnect/reports/report_generator.py:535
+msgid "Error generating PDF report."
+msgstr ""

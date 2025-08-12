@@ -1,25 +1,12 @@
-# SPDX-FileCopyrightText: © 2023-2024 Jürgen Mülbert
-#
-# SPDX-License-Identifier: EUPL-1.2
+# __main__.py
+from __future__ import annotations
 
-"""Main entry point for the module.
+from checkconnect.cli.main import main_app
 
-This calls the main() function from the cli module
-if the script is executed directly.
 
-Calls the main function from the module
-    app.cli.cli
-"""
+def main() -> None:
+    pass
 
-import sys
 
 if __name__ == "__main__":
-    from checkconnect.cli import main
-
-    sys.exit(main())
-
-
-if getattr(sys, "frozen", False):
-    # Check if the script is frozen (e.g. pyinstaller executable).
-
-    sys.exit(main())
+    main_app()

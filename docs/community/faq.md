@@ -1,3 +1,1 @@
-# FAQ
-
----
+# Frequently asked questions

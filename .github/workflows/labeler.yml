@@ -1,3 +1,4 @@
+---
 # SPDX-License-Identifier: EUPL-1.2
 # SPDX-FileCopyrightText: 2023-present Jürgen Mülbert <juergen.muelbert@outlook.de>
 
@@ -51,13 +52,13 @@ jobs:
 
     steps:
       - name: 🔒 Harden Runner
-        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        uses: step-security/harden-runner@v2
         with:
           egress-policy: audit
 
       - name: 🔄 Check Merge Conflicts
         id: conflicts
-        uses: eps1lon/actions-label-merge-conflict@1df065ebe6e3310545d4f4c4e862e43bdca146f0 # v3.0.3
+        uses: eps1lon/actions-label-merge-conflict@v3
         timeout-minutes: 5
         continue-on-error: true
         with:
@@ -76,7 +77,7 @@ jobs:
 
       - name: 📏 Analyze Pull Request Size
         id: size
-        uses: codelytv/pr-size-labeler@4ec67706cd878fbc1c8db0a5dcd28b6bb412e85a # v1.10.3
+        uses: codelytv/pr-size-labeler@v1
         timeout-minutes: 5
         continue-on-error: true
         with:
@@ -109,7 +110,7 @@ jobs:
 
       - name: 🏷️ Apply Scope Labels
         id: labeler
-        uses: actions/labeler@8558fd74291d67161a8a78ce36a881fa63b766a9 # v5.0.0
+        uses: actions/labeler@v5
         timeout-minutes: 5
         continue-on-error: true
         with:
@@ -118,7 +119,7 @@ jobs:
           sync-labels: true
 
       - name: 📝 Process PR Content
-        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        uses: actions/github-script@v7
         timeout-minutes: 5
         with:
           script: |
@@ -219,16 +220,6 @@ jobs:
               });
             }
 
-      - name: Upload Analysis Results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: pr-analysis-${{ github.event.pull_request.number }}
-          path: |
-            ./**/analysis-results.json
-            ./**/coverage-report.xml
-          retention-days: 14
-
   verify:
     needs: analyze_and_label
     if: always()
@@ -244,6 +235,6 @@ jobs:
           fi
 
       - name: ✅ Verify Workflow Completion
-        uses: re-actors/alls-green@2765efec08f0fd63e83ad900f5fd75646be69ff6 # v1.2.2
+        uses: re-actors/alls-green@223e4bb7a751b91f43eda76992bcfbf23b8b0302 # v1.2.2
         with:
           jobs: ${{ toJSON(needs) }}

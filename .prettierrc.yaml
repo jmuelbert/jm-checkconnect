@@ -1,4 +1,3 @@
----
 # # SPDX-License-Identifier: BSD-3-Clause
 # SPDX-FileCopyrightText: 2023 - present Jürgen Mülbert
 #
@@ -19,67 +18,3 @@ arrowParens: always
 proseWrap: preserve # For Markdown: Avoid wrapping to allow manual control
 htmlWhitespaceSensitivity: css
 endOfLine: lf # Unix-style line endings for cross-platform compatibility
-
-# Overrides for specific file types
-overrides:
-  # Markdown files
-  - files: "*.md"
-    options:
-      proseWrap: always # Enforce wrapping for Markdown readability
-      printWidth: 255
-      tabWidth: 2
-
-  # YAML files
-  - files: ["*.yml", "*.yaml"]
-    options:
-      tabWidth: 2
-      printWidth: 120
-      singleQuote: false # YAML prefers double quotes for compatibility
-
-  # JSON files
-  - files: "*.json"
-    options:
-      tabWidth: 2
-      printWidth: 80
-      trailingComma: none
-
-  # HTML files
-  - files: "*.html"
-    options:
-      tabWidth: 2
-      printWidth: 80
-
-  # JavaScript/TypeScript files
-  - files: ["*.js", "*.jsx", "*.ts", "*.tsx"]
-    options:
-      tabWidth: 2
-      singleQuote: true
-      trailingComma: all
-
-  # Python files (Prettier support via plugins)
-  - files: "*.py"
-    options:
-      tabWidth: 4
-
-  # C and C++ files
-  - files: ["*.c", "*.cpp", "*.h", "*.hpp"]
-    options:
-      tabWidth: 4
-      useTabs: false
-
-  # Swift files
-  - files: "*.swift"
-    options:
-      tabWidth: 4
-      trailingComma: none
-
-  # Qt files
-  - files: ["*.ui", "*.qss", "*.qrc"]
-    options:
-      tabWidth: 2
-
-  # PowerShell files
-  - files: ["*.ps1", "*.psm1"]
-    options:
-      tabWidth: 2
-      printWidth: 100
