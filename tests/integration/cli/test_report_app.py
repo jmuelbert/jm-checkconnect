@@ -23,7 +23,7 @@ import pytest
 from checkconnect.cli import main as cli_main
 from checkconnect.config.appcontext import AppContext
 from checkconnect.exceptions import ExitExceptionError
-from tests.utils.common import assert_common_cli_logs, assert_common_initialization
+from tests.utils.common import assert_common_cli_logs, assert_common_initialization, clean_cli_output
 
 if TYPE_CHECKING:
     from pytest_mock import MockerFixture
@@ -111,23 +111,22 @@ class TestCliReports:
         mock_report_manager_instance = mock_report_manager_class.from_params.return_value
         mock_report_manager_instance.results_exists.return_value = True  # <-- WICHTIG: Überschreibe hier!
 
-        test_env = {
-            "NO_COLOR": "1",  # Disable colors
-            "TERM": "dumb",  # Disable advanced terminal features like frames
-            "mix_stderr": "False",  # <--- This should be a direct argument to invoke()
-            "catch_exceptions": "False",  # <--- And this one too
-            # If using rich_click specifically, sometimes CLICOLOR_FORCE=0 helps too
-        }
-
         result = runner.invoke(
             cli_main.main_app,
             ["report"],
-            env=test_env,
+            env={
+                "NO_COLOR": "1",   # Rich disables colors
+                "TERM": "dumb",    # disables most TTY formatting
+                "CLICOLOR_FORCE": "0",  # if using rich-click, force no color
+            },
+            catch_exceptions=False,  # no swallowing, pytest will see the error
         )
+        # Remove all whitespace differences (spaces, newlines, carriage returns)
+        cleaned = clean_cli_output(result.stdout)
 
         # Assert CLI command exits with code 0
         assert result.exit_code == 0, f"Command exited with non-zero code: {result.exception}"
-        assert "Reports generated successfully" in result.output
+        assert "Reports generated successfully" in cleaned
 
         # Common initialization assertions
         assert_common_initialization(
@@ -201,14 +200,6 @@ class TestCliReports:
         data_dir_path = Path("/mock/data")
         reports_dir_path = Path("/mock/reports")
 
-        test_env = {
-            "NO_COLOR": "1",  # Disable colors
-            "TERM": "dumb",  # Disable advanced terminal features like frames
-            "mix_stderr": "False",  # <--- This should be a direct argument to invoke()
-            "catch_exceptions": "False",  # <--- And this one too
-            # If using rich_click specifically, sometimes CLICOLOR_FORCE=0 helps too
-        }
-
         # Invoke the command
         result = runner.invoke(
             cli_main.main_app,
@@ -219,12 +210,19 @@ class TestCliReports:
                 "--data-dir",
                 str(data_dir_path),
             ],
-            env=test_env,
+            env={
+                "NO_COLOR": "1",   # Rich disables colors
+                "TERM": "dumb",    # disables most TTY formatting
+                "CLICOLOR_FORCE": "0",  # if using rich-click, force no color
+            },
+            catch_exceptions=False,  # no swallowing, pytest will see the error
         )
+        # Remove all whitespace differences (spaces, newlines, carriage returns)
+        cleaned = clean_cli_output(result.stdout)
 
         # Assert CLI command exits with code 0
         assert result.exit_code == 0, f"Command exited with non-zero code: {result.exception}"
-        assert "Reports generated successfully" in result.output
+        assert "Reports generated successfully" in cleaned
 
         # Common initialization assertions
         assert_common_initialization(
@@ -309,14 +307,6 @@ class TestCliReports:
         config_file = tmp_path / "config.toml"
         config_file.touch()  # Create dummy config file
 
-        test_env = {
-            "NO_COLOR": "1",  # Disable colors
-            "TERM": "dumb",  # Disable advanced terminal features like frames
-            "mix_stderr": "False",  # <--- This should be a direct argument to invoke()
-            "catch_exceptions": "False",  # <--- And this one too
-            # If using rich_click specifically, sometimes CLICOLOR_FORCE=0 helps too
-        }
-
         # Invoke the command
         result = runner.invoke(
             cli_main.main_app,
@@ -329,12 +319,19 @@ class TestCliReports:
                 "--data-dir",
                 str(data_dir),
             ],
-            env=test_env,
+            env={
+                "NO_COLOR": "1",   # Rich disables colors
+                "TERM": "dumb",    # disables most TTY formatting
+                "CLICOLOR_FORCE": "0",  # if using rich-click, force no color
+            },
+            catch_exceptions=False,  # no swallowing, pytest will see the error
         )
+        # Remove all whitespace differences (spaces, newlines, carriage returns)
+        cleaned = clean_cli_output(result.stdout)
 
         # Assert CLI command exits with code 0
         assert result.exit_code == 0, f"Command exited with non-zero code: {result.exception}"
-        assert "Reports generated successfully" in result.output
+        assert "Reports generated successfully" in cleaned
 
         # Common initialization assertions
         assert_common_initialization(
@@ -424,24 +421,23 @@ class TestCliReports:
         config_file = tmp_path / "config.toml"
         config_file.touch()
 
-        test_env = {
-            "NO_COLOR": "1",  # Disable colors
-            "TERM": "dumb",  # Disable advanced terminal features like frames
-            "mix_stderr": "False",  # <--- This should be a direct argument to invoke()
-            "catch_exceptions": "False",  # <--- And this one too
-            # If using rich_click specifically, sometimes CLICOLOR_FORCE=0 helps too
-        }
-
         # Invoke the command without --reports-dir or --data-dir
         result = runner.invoke(
             cli_main.main_app,
             ["--config", str(config_file), "report"],
-            env=test_env,
+            env={
+                "NO_COLOR": "1",   # Rich disables colors
+                "TERM": "dumb",    # disables most TTY formatting
+                "CLICOLOR_FORCE": "0",  # if using rich-click, force no color
+            },
+            catch_exceptions=False,  # no swallowing, pytest will see the error
         )
+        # Remove all whitespace differences (spaces, newlines, carriage returns)
+        cleaned = clean_cli_output(result.stdout)
 
         # Assert CLI command exits with code 0
         assert result.exit_code == 0, f"Command exited with non-zero code: {result.exception}"
-        assert "Reports generated successfully" in result.output
+        assert "Reports generated successfully" in cleaned
 
         # Common initialization assertions
         assert_common_initialization(
@@ -531,14 +527,22 @@ class TestCliReports:
         result = runner.invoke(
             cli_main.main_app,
             ["report"],
+            env={
+                "NO_COLOR": "1",   # Rich disables colors
+                "TERM": "dumb",    # disables most TTY formatting
+                "CLICOLOR_FORCE": "0",  # if using rich-click, force no color
+            },
+            catch_exceptions=False,  # no swallowing, pytest will see the error
         )
+        # Remove all whitespace differences (spaces, newlines, carriage returns)
+        cleaned = clean_cli_output(result.stdout)
 
         # Assert CLI command exits with code 0
         assert result.exit_code == 1, f"Missing exception: {result.output}"
-        assert "Cannot start generate reports for checkconnect." in result.stdout, (
+        assert "Cannot start generate reports for checkconnect." in cleaned, (
             "Expected 'Cannot start generate reports for checkconnect.' in stdout"
         )
-        assert "Test error" in result.stdout, "Expected 'Test error' in stdout"
+        assert "Test error" in cleaned, "Expected 'Test error' in stdout"
 
         # Common initialization assertions
         assert_common_initialization(
@@ -609,14 +613,22 @@ class TestCliReports:
         result = runner.invoke(
             cli_main.main_app,
             ["report"],
+            env={
+                "NO_COLOR": "1",   # Rich disables colors
+                "TERM": "dumb",    # disables most TTY formatting
+                "CLICOLOR_FORCE": "0",  # if using rich-click, force no color
+            },
+            catch_exceptions=False,  # no swallowing, pytest will see the error
         )
+        # Remove all whitespace differences (spaces, newlines, carriage returns)
+        cleaned = clean_cli_output(result.stdout)
 
         # Assert CLI command exits with code 0
         assert result.exit_code == 1, f"Missing exception: {result.output}"
-        assert "An unexpected error occurred generate reports." in result.stdout, (
+        assert "An unexpected error occurred generate reports." in cleaned, (
             "Expected 'An unexpected error occurred generate reports.' in stdout"
         )
-        assert "Something went wrong" in result.stdout, "Expected 'Test error' in stdout"
+        assert "Something went wrong" in cleaned, "Expected 'Test error' in stdout"
 
         # Common initialization assertions
         assert_common_initialization(
@@ -676,15 +688,18 @@ class TestCliReports:
         # Ensure AppContext.create.return_value is readily available for later assertions
         assert AppContext.create.return_value == app_context_instance
 
-        test_env = {
-            "NO_COLOR": "1",  # Disable colors
-            "TERM": "dumb",  # Disable advanced terminal features like frames
-            "mix_stderr": "False",  # <--- This should be a direct argument to invoke()
-            "catch_exceptions": "False",  # <--- And this one too
-            # If using rich_click specifically, sometimes CLICOLOR_FORCE=0 helps too
-        }
-
-        result = runner.invoke(cli_main.main_app, ["report", "--help"], env=test_env)
+        result = runner.invoke(
+            cli_main.main_app,
+            ["report", "--help"],
+            env={
+                "NO_COLOR": "1",   # Rich disables colors
+                "TERM": "dumb",    # disables most TTY formatting
+                "CLICOLOR_FORCE": "0",  # if using rich-click, force no color
+            },
+            catch_exceptions=False,  # no swallowing, pytest will see the error
+        )
+        # Remove all whitespace differences (spaces, newlines, carriage returns)
+        cleaned = clean_cli_output(result.stdout)
 
         # Assert
         assert result.exit_code == 0, f"Unexpected failure: {result.exception}"
@@ -699,18 +714,18 @@ class TestCliReports:
         )
 
         # Headers
-        assert "Usage: cli report [OPTIONS]" in result.output
+        assert "Usage: cli report [OPTIONS]" in cleaned
         assert " Generate HTML and PDF reports from the most recent connectivity test results." in result.output
         # Options
-        assert "--help          Show this message and exit." in result.output
+        assert "--help Show this message and exit." in cleaned
         # Configuration
         assert (
-            "--data-dir     -d      DIRECTORY  Directory where data will be saved. Default used the system defined user data dir. [default: None]"
-            in result.output
+            "--data-dir -d DIRECTORY Directory where data will be saved. Default used the system defined user data dir. [default: None]"
+            in cleaned
         )
         assert (
-            "--reports-dir  -r      DIRECTORY  Directory where reports will be saved (overrides config). [default: None]"
-            in result.output
+            "-reports-dir -r DIRECTORY Directory where reports will be saved (overrides config). [default: None]"
+            in cleaned
         )
 
         # --- Asserting on Specific Log Entries from Your Output ---

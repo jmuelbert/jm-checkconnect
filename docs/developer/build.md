@@ -148,7 +148,7 @@ Spell-Check with codespell
     hatch run lint:spelling
 ```
 
-Reuse compatibity
+Reuse compatibility
 ```bash
     hatch run lint:license
 ```

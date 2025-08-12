@@ -44,7 +44,7 @@ class InvalidLogLevelError(BaseReportError):
 class LogDirectoryError(BaseReportError):
     """Raised when creating the log directory fails."""
 
-    def __init__(self, message: str, original_exception: Exception | None = None)  -> None:
+    def __init__(self, message: str, original_exception: Exception | None = None) -> None:
         super().__init__(message)
         if original_exception:
             self.__cause__ = original_exception
@@ -63,14 +63,16 @@ class LogHandlerError(BaseReportError):
 class SettingsConfigurationError(Exception):
     """Base exception for logger configuration errors."""
 
-    def __init__(self) -> None:
-        super().__init__("Invalid TOML syntax in configuration file")
+    def __init__(self, message: str, original_exception: Exception | None = None) -> None:
+        super().__init__(message)
+        if original_exception:
+            self.__cause__ = original_exception
 
 
 class SettingsWriteConfigurationError(Exception):
     """Base exception for logger configuration errors."""
 
-    def __init__(self, message: str, original_exception: Exception | None = None)  -> None:
+    def __init__(self, message: str, original_exception: Exception | None = None) -> None:
         super().__init__(message)
         if original_exception:
             self.__cause__ = original_exception

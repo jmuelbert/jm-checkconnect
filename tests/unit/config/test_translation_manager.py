@@ -17,6 +17,7 @@ from checkconnect.config.translation_manager import TranslationManager, Translat
 if TYPE_CHECKING:
     from pytest_mock import MockerFixture
 
+
 @pytest.fixture(autouse=True)
 def reset_translation_singleton():
     TranslationManagerSingleton.reset()

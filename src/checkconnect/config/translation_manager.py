@@ -247,7 +247,7 @@ class TranslationManager:
         Returns 'en' for 'C' or empty strings as a default.
         """
         if not full_locale or full_locale.upper() == "C":
-            return "en"  # Default to 'en' if locale is 'C' or empty/unparseable
+            return "en"  # Default to 'en' if locale is 'C' or empty/unparsable
 
         # Split by underscore first (e.g., 'en_US.UTF-8' -> 'en_US.UTF-8')
         # Then split by dot (e.g., 'en_US.UTF-8' -> 'en_US')

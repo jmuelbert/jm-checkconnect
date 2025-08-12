@@ -251,10 +251,10 @@ class SettingsManager:
                 config = tomllib.load(f)
             self.loaded_config_file = path  # Track the loaded config file
         except tomllib.TOMLDecodeError as e:
-            self._internal_errors.append(f"TOML decoding failed for '{path!s}': {e}")
-            self.logger.exception("TOML decoding failed for configuration file", path=str(path), exc_info=e)
-            msg = "Malformed TOML file:" + str(path)
-            raise SettingsConfigurationError(msg) from e
+            msg = "TOML decoding failed for configuration file"
+            self._internal_errors.append(f"{msg}: {path!s}")
+            self.logger.exception(msg, path=str(path), exc_info=e)
+            raise SettingsConfigurationError(msg,e) from e
         except (
             OSError
         ) as e:  # Catch file-related OS errors (e.g., permissions, not found if path.exists() failed somehow)

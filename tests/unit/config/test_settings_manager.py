@@ -434,14 +434,26 @@ class TestSettingsManager:
         with pytest.raises(SettingsConfigurationError) as excinfo:
             manager.load_settings(config_path_from_cli=invalid_toml_path)
 
-        assert excinfo.value.args[0] == "Invalid TOML syntax in configuration file"
+        assert excinfo.value.args[0] == "TOML decoding failed for configuration file"
 
         # Assert that an exception log message indicates the configuration file was not found.
         # If you're using caplog_structlog for all log assertions, it's better to use it consistently:
         assert any(
-            entry.get("log_level") == "error"  # or 'exception' depending on how you map structlog levels
+            "exc_info" in entry
+            and entry.get("log_level") == "error"
             and entry.get("event") == "TOML decoding failed for configuration file"
             and entry.get("path") == str(invalid_toml_path)
+            and isinstance(entry.get("exc_info"), tomllib.TOMLDecodeError)
+            for entry in caplog_structlog
+        )
+
+        assert any(
+            "exc_info" in entry
+            and entry.get("log_level") == "error"
+            and entry.get("event") == "Failed to load config from CLI path (malformed or access error), trying default locations."
+            and entry.get("path") == str(invalid_toml_path)
+            and isinstance(entry.get("exc_info"), SettingsConfigurationError)
+            and str(entry.get("exc_info")) == "TOML decoding failed for configuration file"
             for entry in caplog_structlog
         )
 
@@ -475,7 +487,7 @@ class TestSettingsManager:
         with pytest.raises(SettingsConfigurationError) as excinfo:
             manager.load_settings(config_path_from_cli=error_path)
 
-        assert excinfo.value.args[0] == "Invalid TOML syntax in configuration file"
+        assert excinfo.value.args[0] == "TOML decoding failed for configuration file"
 
         # 2
         # {'path': ..., 'exc_info': True, 'event': 'TOML decoding failed for configuration file', 'log_level': 'error'}
@@ -498,7 +510,7 @@ class TestSettingsManager:
             == "Failed to load config from CLI path (malformed or access error), trying default locations."
             and entry.get("path") == str(error_path)
             and isinstance(entry.get("exc_info"), SettingsConfigurationError)
-            and str(entry.get("exc_info")) == "Invalid TOML syntax in configuration file"
+            and str(entry.get("exc_info")) == "TOML decoding failed for configuration file"
             for entry in caplog_structlog
         )
 
@@ -1092,7 +1104,7 @@ class TestSettingsManagerSingleton:
     def test_get_initialization_errors_returns_correct_errors(self) -> None:
         """
         Test get_initialization_errors returns errors during initialization.
-        This re-uses the pattern from your previous test problem.
+        This reuses the pattern from your previous test problem.
         """
         # Patch LoggingManager's __init__ to raise an error
         expected_error_msg = "Mocked init error for test"

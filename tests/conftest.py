@@ -285,7 +285,7 @@ def mock_dependencies(  # noqa: PLR0915
         else:
             mock_settings_instance.loaded_config_file = None  # Or a suitable default for no config file
         # Ensure _settings is populated as if it were loaded
-        mock_settings_instance._settings = settings_data.copy() # noqa: SLF001
+        mock_settings_instance._settings = settings_data.copy()  # noqa: SLF001
 
     mock_settings_instance.load_settings.side_effect = mock_settings_instance_load_settings_side_effect
     # mock_settings_instance._save_default_config.return_value = None # No longer strictly needed if load_settings is fully mocked
@@ -479,7 +479,7 @@ def cleanup_singletons() -> Generator[None, None, None]:
     yield  # Test runs here
 
     # Post-test cleanup (optional, but good for robustness if singletons have complex teardown)
-    if LoggingManagerSingleton._instance: # noqa: SLF001
+    if LoggingManagerSingleton._instance:  # noqa: SLF001
         LoggingManagerSingleton.reset()  # Assuming a reset method
 
 

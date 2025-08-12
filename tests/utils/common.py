@@ -1,9 +1,17 @@
-from unittest.mock import MagicMock
+# SPDX-License-Identifier: EUPL-1.2
+#
+# SPDX-FileCopyrightText: © 2025-present Jürgen Mülbert
 
-from structlog.typing import EventDict
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 from checkconnect.config.appcontext import AppContext
 
+if TYPE_CHECKING:
+    from unittest.mock import MagicMock
+
+    from structlog.typing import EventDict
 
 def assert_common_initialization(
     *,
@@ -77,3 +85,24 @@ def assert_common_cli_logs(log_entries: list[EventDict]) -> None:
         e.get("event") == "Debug logging is active based on verbosity setting." and e.get("log_level") == "debug"
         for e in log_entries
     )
+
+def clean_cli_output(output: str) -> str:
+    """
+    Normalize CLI output for consistent testing.
+
+    - Collapses all whitespace (including newlines) to single spaces.
+    - Strips leading/trailing whitespace.
+    - Removes Rich frames or box-drawing characters.
+
+    Args:
+        output: The raw CLI output string.
+
+    Returns:
+        Cleaned and normalized string for assertions.
+    """
+    # Optional: remove common Rich box-drawing characters
+    box_chars = "".join(chr(c) for c in range(0x2500, 0x257F))
+    translation_table = str.maketrans("", "", box_chars)
+
+    # Remove box characters and normalize whitespace
+    return " ".join(output.translate(translation_table).split()).strip()

@@ -498,4 +498,3 @@ msgstr ""
 #: src/checkconnect/reports/report_generator.py:535
 msgid "Error generating PDF report."
 msgstr ""
-

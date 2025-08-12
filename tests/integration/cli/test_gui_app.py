@@ -18,7 +18,7 @@ import pytest
 from checkconnect.cli import main as cli_main
 from checkconnect.config.appcontext import AppContext
 from checkconnect.exceptions import ExitExceptionError
-from tests.utils.common import assert_common_cli_logs, assert_common_initialization
+from tests.utils.common import assert_common_cli_logs, assert_common_initialization, clean_cli_output
 
 if TYPE_CHECKING:
     from pytest_mock import MockerFixture
@@ -58,22 +58,20 @@ class TestCliGUI:
 
         mock_gui_startup_run = mocker.patch("checkconnect.cli.gui_app.startup.run", return_value=None)
 
-        test_env = {
-            "NO_COLOR": "1",  # Disable colors
-            "TERM": "dumb",  # Disable advanced terminal features like frames
-            "mix_stderr": "False",  # <--- This should be a direct argument to invoke()
-            "catch_exceptions": "False",  # <--- And this one too
-            # If using rich_click specifically, sometimes CLICOLOR_FORCE=0 helps too
-        }
-
         # Act
         result = runner.invoke(
             cli_main.main_app,
             [
                 "gui",
             ],
-            env=test_env,
+            env={
+                "NO_COLOR": "1",   # Rich disables colors
+                "TERM": "dumb",    # disables most TTY formatting
+                "CLICOLOR_FORCE": "0",  # if using rich-click, force no color
+            },
+            catch_exceptions=False,  # no swallowing, pytest will see the error
         )
+
 
         # Assert CLI command exits with code 0
         assert result.exit_code == 0, f"Command exited with non-zero code: {result.exception}"
@@ -151,14 +149,6 @@ class TestCliGUI:
 
         mock_gui_startup_run = mocker.patch("checkconnect.cli.gui_app.startup.run", return_value=None)
 
-        test_env = {
-            "NO_COLOR": "1",  # Disable colors
-            "TERM": "dumb",  # Disable advanced terminal features like frames
-            "mix_stderr": "False",  # <--- This should be a direct argument to invoke()
-            "catch_exceptions": "False",  # <--- And this one too
-            # If using rich_click specifically, sometimes CLICOLOR_FORCE=0 helps too
-        }
-
         # Act
         result = runner.invoke(
             cli_main.main_app,
@@ -167,7 +157,12 @@ class TestCliGUI:
                 language_value,
                 "gui",
             ],
-            env=test_env,
+            env={
+                "NO_COLOR": "1",   # Rich disables colors
+                "TERM": "dumb",    # disables most TTY formatting
+                "CLICOLOR_FORCE": "0",  # if using rich-click, force no color
+            },
+            catch_exceptions=False,  # no swallowing, pytest will see the error
         )
 
         # Assert CLI command exits with code 0
@@ -234,7 +229,18 @@ class TestCliGUI:
 
         mocker.patch("checkconnect.cli.gui_app.startup.run", side_effect=ExitExceptionError("GUI failure"))
 
-        result = runner.invoke(cli_main.main_app, ["gui"])
+        result = runner.invoke(
+            cli_main.main_app,
+            ["gui"],
+            env={
+                "NO_COLOR": "1",   # Rich disables colors
+                "TERM": "dumb",    # disables most TTY formatting
+                "CLICOLOR_FORCE": "0",  # if using rich-click, force no color
+            },
+            catch_exceptions=False,  # no swallowing, pytest will see the error
+        )
+        # Remove all whitespace differences (spaces, newlines, carriage returns)
+        cleaned = clean_cli_output(result.stdout)
 
         assert result.exit_code == 1, f"Missing exception: {result.output}"
 
@@ -249,10 +255,10 @@ class TestCliGUI:
         )
 
         # Assert GUI failure message in stdout
-        assert "Cannot start GUI due to application error:" in result.stdout, (
+        assert "Cannot start GUI due to application error:" in cleaned, (
             "Expected 'Cannot start GUI due to application error:' in stdout"
         )
-        assert "GUI failure" in result.stdout, "Expected 'GUI failure' in stdout"
+        assert "GUI failure" in cleaned, "Expected 'GUI failure' in stdout"
 
         # --- Asserting on Specific Log Entries from Your Output ---
         assert_common_cli_logs(caplog_structlog)
@@ -303,13 +309,24 @@ class TestCliGUI:
 
         mocker.patch("checkconnect.cli.gui_app.startup.run", side_effect=RuntimeError("Crash"))
 
-        result = runner.invoke(cli_main.main_app, ["gui"])
+        result = runner.invoke(
+            cli_main.main_app,
+            ["gui"],
+            env={
+                "NO_COLOR": "1",   # Rich disables colors
+                "TERM": "dumb",    # disables most TTY formatting
+                "CLICOLOR_FORCE": "0",  # if using rich-click, force no color
+            },
+            catch_exceptions=False,  # no swallowing, pytest will see the error
+        )
+        # Remove all whitespace differences (spaces, newlines, carriage returns)
+        cleaned = clean_cli_output(result.stdout)
 
         assert result.exit_code == 1, f"Missing exception: {result.output}"
-        assert "An unexpected error occurred during GUI startup:" in result.stdout, (
+        assert "An unexpected error occurred during GUI startup:" in cleaned, (
             "Expected 'An unexpected error occurred during GUI startup:'"
         )
-        assert "Crash" in result.stdout, "Expected 'Crash'"
+        assert "Crash" in cleaned, "Expected 'Crash'"
 
         # Common initialization assertions
         assert_common_initialization(
@@ -367,15 +384,18 @@ class TestCliGUI:
         # Ensure AppContext.create.return_value is readily available for later assertions
         assert AppContext.create.return_value == app_context_instance
 
-        test_env = {
-            "NO_COLOR": "1",  # Disable colors
-            "TERM": "dumb",  # Disable advanced terminal features like frames
-            "mix_stderr": "False",  # <--- This should be a direct argument to invoke()
-            "catch_exceptions": "False",  # <--- And this one too
-            # If using rich_click specifically, sometimes CLICOLOR_FORCE=0 helps too
-        }
-
-        result = runner.invoke(cli_main.main_app, ["gui", "--help"], env=test_env)
+        result = runner.invoke(
+            cli_main.main_app,
+            ["gui", "--help"],
+            env={
+                "NO_COLOR": "1",   # Rich disables colors
+                "TERM": "dumb",    # disables most TTY formatting
+                "CLICOLOR_FORCE": "0",  # if using rich-click, force no color
+            },
+            catch_exceptions=False,  # no swallowing, pytest will see the error
+        )
+        # Remove all whitespace differences (spaces, newlines, carriage returns)
+        cleaned = clean_cli_output(result.stdout)
 
         # Assert
         assert result.exit_code == 0, f"Unexpected failure: {result.exception}"
@@ -391,10 +411,10 @@ class TestCliGUI:
         )
 
         # Headers
-        assert "Usage: cli gui [OPTIONS]" in result.output
-        assert "Run CheckConnect in graphical user interface (GUI) mode." in result.output
+        assert "Usage: cli gui [OPTIONS]" in cleaned
+        assert "Run CheckConnect in graphical user interface (GUI) mode." in cleaned
         # Options
-        assert "--help          Show this message and exit." in result.output
+        assert "--help Show this message and exit." in cleaned
         # ---
 
         # --- Asserting on Specific Log Entries from Your Output ---

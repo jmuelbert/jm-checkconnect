@@ -20,7 +20,7 @@ import pytest
 
 from checkconnect.cli.main import main_app
 from checkconnect.config.appcontext import AppContext
-from tests.utils.common import assert_common_cli_logs
+from tests.utils.common import assert_common_cli_logs, clean_cli_output
 
 if TYPE_CHECKING:
     from pytest_mock import MockerFixture
@@ -92,21 +92,15 @@ class TestCliMain:
         logging_manager_instance = mock_dependencies["logging_manager_instance"]
         translation_manager_instance = mock_dependencies["translation_manager_instance"]
 
-        test_env = {
-            "NO_COLOR": "1",  # Disable colors
-            "TERM": "dumb",  # Disable advanced terminal features like frames
-            # "mix_stderr": "False",  # These should be direct arguments to invoke() if needed
-            # "catch_exceptions": "False",  # And this one too
-            # If using rich_click specifically, sometimes CLICOLOR_FORCE=0 helps too
-        }
-
         result = runner.invoke(
             main_app,
             ["--language", "en", "--verbose", "--config", str(config_file), "run"],
-            env=test_env,
-            # Pass mix_stderr and catch_exceptions directly if needed by runner.invoke
-            # mix_stderr=False,
-            # catch_exceptions=False,
+            env={
+                "NO_COLOR": "1",   # Rich disables colors
+                "TERM": "dumb",    # disables most TTY formatting
+                "CLICOLOR_FORCE": "0",  # if using rich-click, force no color
+            },
+            catch_exceptions=False,  # no swallowing, pytest will see the error
         )
 
         assert result.exit_code == 0, f"Unexpected failure: {result.output}"
@@ -237,7 +231,16 @@ class TestCliMain:
         logging_manager_instance = mock_dependencies["logging_manager_instance"]
         translation_manager_instance = mock_dependencies["translation_manager_instance"]
 
-        result = runner.invoke(main_app, [cli_arg, "run"])
+        result = runner.invoke(
+            main_app,
+            [cli_arg, "run"],
+            env={
+                "NO_COLOR": "1",   # Rich disables colors
+                "TERM": "dumb",    # disables most TTY formatting
+                "CLICOLOR_FORCE": "0",  # if using rich-click, force no color
+            },
+            catch_exceptions=False,  # no swallowing, pytest will see the error
+        )
 
         assert result.exit_code == 0, f"Unexpected failure: {result.output}"
 
@@ -330,7 +333,16 @@ class TestCliMain:
         translation_manager_instance = mock_dependencies["translation_manager_instance"]
 
         # Runner
-        result = runner.invoke(main_app, [cli_arg, language, "run"])
+        result = runner.invoke(
+            main_app,
+            [cli_arg, language, "run"],
+            env={
+                "NO_COLOR": "1",   # Rich disables colors
+                "TERM": "dumb",    # disables most TTY formatting
+                "CLICOLOR_FORCE": "0",  # if using rich-click, force no color
+            },
+            catch_exceptions=False,  # no swallowing, pytest will see the error
+        )
 
         assert result.exit_code == 0, f"Unexpected failure: {result.output}"
 
@@ -386,12 +398,22 @@ class TestCliMain:
             side_effect=RuntimeError("Boom"),
         )
 
-        result = runner.invoke(main_app, ["run"])
+        result = runner.invoke(
+            main_app, ["run"],
+            env={
+                "NO_COLOR": "1",   # Rich disables colors
+                "TERM": "dumb",    # disables most TTY formatting
+                "CLICOLOR_FORCE": "0",  # if using rich-click, force no color
+            },
+            catch_exceptions=False,  # no swallowing, pytest will see the error
+        )
+        # Remove all whitespace differences (spaces, newlines, carriage returns)
+        cleaned = clean_cli_output(result.stdout)
 
         assert result.exit_code == 1, f"Unexpected success or wrong exit code: {result.output}"
 
-        assert "Critical Error" in result.output
-        assert "Failed to load application configuration" in result.output
+        assert "Critical Error" in cleaned
+        assert "Failed to load application configuration" in cleaned
 
         # --- Asserting on Specific Log Entries from Your Output ---
         # 1. Assert initial CLI startup (DEBUG)
@@ -446,12 +468,23 @@ class TestCliMain:
             runner (CliRunner): Typer's CLI test runner fixture.
         """
         non_existent_path = Path("/does/not/exist.toml")
-        result = runner.invoke(main_app, ["--config", str(non_existent_path), "run"])
+        result = runner.invoke(
+            main_app,
+            ["--config", str(non_existent_path), "run"],
+            env={
+                "NO_COLOR": "1",   # Rich disables colors
+                "TERM": "dumb",    # disables most TTY formatting
+                "CLICOLOR_FORCE": "0",  # if using rich-click, force no color
+            },
+            catch_exceptions=False,  # no swallowing, pytest will see the error
+        )
+        # Remove all whitespace differences (spaces, newlines, carriage returns)
+        cleaned = clean_cli_output(result.stdout)
 
         # Typer automatically handles "file must exist" for Path types
         assert result.exit_code != 0, f"Expected non-zero exit code for invalid config file, got 0: {result.output}"
-        assert "Invalid value for '--config'" in result.output
-        assert str(non_existent_path) in result.output  # Ensure the path is mentioned in the error
+        assert "Invalid value for '--config'" in cleaned
+        assert str(non_existent_path) in cleaned # Ensure the path is mentioned in the error
 
         # Ensure no managers were initialized if the config file was invalid
         mock_dependencies["settings_manager_instance"].get_all_settings.assert_not_called()
@@ -473,51 +506,56 @@ class TestCliMain:
         ----
             runner (CliRunner): Typer's CLI test runner fixture.
         """
-        test_env = {
-            "NO_COLOR": "1",  # Disable colors for consistent output
-            "TERM": "dumb",  # Disable advanced terminal features like frames
-            # "mix_stderr": "False",  # These should be direct arguments to invoke() if needed
-            # "catch_exceptions": "False",  # And this one too
-        }
 
         result = runner.invoke(
             main_app,
             ["--help"],
-            env=test_env,
+            env={
+                "NO_COLOR": "1",   # Rich disables colors
+                "TERM": "dumb",    # disables most TTY formatting
+                "CLICOLOR_FORCE": "0",  # if using rich-click, force no color
+            },
+            catch_exceptions=False,  # no swallowing, pytest will see the error
         )
+        # Remove all whitespace differences (spaces, newlines, carriage returns)
+        cleaned = clean_cli_output(result.stdout)
 
         assert result.exit_code == 0, f"Unexpected failure: {result.output}"
 
         # Header
-        assert "Usage: cli [OPTIONS] COMMAND [ARGS]..." in result.output
-        assert "Check network connectivity and generate reports - CLI or GUI" in result.output
+        assert "Usage: cli [OPTIONS] COMMAND [ARGS]..." in cleaned
+        assert "Check network connectivity and generate reports - CLI or GUI" in cleaned
         # Options
-        assert "--version             -V        Show the application version and exit." in result.output
-        assert "--install-completion            Install completion for the current shell." in result.output
+        assert "--version -V Show the application version and exit." in cleaned
+        assert "--install-completion Install completion for the current shell." in cleaned
         assert (
-            "--show-completion               Show completion for the current shell, to copy it or customize the installation."
-            in result.output
+            "--show-completion Show completion for the current shell, to copy it or customize the installation."
+            in cleaned
         )
-        assert "--help                          Show this message and exit." in result.output
+        assert "--help Show this message and exit." in cleaned
         # Localization
-        assert "--language  -l      TEXT  Language (e.g., 'en', 'de'). [default: None] " in result.output
+        assert "Localization" in cleaned
+        assert "--language -l TEXT Language (e.g., 'en', 'de'). [default: None]" in cleaned
         # Logging
+        assert "Logging" in cleaned
         assert (
-            "-verbose  -v      INTEGER  Increase verbosity. Default logging level is WARNING. Use -v to enable INFO messages. -vv to enable DEBUG messages."
-            in result.output
+            "--verbose -v INTEGER Increase verbosity. Default logging level is WARNING. Use -v to enable INFO messages. -vv to enable DEBUG messages. Additional -v flags have no further effect."
+            in cleaned
         )
         # Configuration
+        assert "Configuration" in cleaned
         assert (
-            "--config  -c      FILE  Path to the config file. A default one is created if missing. [default: None] "
-            in result.output
+            "--config -c FILE Path to the config file. A default one is created if missing. [default: None]"
+            in cleaned
         )
         # Commands
-        assert "run       Run network tests for NTP and HTTPS servers." in result.output
+        assert "Commands" in cleaned
+        assert "run Run network tests for NTP and HTTPS servers." in cleaned
         assert (
-            "report    Generate HTML and PDF reports from the most recent connectivity test results." in result.output
+            "report Generate HTML and PDF reports from the most recent connectivity test results." in cleaned
         )
-        assert "summary   Generate a summary of the most recent connectivity test results." in result.output
-        assert "gui       Run CheckConnect in graphical user interface (GUI) mode." in result.output
+        assert "summary Generate a summary of the most recent connectivity test results." in cleaned
+        assert "gui Run CheckConnect in graphical user interface (GUI) mode." in cleaned
 
     @pytest.mark.integration
     def test_main_with_version_option(self, runner: CliRunner) -> None:
@@ -531,22 +569,23 @@ class TestCliMain:
         ----
             runner (CliRunner): Typer's CLI test runner fixture.
         """
-        test_env = {
-            "NO_COLOR": "1",  # Disable colors for consistent output
-            "TERM": "dumb",  # Disable advanced terminal features like frames
-            # "mix_stderr": "False",  # These should be direct arguments to invoke() if needed
-            # "catch_exceptions": "False",  # And this one too
-        }
 
         result = runner.invoke(
             main_app,
             ["--version"],
-            env=test_env,
+            env={
+                "NO_COLOR": "1",   # Rich disables colors
+                "TERM": "dumb",    # disables most TTY formatting
+                "CLICOLOR_FORCE": "0",  # if using rich-click, force no color
+            },
+            catch_exceptions=False,  # no swallowing, pytest will see the error
         )
+        # Remove all whitespace differences (spaces, newlines, carriage returns)
+        cleaned = clean_cli_output(result.stdout)
 
         assert result.exit_code == 0, f"Unexpected failure: {result.output}"
-        assert "CheckConnect" in result.output
-        assert "version" in result.output.lower()
+        assert "CheckConnect" in cleaned
+        assert "version" in cleaned.lower()
 
 
 if __name__ == "__main__":
