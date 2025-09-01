@@ -235,6 +235,6 @@ jobs:
           fi
 
       - name: ✅ Verify Workflow Completion
-        uses: re-actors/alls-green@223e4bb7a751b91f43eda76992bcfbf23b8b0302 # v1.2.2
+        uses: re-actors/alls-green@2765efec08f0fd63e83ad900f5fd75646be69ff6 # v1.2.2
         with:
           jobs: ${{ toJSON(needs) }}

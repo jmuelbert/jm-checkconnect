@@ -34,7 +34,7 @@ jobs:
         with:
           egress-policy: audit
       - name: 📥 Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
       - name: 🔎 Dependency Review
@@ -130,7 +130,7 @@ jobs:
         with:
           egress-policy: audit
       - name: 📥 Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
       - name: 🔍 Check PR Title
@@ -251,7 +251,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v5
 
       - name: Trunk Code Quality
         uses: trunk-io/trunk-action@v1
@@ -275,7 +275,7 @@ jobs:
         with:
           egress-policy: audit
       - name: 📥 Checkout Repository
-        uses: actions/checkout@v4 # Use tag instead of SHA
+        uses: actions/checkout@v5 # Use tag instead of SHA
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -381,7 +381,7 @@ jobs:
           fi
       - name: 📤 Upload Coverage on ${{ matrix.os }}
         if: runner.os == 'Linux'
-        uses: codecov/codecov-action@v4 # Use tag instead of SHA
+        uses: codecov/codecov-action@v5 # Use tag instead of SHA
         with:
           files: ./coverage.xml
           flags: ${{ matrix.os }},python
@@ -409,7 +409,7 @@ jobs:
         with:
           egress-policy: audit
       - name: 📥 Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Call Python Environment Setup
         uses: ./.github/actions/python-setup
         id: python-setup
@@ -443,7 +443,7 @@ jobs:
         with:
           egress-policy: audit
       - name: 🧰 Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Call Python Environment Setup
         uses: ./.github/actions/python-setup
         id: python-setup
@@ -472,7 +472,7 @@ jobs:
           pnpm dlx cspell **
       - name: 📝 Create Fix PR
         if: ${{ failure() }}
-        uses: peter-evans/create-pull-request@v6
+        uses: peter-evans/create-pull-request@v7
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: 'docs: fix spelling issues'
@@ -497,7 +497,7 @@ jobs:
         with:
           egress-policy: audit
       - name: 🧰 Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Call Python Environment Setup
         uses: ./.github/actions/python-setup
         with:

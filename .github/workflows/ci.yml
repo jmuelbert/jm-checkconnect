@@ -45,7 +45,7 @@ jobs:
         with:
           egress-policy: audit
       - name: 🧐 Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
       - name: 🔎 Dependency Review
@@ -142,7 +142,7 @@ jobs:
         with:
           egress-policy: audit
       - name: 🧐 Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
       - name: Call Python Environment Setup
@@ -195,7 +195,7 @@ jobs:
         with:
           egress-policy: audit
       - name: 🧰 Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
           persist-credentials: false

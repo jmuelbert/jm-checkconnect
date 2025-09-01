@@ -30,7 +30,7 @@ jobs:
         with:
           egress-policy: audit
       - name: 📥 Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: 🏷️ Sync Labels
         uses: EndBug/label-sync@v2
         with:
