@@ -53,13 +53,13 @@ jobs:
         with:
           egress-policy: audit
       - name: 🧰 Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
           persist-credentials: false
       - name: 🔍 Run Scorecard Analysis
         id: scorecard
-        uses: ossf/scorecard-action@v2.4.1
+        uses: ossf/scorecard-action@v2.4.2
         with:
           results_file: scorecard.sarif
           results_format: sarif

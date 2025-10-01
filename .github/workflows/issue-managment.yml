@@ -36,7 +36,7 @@ jobs:
           egress-policy: audit
 
       - name: 🧰 Checkout Repository
-        uses: actions/checkout@v4 # Required to read .github/workflows directory for default location.
+        uses: actions/checkout@v5 # Required to read .github/workflows directory for default location.
 
       - name: 🏷️ Process Issue
         id: triage
