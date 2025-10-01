@@ -45,7 +45,7 @@ jobs:
             echo "running pnpm install"
             pnpm install
       - name: 🔧 Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: 'lts/*'
           cache: 'pnpm'
@@ -55,7 +55,7 @@ jobs:
           pnpm add yaml
       - name: 📝 Generate Report
         if: always()
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const fs = require('fs');

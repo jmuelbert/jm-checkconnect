@@ -64,7 +64,7 @@ jobs:
           VULNERABLE_CHANGES: ${{ steps.review.outputs.vulnerable-changes }}
           LICENSE_CHANGES: ${{ steps.review.outputs.invalid-license-changes }}
           DENIED_CHANGES: ${{ steps.review.outputs.denied-changes }}
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const outputs = {
@@ -305,7 +305,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: 📧 Process Status
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             try {

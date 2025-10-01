@@ -47,7 +47,7 @@ jobs:
           path: site/
       - name: 📢 Create Release Comment
         if: success()
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const summary = `## 📚 Documentation Deployment
@@ -94,7 +94,7 @@ jobs:
       issues: write
     steps:
       - name: 📧 Process Status
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         if: needs.deploy.result != 'success'
         with:
           script: |

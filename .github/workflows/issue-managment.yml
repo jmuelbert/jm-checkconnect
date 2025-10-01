@@ -40,7 +40,7 @@ jobs:
 
       - name: 🏷️ Process Issue
         id: triage
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const CONFIG = {
@@ -165,7 +165,7 @@ jobs:
             core.setOutput('priority', result?.priority);
 
       - name: 📊 Process Stale Issues
-        uses: actions/stale@v9
+        uses: actions/stale@v10
         with:
           stale-issue-message: "This issue hasn't had recent activity."
           close-issue-message: 'Closing due to inactivity.'
@@ -175,14 +175,14 @@ jobs:
 
       - name: 📝 Generate Report
         if: always()
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const duration = Date.now() - new Date(context.payload.issue.created_at).getTime();
             console.log(`Processing completed in ${duration}ms`);
 
       - name: Authenticate with PAT
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             github.auth(`token: ${{ secrets.PROJECT_ACCESS_TOKEN }}`);
@@ -190,7 +190,7 @@ jobs:
 
       - name: 🏗️ Manage Project
         id: project
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const PROJECT_CONFIG = {
@@ -273,7 +273,7 @@ jobs:
 
       - name: 📢 Notify Team
         if: steps.triage.outputs.priority == 'high' && steps.project.outputs.project-managed == 'true'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const message = `🚨 High Priority Issue
@@ -307,14 +307,14 @@ jobs:
 
     steps:
       - name: Authenticate with PAT
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             github.auth(`token: ${{ secrets.PROJECT_ACCESS_TOKEN }}`);
             console.log('Authenticated with PAT successfully.');
 
       - name: 🔄 Update Project Views
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             // Add custom project view updates here
