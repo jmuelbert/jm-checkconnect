@@ -102,7 +102,7 @@ jobs:
 
       - name: 📊 Process Results
         if: always()
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const fs = require('fs');
@@ -170,7 +170,7 @@ jobs:
 
       - name: Combine and Post Results
         if: always()
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const pythonSummary = core.getInput('python-summary', { required: false });

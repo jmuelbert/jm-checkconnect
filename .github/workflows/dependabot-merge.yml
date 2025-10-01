@@ -55,7 +55,7 @@ jobs:
 
       - name: 🏷️ Add Labels
         id: labels
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         env:
           DEPENDENCY_TYPE: ${{ steps.metadata.outputs.dependency-type }}
           UPDATE_TYPE: ${{ steps.metadata.outputs.update-type }}
@@ -115,7 +115,7 @@ jobs:
         if: |
           steps.metadata.outputs.update-type == 'version-update:semver-patch' ||
           contains(steps.metadata.outputs.dependency-names, 'test-dependencies')
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             await github.rest.pulls.createReview({
@@ -131,7 +131,7 @@ jobs:
         if: |
           steps.approve.outcome == 'success' &&
           !contains(steps.metadata.outputs.dependency-names, 'blocked-deps')
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             try {
@@ -151,7 +151,7 @@ jobs:
 
       - name: 📝 Add Merge Comment
         if: steps.merge.outputs.merged == 'true'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             await github.rest.issues.createComment({
@@ -172,7 +172,7 @@ jobs:
     steps:
       - name: 🔔 Notify on Failure
         if: needs.dependabot.result == 'failure'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             await github.rest.issues.createComment({

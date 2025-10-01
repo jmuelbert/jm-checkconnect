@@ -59,14 +59,14 @@ jobs:
           persist-credentials: false
       - name: 🔍 Run Scorecard Analysis
         id: scorecard
-        uses: ossf/scorecard-action@v2.4.2
+        uses: ossf/scorecard-action@v2.4.3
         with:
           results_file: scorecard.sarif
           results_format: sarif
           publish_results: true
       - name: 📊 Process Results
         id: process-results
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const fs = require('fs');
@@ -145,7 +145,7 @@ jobs:
 
       - name: 💬 Add Comment to PR
         if: ${{ github.event_name == 'pull_request' }}
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const report = `${{ steps.process-results.outputs.report }}`;

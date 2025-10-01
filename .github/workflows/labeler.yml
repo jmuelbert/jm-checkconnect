@@ -110,7 +110,7 @@ jobs:
 
       - name: 🏷️ Apply Scope Labels
         id: labeler
-        uses: actions/labeler@v5
+        uses: actions/labeler@v6
         timeout-minutes: 5
         continue-on-error: true
         with:
@@ -119,7 +119,7 @@ jobs:
           sync-labels: true
 
       - name: 📝 Process PR Content
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         timeout-minutes: 5
         with:
           script: |
